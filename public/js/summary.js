@@ -345,6 +345,9 @@ function generateImage() {
   wrap.classList.remove('hidden');
   const canvas = document.getElementById('shareCanvas');
   const ctx = canvas.getContext('2d');
+
+  // High-DPI: draw at 2× internal resolution for crisp output
+  const SCALE = 2;
   const W = 600, P = 44, LH = 20;
   const RED = '#DC2626';
   const BLACK = '#18181B';
@@ -354,7 +357,6 @@ function generateImage() {
   const ordered = buildPeopleBreakdown();
 
   // ---- Compute canvas height ----
-  // Each solo>1 or each shared entry adds one extra "detail" sub-line (LH - 4)
   const DETAIL_H = 14;
   let H = 50 + 20 + 24 + 28 + 28 + 28;
   ordered.forEach(p => {
@@ -374,8 +376,12 @@ function generateImage() {
   });
   H += 70; // footer padding + easter egg
 
-  canvas.width = W;
-  canvas.height = H;
+  // Set canvas to 2× pixel size, scale context so drawing code stays the same
+  canvas.width = W * SCALE;
+  canvas.height = H * SCALE;
+  canvas.style.width = W + 'px';
+  canvas.style.height = H + 'px';
+  ctx.scale(SCALE, SCALE);
 
   // Paper background
   ctx.fillStyle = '#FFFEF8';

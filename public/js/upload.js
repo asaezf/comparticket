@@ -1,4 +1,4 @@
-// comparTICKET — Upload page (multi-image)
+// comparTICKET — Upload page (multi-image, camera + gallery)
 document.getElementById('uploadTitle').textContent = t.uploadTitle;
 document.getElementById('uploadSub').textContent = t.uploadHint;
 document.getElementById('retakeText').textContent = t.retakeBtn;
@@ -7,11 +7,15 @@ document.getElementById('procText').textContent = t.processing;
 document.getElementById('tutText1').textContent = t.tut1;
 document.getElementById('tutText2').textContent = t.tut2;
 document.getElementById('tutText3').textContent = t.tut3;
+document.getElementById('cameraBtnText').textContent = t.cameraLabel || 'Cámara';
+document.getElementById('galleryBtnText').textContent = t.galleryLabel || 'Galería';
 const addHint = document.getElementById('addHintText');
 if (addHint) addHint.textContent = t.addMore;
 
 const cameraBtn = document.getElementById('cameraBtn');
-const fileInput = document.getElementById('fileInput');
+const galleryBtn = document.getElementById('galleryBtn');
+const cameraInput = document.getElementById('cameraInput');
+const galleryInput = document.getElementById('galleryInput');
 const uploadArea = document.getElementById('uploadArea');
 const previewOverlay = document.getElementById('previewOverlay');
 const previewThumbs = document.getElementById('previewThumbs');
@@ -21,16 +25,34 @@ const proc = document.getElementById('processing');
 
 let files = []; // File[]
 
+// Camera button → opens camera directly
 cameraBtn.addEventListener('click', () => {
-  fileInput.value = '';
-  fileInput.click();
+  cameraInput.value = '';
+  cameraInput.click();
 });
 
-fileInput.addEventListener('change', e => {
+// Gallery button → opens file picker / gallery
+galleryBtn.addEventListener('click', () => {
+  galleryInput.value = '';
+  galleryInput.click();
+});
+
+// Handle camera capture
+cameraInput.addEventListener('change', e => {
   if (!e.target.files.length) return;
   [...e.target.files].forEach(f => addFile(f));
   renderThumbs();
-  fileInput.value = '';
+  cameraInput.value = '';
+  uploadArea.classList.add('hidden');
+  previewOverlay.classList.remove('hidden');
+});
+
+// Handle gallery selection
+galleryInput.addEventListener('change', e => {
+  if (!e.target.files.length) return;
+  [...e.target.files].forEach(f => addFile(f));
+  renderThumbs();
+  galleryInput.value = '';
   uploadArea.classList.add('hidden');
   previewOverlay.classList.remove('hidden');
 });
@@ -63,7 +85,7 @@ function renderThumbs() {
     const rm = document.createElement('button');
     rm.className = 'thumb-rm';
     rm.type = 'button';
-    rm.textContent = '×';
+    rm.textContent = '\u00d7';
     rm.setAttribute('aria-label', 'Quitar');
     rm.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -80,7 +102,7 @@ function renderThumbs() {
     add.type = 'button';
     add.textContent = '+';
     add.setAttribute('aria-label', t.addMore);
-    add.addEventListener('click', () => fileInput.click());
+    add.addEventListener('click', () => galleryInput.click());
     previewThumbs.appendChild(add);
   }
 }

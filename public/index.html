@@ -21,8 +21,19 @@
 
     <!-- Upload area -->
     <div class="upload-area" id="uploadArea">
-      <div class="camera-ring" id="cameraBtn">
-        <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+      <div class="upload-btns-row">
+        <button class="upload-option" id="cameraBtn" type="button">
+          <div class="upload-option-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+          </div>
+          <span id="cameraBtnText"></span>
+        </button>
+        <button class="upload-option" id="galleryBtn" type="button">
+          <div class="upload-option-icon">
+            <svg viewBox="0 0 24 24"><path d="M21 19V5c0-1.1-.9-2-2-2H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2zM8.5 13.5l2.5 3.01L14.5 12l4.5 6H5l3.5-4.5z"/></svg>
+          </div>
+          <span id="galleryBtnText"></span>
+        </button>
       </div>
       <div class="upload-title" id="uploadTitle"></div>
       <div class="upload-sub" id="uploadSub"></div>
@@ -35,7 +46,8 @@
       </div>
     </div>
 
-    <input type="file" id="fileInput" accept="image/*" multiple>
+    <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
+    <input type="file" id="galleryInput" accept="image/*" multiple style="display:none">
 
     <!-- Preview overlay: grid of thumbnails + add-more button + scan -->
     <div class="preview-overlay hidden" id="previewOverlay">

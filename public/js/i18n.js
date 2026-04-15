@@ -75,7 +75,9 @@ const translations = {
     ctut1: 'Escribe tu nombre real arriba — sin apodos, así tus amigos te identifican.',
     ctut2: 'Toca las píldoras de cada artículo según las unidades que has consumido.',
     ctut3: 'Si una unidad ya tiene el nombre de otra persona, al tocarla se compartirá automáticamente entre vosotros.',
-    onlyCreatorCanClose: 'Solo quien creó el ticket puede cerrarlo'
+    onlyCreatorCanClose: 'Solo quien creó el ticket puede cerrarlo',
+    cameraLabel: 'Cámara',
+    galleryLabel: 'Galería'
   },
   en: {
     brand: 'compar',
@@ -152,7 +154,9 @@ const translations = {
     ctut1: 'Enter your real name above — no nicknames, so your friends recognize you.',
     ctut2: 'Tap the pills of each item for the units you consumed.',
     ctut3: 'If a unit already has someone else\u2019s name, tapping it shares that unit between you both.',
-    onlyCreatorCanClose: 'Only the ticket creator can close it'
+    onlyCreatorCanClose: 'Only the ticket creator can close it',
+    cameraLabel: 'Camera',
+    galleryLabel: 'Gallery'
   }
 };
 
