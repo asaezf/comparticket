@@ -10,13 +10,25 @@ const admin = require('firebase-admin');
 if (!admin.apps.length) {
   const raw = process.env.FIREBASE_SERVICE_ACCOUNT;
   if (!raw) {
-    throw new Error('FIREBASE_SERVICE_ACCOUNT env var is missing');
+    console.error('FIREBASE_SERVICE_ACCOUNT env var is missing — running without DB');
+    // Initialize with application default credentials as fallback attempt
+    try {
+      admin.initializeApp();
+    } catch (_) {
+      admin.initializeApp({ projectId: 'lifeos-74b8b' });
+    }
+  } else {
+    try {
+      const svc = JSON.parse(raw);
+      admin.initializeApp({
+        credential: admin.credential.cert(svc),
+        projectId: svc.project_id
+      });
+    } catch (err) {
+      console.error('Failed to parse FIREBASE_SERVICE_ACCOUNT:', err.message);
+      admin.initializeApp({ projectId: 'lifeos-74b8b' });
+    }
   }
-  const svc = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  admin.initializeApp({
-    credential: admin.credential.cert(svc),
-    projectId: svc.project_id
-  });
 }
 
 const db = admin.firestore();
