@@ -102,6 +102,10 @@ scanBtn.addEventListener('click', async () => {
 
   try {
     const res = await fetch('/api/tickets', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const errData = await res.json().catch(() => ({}));
+      throw new Error(errData.error || `Server error ${res.status}`);
+    }
     const data = await res.json();
     // Persist creator key so only this device can close the bill later
     if (data.id && data.creatorKey) {
@@ -109,9 +113,18 @@ scanBtn.addEventListener('click', async () => {
     }
     if (data.redirect) window.location.href = data.redirect;
   } catch (err) {
-    console.error(err);
+    console.error('Upload error:', err);
     proc.classList.add('hidden');
-    uploadArea.classList.remove('hidden');
+    previewOverlay.classList.remove('hidden');
+    // Show error toast
+    const toast = document.getElementById('toast');
+    if (toast) {
+      toast.textContent = lang === 'es'
+        ? 'Error al procesar el ticket. Inténtalo de nuevo.'
+        : 'Error processing receipt. Please try again.';
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 4000);
+    }
   }
 });
 
