@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ECEAE4">
+  <title>comparTICKET</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="page has-sticky-bottom">
+
+    <!-- Top bar -->
+    <div class="top-bar">
+      <button class="top-bar-btn" onclick="history.back()">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <div class="top-bar-title" id="barTitle"></div>
+      <div style="width:36px;"></div>
+    </div>
+
+    <!-- Printer Assembly — printer body + ticket emerging from slot -->
+    <div class="printer-assembly">
+      <div class="printer-body">
+        <div class="printer-brand"><span>compar</span><strong>TICKET</strong></div>
+        <div class="printer-right">
+          <div class="printer-leds">
+            <div class="printer-led on"></div>
+            <div class="printer-led idle"></div>
+          </div>
+        </div>
+        <div class="printer-slot-line"></div>
+      </div>
+
+      <div class="ticket-wrap">
+        <!-- Ticket paper — narrower than printer, emerges from slot -->
+        <div class="ticket printing" id="ticket">
+          <!-- Header: date + store name -->
+          <div class="ticket-header">
+            <div class="ticket-store" id="ticketTitle"></div>
+            <div class="ticket-date" id="ticketDate"></div>
+          </div>
+
+          <hr class="dash-sep heavy">
+
+          <!-- Payer name -->
+          <div class="payer-field">
+            <label id="payerLabel"></label>
+            <input type="text" id="payerInput" autocomplete="given-name" maxlength="30" placeholder="—">
+          </div>
+
+          <hr class="dash-sep">
+
+          <!-- Expected participants -->
+          <div class="participants-field">
+            <label id="participantsLabel"></label>
+            <input type="number" id="participantsInput" min="1" max="40" inputmode="numeric" placeholder="—">
+          </div>
+
+          <hr class="dash-sep">
+
+          <!-- Column headers -->
+          <div class="edit-header">
+            <span id="lblItem"></span>
+            <span class="eh-c" id="lblQty"></span>
+            <span class="eh-r" id="lblUnit"></span>
+            <span class="eh-r" id="lblTotal2"></span>
+            <span></span>
+          </div>
+
+          <!-- Items list -->
+          <div id="itemsList"></div>
+
+          <!-- Add item -->
+          <button class="btn btn-outline btn-full mt-8" id="addBtn"
+            style="font-family:var(--mono);font-size:0.72rem;padding:8px;border-radius:8px;border-style:dashed;color:var(--gray-500);">
+          </button>
+
+          <hr class="dash-sep heavy">
+
+          <div class="data-row">
+            <span class="data-label" id="lblTotal"></span>
+            <span class="data-value big" id="totalVal">€0,00</span>
+          </div>
+        </div>
+        <!-- Zigzag torn bottom -->
+        <div class="ticket-zigzag"></div>
+      </div>
+    </div>
+
+    <!-- Share section -->
+    <div class="hidden px-16 share-section" id="shareSection">
+      <div class="share-box">
+        <div class="sb-title" id="shareTitle"></div>
+        <div class="sb-hint" id="shareHint"></div>
+        <div class="share-link" id="shareUrl"></div>
+        <div class="share-btn-row">
+          <button class="btn btn-outline" id="copyBtn">
+            <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+            <span id="copyText"></span>
+          </button>
+          <button class="btn btn-blue" id="nativeBtn">
+            <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+            <span id="nativeText"></span>
+          </button>
+        </div>
+      </div>
+      <div class="share-actions">
+        <a id="claimMineLink" class="btn btn-accent btn-full" href="#">
+          <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+          <span id="claimMineText"></span>
+        </a>
+        <a id="summaryLink" class="btn btn-dark btn-full" href="#"></a>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="bottom-sticky" id="footer">
+      <button class="btn btn-dark btn-full" id="shareBtn"></button>
+    </div>
+
+    <div class="home-indicator"></div>
+    <div class="easter-egg">por alvaro saez ;)</div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="/js/i18n.js"></script>
+  <script src="/js/ticket.js"></script>
+</body>
+</html>

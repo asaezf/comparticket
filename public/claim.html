@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ECEAE4">
+  <title>comparTICKET</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="page">
+
+    <div class="top-bar">
+      <div style="width:36px;"></div>
+      <div class="top-bar-title" id="barTitle"></div>
+      <div style="width:36px;"></div>
+    </div>
+
+    <!-- Printer Assembly -->
+    <div class="printer-assembly">
+      <div class="printer-body">
+        <div class="printer-brand"><span>compar</span><strong>TICKET</strong></div>
+        <div class="printer-right">
+          <div class="printer-leds">
+            <div class="printer-led on"></div>
+            <div class="printer-led idle"></div>
+          </div>
+        </div>
+        <div class="printer-slot-line"></div>
+      </div>
+
+      <div class="ticket-wrap">
+        <div class="ticket printing" id="ticket">
+          <div class="ticket-header">
+            <div class="ticket-store" id="ticketStore"></div>
+            <div class="ticket-date" id="ticketDate"></div>
+          </div>
+
+          <hr class="dash-sep heavy">
+
+          <!-- Name input -->
+          <div class="name-field">
+            <label id="nameLabel"></label>
+            <input type="text" id="nameInput" autocomplete="given-name" maxlength="30">
+          </div>
+
+          <hr class="dash-sep">
+
+          <!-- Tutorial -->
+          <div class="claim-tut" id="claimTut">
+            <div class="ct-step"><div class="ct-num">1</div><div class="ct-txt" id="ctut1"></div></div>
+            <div class="ct-step"><div class="ct-num">2</div><div class="ct-txt" id="ctut2"></div></div>
+            <div class="ct-step"><div class="ct-num">3</div><div class="ct-txt" id="ctut3"></div></div>
+          </div>
+
+          <hr class="dash-sep">
+
+          <!-- Items checkboxes -->
+          <div id="itemsList"></div>
+
+          <hr class="dash-sep heavy">
+
+          <div class="data-row">
+            <span class="data-label" id="lblTotal"></span>
+            <span class="data-value big" id="yourTotal">€0,00</span>
+          </div>
+        </div>
+        <div class="ticket-zigzag"></div>
+      </div>
+    </div>
+
+    <div class="bottom-sticky">
+      <button class="btn btn-dark btn-full" id="confirmBtn" disabled></button>
+    </div>
+
+    <div class="home-indicator"></div>
+    <div class="easter-egg">por alvaro saez ;)</div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="/js/i18n.js"></script>
+  <script src="/js/claim.js"></script>
+</body>
+</html>

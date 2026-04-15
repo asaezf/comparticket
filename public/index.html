@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ECEAE4">
+  <title>comparTICKET</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="page">
+
+    <!-- Top bar -->
+    <div class="top-bar">
+      <div style="width:36px;"></div>
+      <div class="top-bar-title" style="font-size:0.88rem;font-weight:800;letter-spacing:0.02em;">
+        <span style="font-weight:400;opacity:0.6;">compar</span><span>TICKET</span>
+      </div>
+      <div style="width:36px;"></div>
+    </div>
+
+    <!-- Upload area -->
+    <div class="upload-area" id="uploadArea">
+      <div class="camera-ring" id="cameraBtn">
+        <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+      </div>
+      <div class="upload-title" id="uploadTitle"></div>
+      <div class="upload-sub" id="uploadSub"></div>
+
+      <!-- Tutorial steps -->
+      <div class="tutorial" id="tutorial">
+        <div class="tut-row"><div class="tut-step-num">1</div><div class="tut-text" id="tutText1"></div></div>
+        <div class="tut-row"><div class="tut-step-num">2</div><div class="tut-text" id="tutText2"></div></div>
+        <div class="tut-row"><div class="tut-step-num">3</div><div class="tut-text" id="tutText3"></div></div>
+      </div>
+    </div>
+
+    <input type="file" id="fileInput" accept="image/*" capture="environment" multiple>
+
+    <!-- Preview overlay: grid of thumbnails + add-more button + scan -->
+    <div class="preview-overlay hidden" id="previewOverlay">
+      <div class="thumbs" id="previewThumbs"></div>
+      <div class="preview-add-hint" id="addHintText"></div>
+      <div class="preview-btns">
+        <button class="btn btn-retake" id="retakeBtn">
+          <span id="retakeText"></span>
+        </button>
+        <button class="btn btn-blue" id="scanBtn">
+          <svg viewBox="0 0 24 24"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+          <span id="scanText"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Processing -->
+    <div class="processing hidden" id="processing">
+      <div class="loader-printer">
+        <div class="lp-slot"></div>
+        <div class="lp-paper"></div>
+      </div>
+      <div class="loader-text"><span id="procText"></span><span class="dot-pulse"></span></div>
+    </div>
+
+    <div class="home-indicator"></div>
+    <div class="easter-egg">por alvaro saez ;)</div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="/js/i18n.js"></script>
+  <script src="/js/upload.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Environment — NEVER commit secrets
+.env
+.env.local
+.env.*.local
+*-firebase-adminsdk*.json
+google-services.json
+
+# Legacy local dev artifacts (no longer used in Vercel)
+data/
+uploads/
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Vercel
+.vercel
