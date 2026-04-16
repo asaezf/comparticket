@@ -42,7 +42,13 @@ app.post('/api/tickets', upload.array('images', 6), async (req, res) => {
       mimeType: f.mimetype || 'image/jpeg'
     }));
 
-    const extracted = await ai.extractItemsFromImages(images);
+    let extracted;
+    try {
+      extracted = await ai.extractItemsFromImages(images);
+    } catch (aiErr) {
+      console.error('Gemini AI error:', aiErr.message || aiErr);
+      return res.status(500).json({ error: 'AI failed: ' + (aiErr.message || 'unknown') });
+    }
 
     const id = nanoid(8);
     const creatorKey = nanoid(24);

@@ -141,11 +141,11 @@ scanBtn.addEventListener('click', async () => {
     // Show error toast
     const toast = document.getElementById('toast');
     if (toast) {
-      toast.textContent = lang === 'es'
+      toast.textContent = err.message || (lang === 'es'
         ? 'Error al procesar el ticket. Inténtalo de nuevo.'
-        : 'Error processing receipt. Please try again.';
+        : 'Error processing receipt. Please try again.');
       toast.classList.remove('hidden');
-      setTimeout(() => toast.classList.add('hidden'), 4000);
+      setTimeout(() => toast.classList.add('hidden'), 6000);
     }
   }
 });
