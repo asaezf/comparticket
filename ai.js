@@ -104,21 +104,39 @@ FORMATO DE SALIDA (JSON puro, sin markdown, sin explicaciones):
 }
 `;
 
-// Use gemini-2.5-flash for better OCR accuracy (flash-lite struggles with
-// receipt layouts, column alignment, and sub-item grouping).
-const MODEL = 'gemini-2.5-flash';
+// Primary model: gemini-2.5-flash (best OCR accuracy).
+// Fallback: gemini-2.5-flash-lite (less accurate but always available).
+const PRIMARY_MODEL = 'gemini-2.5-flash';
+const FALLBACK_MODEL = 'gemini-2.5-flash-lite';
+
+/**
+ * Call Gemini with retry logic. On 503 (overloaded), retries up to 3 times
+ * with exponential backoff, then falls back to flash-lite.
+ */
+async function callGemini(model, parts) {
+  const response = await ai.models.generateContent({
+    model,
+    contents: [{ role: 'user', parts }],
+    config: {
+      systemInstruction: SYSTEM_PROMPT,
+      temperature: 0.05,
+      responseMimeType: 'application/json'
+    }
+  });
+  return response;
+}
+
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
 /**
  * Extract ticket items from one or more image buffers.
  * @param {Array<{ buffer: Buffer, mimeType: string }>} images
- * @returns {Promise<{ restaurant: string|null, date: string|null, items: Array, total: number }>}
  */
 async function extractItemsFromImages(images) {
   if (!Array.isArray(images) || images.length === 0) {
     throw new Error('No images provided to AI');
   }
 
-  // Build multimodal content: one inlineData part per image + one text part
   const parts = images.map(img => ({
     inlineData: {
       mimeType: img.mimeType || 'image/jpeg',
@@ -131,25 +149,31 @@ async function extractItemsFromImages(images) {
       : 'Extrae los ítems de este ticket. Lee con mucho cuidado cada línea, su cantidad y su precio.'
   });
 
-  const response = await ai.models.generateContent({
-    model: MODEL,
-    contents: [{ role: 'user', parts }],
-    config: {
-      systemInstruction: SYSTEM_PROMPT,
-      temperature: 0.05, // Very low — we want precise OCR, zero creativity
-      responseMimeType: 'application/json'
+  // Try primary model with retries, then fallback
+  let lastError;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      if (attempt > 0) await sleep(1000 * attempt); // 1s, 2s backoff
+      const response = await callGemini(PRIMARY_MODEL, parts);
+      return normalize(JSON.parse(response.text || '{}'));
+    } catch (err) {
+      lastError = err;
+      const msg = err.message || '';
+      const is503 = msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand');
+      if (!is503) throw err; // Non-retryable error — bail out
+      console.log(`Gemini ${PRIMARY_MODEL} attempt ${attempt + 1}/3 got 503, retrying...`);
     }
-  });
-
-  let parsed;
-  try {
-    parsed = JSON.parse(response.text || '{}');
-  } catch (err) {
-    console.error('Gemini returned non-JSON:', response.text);
-    throw new Error('Respuesta de Gemini no es JSON válido');
   }
 
-  return normalize(parsed);
+  // All retries exhausted — try fallback model
+  console.log(`Falling back to ${FALLBACK_MODEL}...`);
+  try {
+    const response = await callGemini(FALLBACK_MODEL, parts);
+    return normalize(JSON.parse(response.text || '{}'));
+  } catch (fallbackErr) {
+    console.error('Fallback model also failed:', fallbackErr.message);
+    throw lastError; // Throw original 503 error
+  }
 }
 
 // Sanitize the model output — assign sequential ids, coerce numbers, round
