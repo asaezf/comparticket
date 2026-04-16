@@ -48,6 +48,8 @@ async function createTicket(id, items, total, imagePath, meta = {}) {
     imagePaths: meta.imagePaths || [],
     restaurant: meta.restaurant || null,
     receiptDate: meta.receiptDate || null,
+    receiptTime: meta.receiptTime || null,
+    address: meta.address || null,
     payerName: null,
     expectedParticipants: null,
     creatorKey: meta.creatorKey || null,

@@ -57,7 +57,14 @@ CANTIDAD (quantity):
 2. NEGOCIO. Extrae el nombre del restaurante/bar de la cabecera,
    en MAYÚSCULAS. Si no hay, null.
 
-3. FECHA. Formato ISO: YYYY-MM-DD. Si no hay, null.
+3. FECHA Y HORA. Fecha en formato ISO: YYYY-MM-DD. Si no hay, null.
+   Hora en formato HH:MM (24h). Búscala cerca de la fecha en el ticket
+   (ej: "05/04/2026 11:08" → date: "2026-04-05", time: "11:08").
+   Si no hay hora visible, null.
+
+3b. DIRECCIÓN. Extrae la dirección o localidad del negocio si aparece
+    en la cabecera del ticket (ej: "03201 Elche - Alicante" →
+    address: "Elche, Alicante"). Formato limpio y corto. Si no hay, null.
 
 4. ÍTEMS. Para cada artículo consumido:
    - name: nombre limpio y descriptivo (incluye complementos si los tiene).
@@ -88,6 +95,8 @@ FORMATO DE SALIDA (JSON puro, sin markdown, sin explicaciones):
 {
   "restaurant": "NOMBRE DEL LOCAL" | null,
   "date": "2026-04-15" | null,
+  "time": "11:08" | null,
+  "address": "Elche, Alicante" | null,
   "items": [
     { "name": "1/2 Jamón con queso y tomate", "quantity": 1, "unitPrice": 3.60, "totalPrice": 3.60, "shared": false }
   ],
@@ -170,6 +179,8 @@ function normalize(raw) {
   return {
     restaurant: raw.restaurant ? String(raw.restaurant).trim() : null,
     date: raw.date ? String(raw.date).trim() : null,
+    time: raw.time ? String(raw.time).trim() : null,
+    address: raw.address ? String(raw.address).trim() : null,
     items: cleanItems,
     total
   };

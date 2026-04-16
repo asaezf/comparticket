@@ -50,6 +50,8 @@ app.post('/api/tickets', upload.array('images', 6), async (req, res) => {
       imagePaths: [],
       restaurant: extracted.restaurant,
       receiptDate: extracted.date,
+      receiptTime: extracted.time,
+      address: extracted.address,
       creatorKey
     });
 

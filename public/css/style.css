@@ -462,6 +462,7 @@ body {
   font-weight: 700;
   color: var(--black);
   margin-bottom: 3px;
+  white-space: pre-line;
   letter-spacing: 0.02em;
   word-wrap: break-word;
 }
@@ -740,10 +741,11 @@ body {
 }
 .person-item .pi-detail {
   padding-left: 10px;
-  font-size: 0.6rem;
+  font-size: 0.58rem;
   color: var(--gray-400);
   font-style: italic;
-  line-height: 1.35;
+  line-height: 1.3;
+  white-space: nowrap;
   margin-top: 1px;
 }
 .person-item .shared-with {

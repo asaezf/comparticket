@@ -30,13 +30,17 @@ async function loadData() {
   claimsData = await cRes.json();
 
   const d = new Date(ticketData.receiptDate || ticketData.createdAt);
-  document.getElementById('ticketTitle').textContent =
-    (ticketData.restaurant || t.restaurant).toUpperCase();
+  // Title: restaurant name + address if available
+  const titleParts = [(ticketData.restaurant || t.restaurant).toUpperCase()];
+  if (ticketData.address) titleParts.push(ticketData.address);
+  document.getElementById('ticketTitle').textContent = titleParts.join('\n');
+  // Date: use extracted time if available, otherwise omit time
+  const datePart = d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
+    day: '2-digit', month: 'short', year: 'numeric'
+  }).toUpperCase();
+  const timePart = ticketData.receiptTime || null;
   document.getElementById('ticketDate').textContent =
-    d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
-      day: '2-digit', month: 'short', year: 'numeric'
-    }).toUpperCase() + '  ' +
-    d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    timePart ? `${datePart}  ${timePart}` : datePart;
 
   document.getElementById('ticketTotal').textContent = `${ticketData.total.toFixed(2)}€`;
 
@@ -188,14 +192,14 @@ function renderPeople() {
       // One line per shared unit (each can have different sharers)
       it.shared.forEach(sh => {
         const sharedPart = sh.sharedWith.length > 0
-          ? ` · ${esc(t.sharedWith)} ${sh.sharedWith.map(esc).join(', ')}`
+          ? ` · ${sh.sharedWith.map(esc).join(', ')}`
           : '';
         lines.push(`<div class="person-item">
           <div class="pi-main">
             <span class="pi-name">· ${esc(it.name)}</span>
             <span class="pi-amt">${sh.amt.toFixed(2)}€</span>
           </div>
-          <div class="pi-detail">${unitPrice.toFixed(2)}€ ${esc(t.perUnit)} · (1/${sh.divider})${sharedPart}</div>
+          <div class="pi-detail">${unitPrice.toFixed(2)}€${esc(t.perUnit)} (1/${sh.divider})${sharedPart}</div>
         </div>`);
       });
     });
@@ -375,6 +379,7 @@ function generateImage() {
     H += 32 + Math.max(1, lineCount) * LH + detailCount * DETAIL_H + 16;
   });
   H += 70; // footer padding + easter egg
+  if (ticketData.address) H += 14; // extra line for address
 
   // Set canvas to 2× pixel size, scale context so drawing code stays the same
   canvas.width = W * SCALE;
@@ -389,20 +394,26 @@ function generateImage() {
 
   let y = 50;
 
-  // ---- Header (restaurant + date) ----
+  // ---- Header (restaurant + address + date) ----
   ctx.fillStyle = BLACK;
   ctx.font = '700 13px "Space Mono", monospace';
   ctx.textAlign = 'center';
   ctx.fillText((ticketData.restaurant || t.restaurant).toUpperCase(), W / 2, y);
-  y += 20;
+  y += 16;
+  if (ticketData.address) {
+    ctx.font = '400 9px "Space Mono", monospace';
+    ctx.fillStyle = GRAY;
+    ctx.fillText(ticketData.address, W / 2, y);
+    y += 14;
+  }
 
   const d = new Date(ticketData.receiptDate || ticketData.createdAt);
   ctx.font = '400 10px "Space Mono", monospace';
   ctx.fillStyle = GRAY;
+  const canvasDatePart = d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+  const canvasTimePart = ticketData.receiptTime || null;
   ctx.fillText(
-    d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() +
-    '   ' +
-    d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    canvasTimePart ? `${canvasDatePart}   ${canvasTimePart}` : canvasDatePart,
     W / 2, y
   );
   y += 24;
@@ -497,9 +508,9 @@ function generateImage() {
         ctx.fillStyle = GRAY_LIGHT;
         ctx.font = 'italic 400 9px "Space Mono", monospace';
         const shared = sh.sharedWith.length > 0
-          ? ` · ${t.sharedWith} ${sh.sharedWith.join(', ')}`
+          ? ` · ${sh.sharedWith.join(', ')}`
           : '';
-        ctx.fillText(`    ${unitPrice.toFixed(2)}€ ${t.perUnit} · (1/${sh.divider})${shared}`, P + 12, y);
+        ctx.fillText(`    ${unitPrice.toFixed(2)}€${t.perUnit} (1/${sh.divider})${shared}`, P + 12, y);
         ctx.font = '400 10px "Space Mono", monospace';
         y += DETAIL_H;
       });
