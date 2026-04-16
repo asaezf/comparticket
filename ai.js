@@ -153,15 +153,18 @@ async function extractItemsFromImages(images) {
   let lastError;
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
-      if (attempt > 0) await sleep(1000 * attempt); // 1s, 2s backoff
       const response = await callGemini(PRIMARY_MODEL, parts);
       return normalize(JSON.parse(response.text || '{}'));
     } catch (err) {
       lastError = err;
       const msg = err.message || '';
-      const is503 = msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand');
-      if (!is503) throw err; // Non-retryable error — bail out
-      console.log(`Gemini ${PRIMARY_MODEL} attempt ${attempt + 1}/3 got 503, retrying...`);
+      const isRetryable = msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand')
+        || msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('Please retry');
+      if (!isRetryable) throw err; // Non-retryable error — bail out
+      const waitMatch = msg.match(/retry in ([\d.]+)s/i);
+      const waitSec = waitMatch ? Math.min(Math.ceil(parseFloat(waitMatch[1])), 15) : 2 * (attempt + 1);
+      console.log(`Gemini ${PRIMARY_MODEL} attempt ${attempt + 1}/3 rate limited, waiting ${waitSec}s...`);
+      await sleep(waitSec * 1000);
     }
   }
 
