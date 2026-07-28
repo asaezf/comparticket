@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="comparTICKET">
+  <!--
+    Icono comparTICKET — versión grande (app, pantalla de inicio, tiendas).
+
+    Idea: un ticket partido por la mitad. Es lo que hace la app en una imagen.
+
+    Lenguaje visual del proyecto: papel crema (#FEFEF8), negro (#18181B),
+    naranja de acento (#FF6B35) y el borde dentado del ticket al salir de la
+    impresora. Sin degradados ni sombras: aguantan el escalado y que las
+    tiendas recorten el icono en círculo.
+
+    Para 16-32 px usar favicon.svg, que quita los renglones: aquí se
+    convertirían en una mancha gris.
+  -->
+
+  <rect width="512" height="512" rx="114" fill="#18181B"/>
+
+  <!-- Papel. Ocupa buena parte del marco a propósito: con más aire alrededor
+       el icono se deshacía por debajo de 64 px. -->
+  <path fill="#FEFEF8" d="
+    M 96 64
+    h 320
+    a 18 18 0 0 1 18 18
+    v 322
+    l -40 32 -40 -32 -40 32 -40 -32 -40 32 -40 -32 -40 32 -40 -32
+    v -322
+    a 18 18 0 0 1 18 -18
+    z"/>
+
+  <!-- Renglones: sugieren líneas de artículos sin dibujar texto -->
+  <g fill="#D4D4D8">
+    <rect x="134" y="134" width="86" height="22" rx="11"/>
+    <rect x="134" y="208" width="66" height="22" rx="11"/>
+    <rect x="134" y="282" width="78" height="22" rx="11"/>
+    <rect x="292" y="134" width="86" height="22" rx="11"/>
+    <rect x="292" y="208" width="86" height="22" rx="11"/>
+    <rect x="292" y="282" width="86" height="22" rx="11"/>
+  </g>
+
+  <!-- El corte. Único elemento en color: es lo que identifica el icono. -->
+  <line x1="256" y1="88" x2="256" y2="404"
+        stroke="#FF6B35" stroke-width="22" stroke-linecap="round"
+        stroke-dasharray="4 44"/>
+</svg>

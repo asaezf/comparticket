@@ -75,9 +75,19 @@ async function getPublicTicket(id) {
 async function verifyCreatorKey(id, key) {
   const ticket = await getTicket(id);
   if (!ticket) return false;
-  // Legacy tickets without a key — allow (dev backwards compat)
-  if (!ticket.creatorKey) return true;
-  return ticket.creatorKey === key;
+  // Antes, un ticket sin clave lo podía cerrar cualquiera: la comprobación
+  // devolvía true por compatibilidad con los tickets antiguos. Eso era una
+  // puerta trasera — bastaba con crear el ticket de forma que no guardara
+  // clave. Ahora sin clave no se cierra.
+  if (!ticket.creatorKey) return false;
+  if (typeof key !== 'string' || key.length !== ticket.creatorKey.length) return false;
+  // Comparación en tiempo constante: evita deducir la clave midiendo cuánto
+  // tarda en fallar.
+  let diff = 0;
+  for (let i = 0; i < key.length; i++) {
+    diff |= key.charCodeAt(i) ^ ticket.creatorKey.charCodeAt(i);
+  }
+  return diff === 0;
 }
 
 async function setTicketPayer(id, payerName) {
@@ -119,21 +129,36 @@ async function setTicketStatus(id, status) {
 
 // --- Claims ---
 
-async function addClaim(ticketId, personName, itemIds, itemCounts = null, itemUnits = null) {
+// Un id de documento estable por persona: guardar la selección mientras se
+// toca genera muchas escrituras, y con id determinista cada una sobrescribe
+// la anterior en lugar de borrar y crear. Firestore no admite '/' ni '.' al
+// principio, así que se codifica.
+function claimDocId(personName) {
+  const clean = (personName || '').trim().toLowerCase();
+  return 'p_' + Buffer.from(clean, 'utf8').toString('base64')
+    .replace(/\//g, '_').replace(/\+/g, '-').slice(0, 400);
+}
+
+async function addClaim(ticketId, personName, itemIds, itemCounts = null, itemUnits = null, confirmed = true) {
   const ticket = await getTicket(ticketId);
   if (!ticket) return null;
 
-  // Remove previous claim from the same person (case-insensitive name match)
   const lowerName = (personName || '').trim().toLowerCase();
+  const docId = claimDocId(personName);
+
+  // Limpieza de claims antiguos con id automático de la misma persona, de
+  // antes de que los ids fueran deterministas.
   const dupSnap = await claimsRef(ticketId).get();
   const batch = db.batch();
+  let hadLegacy = false;
   dupSnap.forEach(doc => {
     const d = doc.data();
-    if ((d.personName || '').trim().toLowerCase() === lowerName) {
+    if (doc.id !== docId && (d.personName || '').trim().toLowerCase() === lowerName) {
       batch.delete(doc.ref);
+      hadLegacy = true;
     }
   });
-  await batch.commit();
+  if (hadLegacy) await batch.commit();
 
   // Mark payer flag
   const isPayer = !!(ticket.payerName &&
@@ -156,33 +181,75 @@ async function addClaim(ticketId, personName, itemIds, itemCounts = null, itemUn
   }
 
   const claim = {
-    id: Date.now(),
+    id: docId,
     ticketId,
     personName,
     itemIds: finalItemIds,
     itemCounts: finalItemCounts,
     itemUnits: itemUnits || null,
     isPayer,
-    createdAt: new Date().toISOString()
+    // Un borrador es alguien que todavía está eligiendo. Se ve en vivo en la
+    // pantalla de reparto, pero no cuenta como participante listo ni entra en
+    // el cuadre para cerrar la cuenta: podría abandonar sin confirmar.
+    confirmed: confirmed !== false,
+    updatedAt: new Date().toISOString()
   };
-  await claimsRef(ticketId).add(claim);
+  // merge para no perder createdAt en las reescrituras del borrador.
+  await claimsRef(ticketId).doc(docId).set({
+    createdAt: new Date().toISOString(),
+    ...claim
+  }, { merge: true });
+
+  await bumpClaimsVersion(ticketId);
   return claim;
+}
+
+/**
+ * Contador que sube en cada cambio de los claims. La pantalla de reparto lo
+ * consulta cada pocos segundos: leer este número es UNA lectura de documento,
+ * mientras que releer toda la subcolección son tantas como participantes.
+ * Con diez personas eligiendo a la vez, la diferencia es enorme en cuota.
+ */
+async function bumpClaimsVersion(ticketId) {
+  try {
+    await ticketRef(ticketId).update({
+      claimsVersion: admin.firestore.FieldValue.increment(1)
+    });
+  } catch (_) { /* el ticket puede no existir; no es crítico */ }
+}
+
+/** Latido: lo mínimo para saber si hay novedades, en una sola lectura. */
+async function getPulse(ticketId) {
+  const snap = await ticketRef(ticketId).get();
+  if (!snap.exists) return null;
+  const d = snap.data();
+  return { v: d.claimsVersion || 0, status: d.status || 'draft' };
 }
 
 async function getClaims(ticketId) {
   const snap = await claimsRef(ticketId).orderBy('createdAt', 'asc').get();
-  return snap.docs.map(d => d.data());
+  // Los claims anteriores a los borradores no tienen el campo: se consideran
+  // confirmados, que es lo que eran.
+  return snap.docs.map(d => {
+    const data = d.data();
+    return { ...data, confirmed: data.confirmed !== false };
+  });
 }
 
 async function removeClaim(ticketId, personName) {
   const snap = await claimsRef(ticketId).get();
   const batch = db.batch();
+  let found = false;
   snap.forEach(doc => {
     if (doc.data().personName === personName) {
       batch.delete(doc.ref);
+      found = true;
     }
   });
-  await batch.commit();
+  if (found) {
+    await batch.commit();
+    await bumpClaimsVersion(ticketId);
+  }
   return true;
 }
 
@@ -197,5 +264,6 @@ module.exports = {
   setTicketParticipants,
   addClaim,
   getClaims,
-  removeClaim
+  removeClaim,
+  getPulse
 };

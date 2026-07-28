@@ -1,6 +1,5 @@
 # Dependencies
 node_modules/
-package-lock.json
 
 # Environment — NEVER commit secrets
 .env
@@ -12,6 +11,15 @@ google-services.json
 # Legacy local dev artifacts (no longer used in Vercel)
 data/
 uploads/
+
+# Fotos de tickets para pruebas — SOLO EN LOCAL.
+# El repositorio es público: un ticket real lleva fecha, hora, comercio,
+# localidad, lo que compraste y los últimos dígitos de la tarjeta.
+fixtures/*.jpg
+fixtures/*.jpeg
+fixtures/*.png
+fixtures/*.webp
+fixtures/*.heic
 
 # OS / IDE
 .DS_Store

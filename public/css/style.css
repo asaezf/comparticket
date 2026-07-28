@@ -2,7 +2,9 @@
    comparTICKET — Diseño v5
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:wght@500;700;800&display=swap');
+/* Las fuentes se cargan con <link rel="preconnect"> en el <head> de cada
+   página. Con @import aquí el navegador no descubría que hacían falta
+   hasta haber descargado y leído esta hoja entera. */
 
 :root {
   --bg: #ECEAE4;
@@ -638,6 +640,233 @@ body {
   white-space: nowrap;
 }
 .data-value.big { font-size: 1.25rem; font-weight: 700; }
+
+/* =============================================
+   CUADRE DE LA CUENTA
+   El dinero que no cuadra tiene que verse, no esconderse.
+   ============================================= */
+
+/* Resumen: dinero que todavía no paga nadie */
+.unassigned-row .data-label,
+.unassigned-row .data-value {
+  color: var(--red);
+}
+.unassigned-row.is-clear .data-label,
+.unassigned-row.is-clear .data-value {
+  color: var(--green);
+}
+
+/* Revisión: las líneas no suman el total del ticket */
+.mismatch {
+  margin-top: 10px;
+  padding: 12px;
+  border: 1.5px dashed var(--red);
+  border-radius: var(--radius-sm);
+  background: var(--red-light);
+}
+.mm-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+.mm-amount {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--red);
+  white-space: nowrap;
+}
+.mm-text {
+  flex: 1 1 160px;
+  font-family: var(--sans);
+  font-size: 0.78rem;
+  line-height: 1.35;
+  color: var(--gray-900);
+}
+.mm-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.mm-actions .btn {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  padding: 9px 8px;
+  border-radius: 8px;
+  background: var(--paper);
+}
+
+/* Un botón deshabilitado tiene que parecerlo */
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+}
+
+/* =============================================
+   TIEMPO REAL
+   ============================================= */
+
+/* Punto de estado: guardado / sin conexión */
+.live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--green);
+  transition: background 0.25s;
+}
+.live-dot.saved { animation: live-pulse 2.4s ease-in-out infinite; }
+.live-dot.offline { background: var(--gray-400); animation: none; }
+
+@keyframes live-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%      { opacity: 0.45; transform: scale(0.82); }
+}
+
+/* Quién más está en el ticket ahora mismo */
+.live-people {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 8px 0 2px;
+}
+.live-person {
+  font-family: var(--mono);
+  font-size: 0.63rem;
+  padding: 3px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--gray-300);
+  color: var(--gray-700);
+  background: var(--gray-50);
+  white-space: nowrap;
+}
+.live-person.picking {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: transparent;
+  animation: live-pulse 1.8s ease-in-out infinite;
+}
+.live-person.done {
+  border-color: var(--green);
+  color: var(--green);
+  background: var(--green-light);
+}
+
+/* Destello al cambiar algo otra persona: hace visible el "en vivo".
+   Las píldoras ya animan color y fondo para que el cambio se lea como un
+   movimiento y no como un salto. */
+.unit-pill {
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.unit-pill.just-changed {
+  animation: pill-flash 0.75s ease-out;
+}
+@keyframes pill-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(255,107,53,0.55); transform: scale(1); }
+  35%  { box-shadow: 0 0 0 5px rgba(255,107,53,0.22); transform: scale(1.06); }
+  100% { box-shadow: 0 0 0 0 rgba(255,107,53,0); transform: scale(1); }
+}
+
+/* =============================================
+   ONBOARDING Y AYUDAS
+   ============================================= */
+
+/* Etiqueta flotante de primera vez, señalando la primera píldora */
+.coach-tip {
+  position: absolute;
+  transform: translateX(-50%);
+  z-index: 60;
+  background: var(--black);
+  color: white;
+  font-family: var(--sans);
+  font-size: 0.76rem;
+  font-weight: 600;
+  line-height: 1.3;
+  padding: 8px 12px;
+  border-radius: 10px;
+  max-width: 76vw;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+  cursor: pointer;
+  animation: coach-in 0.3s ease-out both;
+}
+.coach-tip::before {           /* pico apuntando a la píldora */
+  content: '';
+  position: absolute;
+  top: -5px; left: 50%;
+  margin-left: -5px;
+  border-left: 5px solid transparent;
+  border-right: 5px solid transparent;
+  border-bottom: 5px solid var(--black);
+}
+.coach-tip.leaving { animation: coach-out 0.22s ease-in both; }
+
+@keyframes coach-in  { from { opacity: 0; transform: translateX(-50%) translateY(-6px); }
+                       to   { opacity: 1; transform: translateX(-50%) translateY(0); } }
+@keyframes coach-out { to   { opacity: 0; transform: translateX(-50%) translateY(-4px); } }
+
+.unit-pill.coach-target {
+  box-shadow: 0 0 0 3px rgba(255,107,53,0.35);
+  animation: live-pulse 1.6s ease-in-out infinite;
+}
+
+/* Campo del nombre reclamando atención al marcar sin haberlo puesto */
+.name-field.needs-name input {
+  border-color: var(--accent);
+  background: rgba(255,107,53,0.07);
+}
+.name-field.needs-name label { color: var(--accent); }
+
+/* Ayuda plegable: disponible sin ocupar sitio */
+.claim-help { padding: 4px 0; }
+.claim-help > summary {
+  cursor: pointer;
+  list-style: none;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--gray-500);
+  padding: 4px 0;
+}
+.claim-help > summary::-webkit-details-marker { display: none; }
+.claim-help > summary::after { content: ' +'; font-weight: 700; }
+.claim-help[open] > summary::after { content: ' −'; }
+
+/* Botón de girar sobre la miniatura */
+/* Mismo tamaño y peso visual que el botón de quitar, en la esquina opuesta */
+.thumb-rot {
+  position: absolute;
+  left: 2px; bottom: 2px;
+  width: 18px; height: 18px;
+  display: flex; align-items: center; justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.65);
+  cursor: pointer;
+  padding: 0;
+}
+.thumb-rot svg { width: 11px; height: 11px; fill: white; }
+.thumb-rot:disabled { opacity: 0.5; }
+
+.preview-add-hint.warn {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+/* Resumen: alguien que todavía está eligiendo */
+.person-row.is-picking { opacity: 0.72; }
+.person-tag.picking {
+  background: transparent;
+  border: 1px solid var(--accent);
+  color: var(--accent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .live-dot.saved, .live-person.picking, .unit-pill.just-changed { animation: none; }
+  .unit-pill { transition: none; }
+}
 
 /* =============================================
    PERSON ROWS (Summary) — names only, no avatars

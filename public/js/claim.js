@@ -2,8 +2,10 @@
 // Each item exposes one pill per unit. Tapping a pill toggles whether
 // the current user consumed that specific unit. If multiple users tap the
 // same unit, it becomes "shared" and the price is split among them.
+// El id llega por /t/abc123 (enlace corto que se comparte, con vista previa)
+// o por ?id=abc123 (enlaces antiguos, que deben seguir funcionando).
 const params = new URLSearchParams(window.location.search);
-const ticketId = params.get('id');
+const ticketId = params.get('id') || (location.pathname.match(/^\/t\/([^/?#]+)/) || [])[1];
 if (!ticketId) window.location.href = '/';
 
 document.getElementById('barTitle').textContent = t.claimTitle;
@@ -18,11 +20,246 @@ const _ctut3 = document.getElementById('ctut3');
 if (_ctut1) _ctut1.textContent = t.ctut1;
 if (_ctut2) _ctut2.textContent = t.ctut2;
 if (_ctut3) _ctut3.textContent = t.ctut3;
+const _help = document.getElementById('helpSummary');
+if (_help) _help.textContent = t.tutTitle;
 
 let ticketData = null;
 let claimsData = [];
 // myUnits: { [itemId]: Set<unitIdx> }
 const myUnits = {};
+
+// --- Tiempo real ---
+// La selección se guarda como borrador según se toca, para que los demás la
+// vean mientras eligen. Sin esto no había nada que enseñar: hasta ahora no se
+// escribía nada hasta pulsar "Confirmar", así que dos personas eligiendo a la
+// vez eran invisibles la una para la otra.
+let lastVersion = -1;      // último claimsVersion visto
+let lastTouch = 0;         // cuándo tocó el usuario por última vez
+let saveTimer = null;
+let polling = null;
+let lastSaved = null;      // firma del último borrador enviado
+let confirmedNow = false;  // ya se confirmó: no degradar a borrador al salir
+const SAVE_DEBOUNCE = 700;
+
+// Sondeo adaptativo. Un intervalo fijo obliga a elegir entre "va con retardo"
+// y "gasta cuota todo el rato". Cuando hay movimiento en la mesa se pregunta
+// cada 900 ms —que es cuando importa que se vea en vivo— y si no pasa nada se
+// va relajando hasta 6 s. Todos eligen a la vez durante un minuto y luego la
+// pantalla se queda quieta: el ritmo debe seguir eso.
+const POLL_FAST = 900;
+const POLL_SLOW = 3000;   // techo bajo a propósito: el peor caso es el primero
+                          // que se mueve tras un rato de calma, y ese momento
+                          // no puede tardar 6 s en verse.
+const IDLE_BEFORE_BACKOFF = 12;  // ~11 s quieto antes de empezar a relajarse
+let pollMs = POLL_FAST;
+let idleRounds = 0;
+
+function myName() {
+  return (document.getElementById('nameInput').value || '').trim();
+}
+
+// --- Recordar el nombre ---
+// La gente parte cuentas con el mismo móvil una y otra vez. Guardarlo hace que
+// a partir de la segunda vez no haya que escribir nada: el paso desaparece en
+// lugar de añadirse.
+const NAME_KEY = 'ct_name';
+
+function rememberName(name) {
+  try { if (name) localStorage.setItem(NAME_KEY, name); } catch (_) {}
+}
+
+function recalledName() {
+  try { return localStorage.getItem(NAME_KEY) || ''; } catch (_) { return ''; }
+}
+
+/**
+ * Marcar sin nombre no se bloquea: se deja marcar y se señala el campo. Cortar
+ * al usuario en el primer toque sería justo lo contrario de "dos gestos".
+ */
+function nudgeName() {
+  const input = document.getElementById('nameInput');
+  const field = input.closest('.name-field') || input;
+  field.classList.add('needs-name');
+  input.focus({ preventScroll: true });
+  field.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  input.animate([
+    { transform: 'translateX(0)' }, { transform: 'translateX(-4px)' },
+    { transform: 'translateX(4px)' }, { transform: 'translateX(0)' }
+  ], { duration: 240 });
+}
+
+/** Guarda el borrador, agrupando pulsaciones seguidas en una sola escritura. */
+function saveDraft() {
+  if (!myName()) return;   // sin nombre no hay a quién atribuir la selección
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    const payload = {};
+    Object.keys(myUnits).forEach(id => {
+      const arr = [...myUnits[id]].sort((a, b) => a - b);
+      if (arr.length) payload[id] = arr;
+    });
+
+    // No reescribir lo mismo: cada guardado sube el contador de versión y hace
+    // que TODOS los demás recarguen la lista. Escribir sin cambios les haría
+    // gastar cuota para nada.
+    const signature = myName().toLowerCase() + '|' + JSON.stringify(payload);
+    if (signature === lastSaved) return;
+    lastSaved = signature;
+
+    try {
+      await fetch(`/api/tickets/${ticketId}/claim`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ personName: myName(), itemUnits: payload, confirmed: false })
+      });
+      setLiveState('saved');
+    } catch (_) {
+      setLiveState('offline');
+    }
+  }, SAVE_DEBOUNCE);
+}
+
+/**
+ * Sondeo barato: pide solo el contador de versión (una lectura) y únicamente
+ * recarga la lista completa de claims cuando algo ha cambiado de verdad.
+ */
+async function checkForUpdates(force) {
+  if (!force && Date.now() - lastTouch < 900) return; // está tocando: no molestar
+  try {
+    const r = await fetch(`/api/tickets/${ticketId}/pulse`);
+    if (!r.ok) return;
+    const { v, status } = await r.json();
+    setLiveState('saved');
+    if (status === 'closed') {
+      return window.location.href = `/summary.html?id=${ticketId}`;
+    }
+
+    if (v === lastVersion) {
+      // Nada nuevo: relajar el ritmo poco a poco.
+      if (++idleRounds >= IDLE_BEFORE_BACKOFF && pollMs < POLL_SLOW) {
+        pollMs = Math.min(POLL_SLOW, Math.round(pollMs * 1.4));
+        restartPolling();
+      }
+      return;
+    }
+
+    lastVersion = v;
+    goFast();   // hay gente moviéndose: volver al ritmo rápido
+    const cr = await fetch(`/api/tickets/${ticketId}/claims`);
+    if (!cr.ok) return;
+    claimsData = await cr.json();
+    repaintOthers();
+  } catch (_) { setLiveState('offline'); }
+}
+
+/** Vuelve al ritmo rápido: alguien se ha movido, o me he movido yo. */
+function goFast() {
+  idleRounds = 0;
+  if (pollMs !== POLL_FAST) {
+    pollMs = POLL_FAST;
+    restartPolling();
+  }
+}
+
+function restartPolling() {
+  clearInterval(polling);
+  polling = setInterval(() => {
+    if (document.hidden) return;   // en segundo plano no se gasta cuota
+    checkForUpdates(false);
+  }, pollMs);
+}
+
+function startPolling() {
+  if (polling) return;
+  restartPolling();
+
+  // Al volver de otra app hay que refrescar ya: mientras estabas fuera no se
+  // ha sondeado, y quedarte mirando datos viejos es justo lo que rompía la
+  // sensación de "en vivo".
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) { goFast(); checkForUpdates(true); }
+  });
+}
+
+/**
+ * Repinta lo que han marcado los demás SIN tocar la selección propia ni
+ * reconstruir la lista: rehacer el DOM entero perdería el scroll justo cuando
+ * el usuario está eligiendo.
+ */
+function repaintOthers() {
+  const others = otherClaimants();
+  document.querySelectorAll('.claim-row-v2').forEach(row => {
+    const item = ticketData.items.find(i => String(i.id) === String(row.dataset.id));
+    if (item) refreshPills(row, item, others);
+  });
+  update();
+  renderLivePeople();
+}
+
+/** Quién más está en el ticket ahora mismo y si ya ha terminado. */
+function renderLivePeople() {
+  const box = document.getElementById('livePeople');
+  if (!box) return;
+  const mine = myName().toLowerCase();
+  const others = claimsData.filter(c => (c.personName || '').trim().toLowerCase() !== mine);
+  if (!others.length) { box.classList.add('hidden'); return; }
+  box.classList.remove('hidden');
+  box.innerHTML = others.map(c => `
+    <span class="live-person ${c.confirmed ? 'done' : 'picking'}">
+      ${esc(c.personName)}${c.confirmed ? '' : ' ' + esc(t.picking)}
+    </span>`).join('');
+}
+
+// --- Aviso de primera vez ---
+// Tres líneas de texto dentro del ticket no las lee nadie, y menos en un bar.
+// En su lugar, una etiqueta flotante señalando la primera píldora. Sale UNA
+// vez en la vida de este navegador y desaparece al primer toque.
+const TIP_KEY = 'ct_seen_claim_tip';
+
+function maybeShowTip() {
+  let seen = true;
+  try { seen = !!localStorage.getItem(TIP_KEY); } catch (_) {}
+  if (seen) return;
+
+  const first = document.querySelector('.unit-pill');
+  if (!first) return;
+
+  const tip = document.createElement('div');
+  tip.className = 'coach-tip';
+  tip.id = 'coachTip';
+  tip.innerHTML = `<span>${esc(t.tipFirstPill)}</span>`;
+  document.body.appendChild(tip);
+
+  const place = () => {
+    const r = first.getBoundingClientRect();
+    if (!r.width) return;
+    tip.style.top = (window.scrollY + r.bottom + 10) + 'px';
+    tip.style.left = (window.scrollX + r.left + r.width / 2) + 'px';
+  };
+  place();
+  requestAnimationFrame(place);
+  window.addEventListener('resize', place);
+  window.addEventListener('scroll', place, { passive: true });
+  first.classList.add('coach-target');
+
+  tip.addEventListener('click', dismissTip);
+  // Red de seguridad: si nadie lo toca, se va solo.
+  setTimeout(dismissTip, 12000);
+}
+
+function dismissTip() {
+  const tip = document.getElementById('coachTip');
+  if (!tip) return;
+  try { localStorage.setItem(TIP_KEY, '1'); } catch (_) {}
+  document.querySelectorAll('.coach-target').forEach(el => el.classList.remove('coach-target'));
+  tip.classList.add('leaving');
+  setTimeout(() => tip.remove(), 250);
+}
+
+function setLiveState(state) {
+  const dot = document.getElementById('liveDot');
+  if (dot) dot.className = 'live-dot ' + state;
+}
 
 async function loadTicket() {
   const [tRes, cRes] = await Promise.all([
@@ -49,8 +286,22 @@ async function loadTicket() {
     }).toUpperCase() + ' | ' +
     d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+  // Nombre recordado de veces anteriores: para quien repite no hay ningún
+  // paso que dar. Se rellena antes de pintar para que sus propias marcas de
+  // una sesión anterior salgan ya como suyas.
+  const input = document.getElementById('nameInput');
+  const saved = recalledName();
+  if (saved && !input.value) {
+    input.value = saved;
+    prefillMineFromName();
+  }
+
   renderItems();
   update();
+  renderLivePeople();
+  startPolling();
+  setLiveState('saved');
+  maybeShowTip();
 }
 
 function myNameNormalized() {
@@ -89,12 +340,29 @@ function otherClaimants() {
   return map;
 }
 
-// If user types a name that matches an existing claim, prefill their picks
+// Escribir tu nombre recupera al instante lo que ya habías marcado: es la
+// forma rápida de volver y cambiar algo sin repetir toda la selección.
+//
+// Efecto lateral a controlar: al teclear se pasa por nombres intermedios, y si
+// uno coincide con otra persona ("Mar" camino de "Marta") se cargan SUS
+// unidades. Antes eso solo se veía un instante; ahora que la selección se
+// guarda sola, podría escribirse un participante fantasma con las cosas de
+// otro. Por eso se anota de quién se cargó, para poder deshacerlo.
+let prefilledFrom = null;
+
 function prefillMineFromName() {
   const mine = myNameNormalized();
-  if (!mine) return false;
-  const prev = claimsData.find(c => (c.personName || '').trim().toLowerCase() === mine);
-  if (!prev) return false;
+  const prev = mine && claimsData.find(c => (c.personName || '').trim().toLowerCase() === mine);
+  if (!prev) {
+    // Lo que había cargado era de otra persona y el nombre ya no coincide:
+    // se descarta. Si eran marcas propias (prefilledFrom vacío) no se tocan.
+    if (prefilledFrom && prefilledFrom !== mine) {
+      Object.keys(myUnits).forEach(k => delete myUnits[k]);
+      prefilledFrom = null;
+    }
+    return false;
+  }
+  prefilledFrom = mine;
   Object.keys(myUnits).forEach(k => delete myUnits[k]);
   if (prev.itemUnits && typeof prev.itemUnits === 'object') {
     Object.keys(prev.itemUnits).forEach(id => {
@@ -124,7 +392,7 @@ function renderItems() {
     header.className = 'ci-head';
     header.innerHTML = `
       <div class="ci-name">${esc(item.name)}</div>
-      <div class="ci-price">${item.unitPrice.toFixed(2)}€ ${esc(t.perUnit)}</div>
+      <div class="ci-price">${Money.formatEUR(item.unitPrice, lang)}${esc(t.perUnit)}</div>
     `;
 
     const unitsWrap = document.createElement('div');
@@ -162,6 +430,17 @@ function refreshPills(row, item, othersMap) {
     const isMine = mineSet.has(u);
     const hasTheirs = theirNames.length > 0;
 
+    // Destello cuando cambia lo de OTRA persona. Los cambios propios ya se ven
+    // solos al pulsar; los ajenos aparecían en silencio y no se notaban.
+    // La firma solo mira los nombres ajenos, así tocar yo no dispara el aviso.
+    const sig = theirNames.join('|');
+    if (pill.dataset.sig !== undefined && pill.dataset.sig !== sig) {
+      pill.classList.remove('just-changed');
+      void pill.offsetWidth;               // reinicia la animación
+      pill.classList.add('just-changed');
+    }
+    pill.dataset.sig = sig;
+
     pill.classList.remove('mine', 'theirs', 'shared');
     let bodyHTML = '';
     if (isMine && hasTheirs) {
@@ -186,7 +465,8 @@ function onPillClick(e) {
   const itemId = +pill.dataset.itemId;
   const u = +pill.dataset.unit;
   if (!myUnits[itemId]) myUnits[itemId] = new Set();
-  if (myUnits[itemId].has(u)) myUnits[itemId].delete(u);
+  const wasMine = myUnits[itemId].has(u);
+  if (wasMine) myUnits[itemId].delete(u);
   else myUnits[itemId].add(u);
   if (myUnits[itemId].size === 0) delete myUnits[itemId];
 
@@ -195,6 +475,30 @@ function onPillClick(e) {
   const item = ticketData.items.find(i => String(i.id) === String(itemId));
   if (row && item) refreshPills(row, item);
   update();
+
+  // Al marcar una unidad que ya tiene alguien, decir en el momento con quién
+  // se comparte y cuánto paga cada uno. Antes había que deducirlo.
+  if (!wasMine && item) {
+    const others = otherClaimants();
+    const names = (others[item.id] && others[item.id][u]) || [];
+    if (names.length) {
+      const each = item.unitPrice / (names.length + 1);
+      toast(`${t.sharedWith} ${names.join(', ')} · ${Money.formatEUR(each, lang)} ${t.each}`);
+    }
+  }
+
+  // A partir del primer toque propio, lo marcado es mío y ya no procede de
+  // haber cargado la selección de otra persona al escribir el nombre.
+  prefilledFrom = null;
+  dismissTip();
+
+  lastTouch = Date.now();
+  goFast();      // si yo me muevo, los demás probablemente también
+
+  // Sin nombre no se puede atribuir la selección ni compartirla en vivo. No se
+  // bloquea el toque: se marca igual y se señala el campo.
+  if (!myName()) nudgeName();
+  else saveDraft();
 }
 
 function update() {
@@ -210,18 +514,50 @@ function update() {
       tot += item.unitPrice / divider;
     });
   });
-  document.getElementById('yourTotal').textContent = `${tot.toFixed(2)}€`;
+  document.getElementById('yourTotal').textContent = Money.formatEUR(tot, lang);
 
   const name = document.getElementById('nameInput').value.trim();
   const anyPicked = Object.values(myUnits).some(s => s && s.size > 0);
   document.getElementById('confirmBtn').disabled = !name || !anyPicked;
 }
 
+let nameSettle = null;
 document.getElementById('nameInput').addEventListener('input', () => {
-  const prefilled = prefillMineFromName();
+  prefillMineFromName();
   // Re-render to reflect "mine vs theirs" reclassification
   renderItems();
   update();
+  renderLivePeople();
+  document.querySelector('.name-field')?.classList.remove('needs-name');
+
+  // El guardado espera a que se termine de escribir. Mandar cada estado
+  // intermedio crearía un participante por cada letra ("M", "Ma", "Mar"...).
+  clearTimeout(nameSettle);
+  nameSettle = setTimeout(() => {
+    if (!myName() || !Object.keys(myUnits).length) return;
+    rememberName(myName());
+    saveDraft();
+  }, 1500);
+});
+
+// Guardar lo pendiente si el usuario cierra o cambia de app a media selección.
+// OJO: al confirmar se navega al resumen, lo que dispara pagehide. Sin la
+// guarda de `confirmedNow`, este guardado de emergencia llegaba DESPUÉS de la
+// confirmación y la degradaba otra vez a borrador.
+window.addEventListener('pagehide', () => {
+  if (confirmedNow) return;
+  if (!myName() || !Object.keys(myUnits).length) return;
+  const payload = {};
+  Object.keys(myUnits).forEach(id => {
+    const arr = [...myUnits[id]].sort((a, b) => a - b);
+    if (arr.length) payload[id] = arr;
+  });
+  // sendBeacon sobrevive al cierre de la pestaña; fetch normal no.
+  try {
+    navigator.sendBeacon(`/api/tickets/${ticketId}/claim`, new Blob([JSON.stringify({
+      personName: myName(), itemUnits: payload, confirmed: false
+    })], { type: 'application/json' }));
+  } catch (_) {}
 });
 
 document.getElementById('confirmBtn').addEventListener('click', async () => {
@@ -235,18 +571,30 @@ document.getElementById('confirmBtn').addEventListener('click', async () => {
 
   const btn = document.getElementById('confirmBtn');
   btn.disabled = true;
+  confirmedNow = true;       // bloquea el guardado de emergencia de pagehide
+  clearTimeout(saveTimer);   // que el borrador pendiente no pise la confirmación
 
   try {
     await fetch(`/api/tickets/${ticketId}/claim`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ personName: name, itemUnits: itemUnitsPayload })
+      body: JSON.stringify({ personName: name, itemUnits: itemUnitsPayload, confirmed: true })
     });
+    clearInterval(polling);
     window.location.href = `/summary.html?id=${ticketId}`;
   } catch (err) {
     btn.disabled = false;
   }
 });
+
+function toast(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.add('hidden'), 2600);
+}
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 

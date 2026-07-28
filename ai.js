@@ -46,8 +46,19 @@ PRECIOS — LEE CON CUIDADO:
 CANTIDAD (quantity):
 - Lee el número que aparece en la columna "Uds" (la primera columna).
 - Si no hay columna de unidades, la cantidad es 1.
+- quantity SIEMPRE es un entero >= 1. NUNCA devuelvas decimales.
 - NO uses el número del nombre del artículo como cantidad
   (ej: "1/2 Jamón" es UN medio de jamón, quantity=1, no 0.5).
+
+ARTÍCULOS A PESO (supermercados):
+Cuando una línea se cobra por peso o volumen (kg, g, L) con un precio del
+tipo "2,20 €/kg", por ejemplo:
+  "1 TOMATE CANARIO / 0,378 kg  2,20 €/kg  →  0,83"
+NO uses el peso como quantity. Devuelve SIEMPRE:
+  quantity: 1, unitPrice: <el Importe de la línea>, totalPrice: <el mismo Importe>
+El peso puede ir en el nombre si ayuda ("Tomate canario (0,378 kg)").
+Motivo: cada unidad se reparte entre personas y no se puede repartir 0,378
+de una unidad.
 
 === REGLAS DE SALIDA ===
 
@@ -104,14 +115,65 @@ FORMATO DE SALIDA (JSON puro, sin markdown, sin explicaciones):
 }
 `;
 
-// Primary model: gemini-2.5-flash (best OCR accuracy).
-// Fallback: gemini-2.5-flash-lite (less accurate but always available).
-const PRIMARY_MODEL = 'gemini-2.5-flash';
-const FALLBACK_MODEL = 'gemini-2.5-flash-lite';
+// Elegido midiendo, no a ojo. Contra el mismo ticket de 35 líneas fotografiado
+// en seis condiciones reales (girado, oscuro, torcido, borroso, con reflejo de
+// flash y reenviado por WhatsApp), 3.1-flash-lite cuadró 5 de 6 en ~4,7 s
+// mientras que 2.5-flash cuadró 3 de 6 en 6,4-14,2 s. Además 2.5 lo apaga
+// Google el 16/10/2026. Se puede cambiar por entorno para volver a comparar.
+const PRIMARY_MODEL = process.env.GEMINI_MODEL || 'gemini-3.1-flash-lite';
+const FALLBACK_MODEL = process.env.GEMINI_FALLBACK_MODEL || 'gemini-3.6-flash';
+
+// Los Flash "grandes" (3.x sin -lite) devuelven 400 si se les pide no razonar:
+// exigen un mínimo de 128. Los lite y los 2.5 aceptan 0, que es lo que
+// queremos, porque transcribir un ticket no requiere razonar.
+function thinkingBudgetFor(model) {
+  if (Number.isFinite(+process.env.GEMINI_THINKING_BUDGET)) {
+    return +process.env.GEMINI_THINKING_BUDGET;
+  }
+  return /-lite|^gemini-2\.5-/.test(model) ? 0 : 128;
+}
+
+// Long receipts (a supermarket ticket can carry 40+ lines) need plenty of
+// output room. 2.5/3.x Flash are thinking models and Google bills those
+// thinking tokens against the SAME budget as the visible answer — leaving it
+// unset let a long receipt burn the budget on reasoning and return truncated
+// JSON, which is what made big tickets fail. Thinking is off: this is
+// transcription, not reasoning.
+const MAX_OUTPUT_TOKENS = 16384;
+
+// Forcing a schema means the model cannot return malformed JSON at all,
+// so JSON.parse stops being a failure mode.
+const RESPONSE_SCHEMA = {
+  type: 'OBJECT',
+  properties: {
+    restaurant: { type: 'STRING', nullable: true },
+    date: { type: 'STRING', nullable: true },
+    time: { type: 'STRING', nullable: true },
+    address: { type: 'STRING', nullable: true },
+    items: {
+      type: 'ARRAY',
+      items: {
+        type: 'OBJECT',
+        properties: {
+          name: { type: 'STRING' },
+          quantity: { type: 'INTEGER' },
+          unitPrice: { type: 'NUMBER' },
+          totalPrice: { type: 'NUMBER' },
+          shared: { type: 'BOOLEAN' }
+        },
+        required: ['name', 'quantity', 'unitPrice', 'totalPrice', 'shared'],
+        propertyOrdering: ['name', 'quantity', 'unitPrice', 'totalPrice', 'shared']
+      }
+    },
+    total: { type: 'NUMBER' }
+  },
+  required: ['items', 'total'],
+  propertyOrdering: ['restaurant', 'date', 'time', 'address', 'items', 'total']
+};
 
 /**
- * Call Gemini with retry logic. On 503 (overloaded), retries up to 3 times
- * with exponential backoff, then falls back to flash-lite.
+ * One Gemini call. Throws a tagged Error so the caller can decide whether the
+ * failure is worth retrying.
  */
 async function callGemini(model, parts) {
   const response = await ai.models.generateContent({
@@ -120,13 +182,76 @@ async function callGemini(model, parts) {
     config: {
       systemInstruction: SYSTEM_PROMPT,
       temperature: 0.05,
-      responseMimeType: 'application/json'
+      responseMimeType: 'application/json',
+      responseSchema: RESPONSE_SCHEMA,
+      maxOutputTokens: MAX_OUTPUT_TOKENS,
+      thinkingConfig: { thinkingBudget: thinkingBudgetFor(model) }
     }
   });
-  return response;
+
+  const candidate = response.candidates && response.candidates[0];
+  const finishReason = candidate && candidate.finishReason;
+  const usage = response.usageMetadata || {};
+  console.log(
+    `[ai] ${model} finish=${finishReason || 'n/a'} ` +
+    `in=${usage.promptTokenCount || 0} out=${usage.candidatesTokenCount || 0} ` +
+    `thoughts=${usage.thoughtsTokenCount || 0}`
+  );
+
+  // A truncated answer is the long-receipt failure: surface it by name instead
+  // of letting it fall through as a confusing parse error.
+  if (finishReason === 'MAX_TOKENS') {
+    const err = new Error(
+      `Respuesta truncada: el ticket es demasiado largo para ${MAX_OUTPUT_TOKENS} tokens de salida.`
+    );
+    err.code = 'TRUNCATED';
+    throw err;
+  }
+  if (finishReason && finishReason !== 'STOP') {
+    const err = new Error(`Gemini terminó con finishReason=${finishReason}`);
+    err.code = 'BAD_FINISH';
+    throw err;
+  }
+
+  const text = (response.text || '').trim();
+  if (!text) {
+    const err = new Error('Gemini devolvió una respuesta vacía');
+    err.code = 'EMPTY';
+    throw err;
+  }
+
+  let parsed;
+  try {
+    parsed = JSON.parse(text);
+  } catch (_) {
+    const err = new Error('Gemini devolvió un JSON no válido');
+    err.code = 'BAD_JSON';
+    throw err;
+  }
+
+  const result = normalize(parsed);
+  // An empty extraction is not a success — it means the photo was unreadable
+  // or wasn't a receipt. Creating a blank ticket silently is worse than failing.
+  if (result.items.length === 0) {
+    const err = new Error('No se ha podido leer ningún artículo del ticket');
+    err.code = 'NO_ITEMS';
+    throw err;
+  }
+  return result;
 }
 
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// Transient failures worth another attempt. Empty/invalid/truncated responses
+// are included: they are usually a model hiccup, and previously a bad parse
+// aborted the whole request on the first try.
+function isRetryable(err) {
+  if (['EMPTY', 'BAD_JSON', 'BAD_FINISH', 'TRUNCATED'].includes(err.code)) return true;
+  const msg = err.message || '';
+  return msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand')
+    || msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('Please retry')
+    || msg.includes('500') || msg.includes('INTERNAL');
+}
 
 /**
  * Extract ticket items from one or more image buffers.
@@ -150,32 +275,30 @@ async function extractItemsFromImages(images) {
   });
 
   // Try primary model with retries, then fallback
+  const ATTEMPTS = 3;
   let lastError;
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     try {
-      const response = await callGemini(PRIMARY_MODEL, parts);
-      return normalize(JSON.parse(response.text || '{}'));
+      return await callGemini(PRIMARY_MODEL, parts);
     } catch (err) {
       lastError = err;
+      if (!isRetryable(err)) throw err; // Non-retryable error — bail out
+      if (attempt === ATTEMPTS - 1) break; // Last try — don't sleep, go to fallback
       const msg = err.message || '';
-      const isRetryable = msg.includes('503') || msg.includes('UNAVAILABLE') || msg.includes('high demand')
-        || msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('Please retry');
-      if (!isRetryable) throw err; // Non-retryable error — bail out
       const waitMatch = msg.match(/retry in ([\d.]+)s/i);
       const waitSec = waitMatch ? Math.min(Math.ceil(parseFloat(waitMatch[1])), 15) : 2 * (attempt + 1);
-      console.log(`Gemini ${PRIMARY_MODEL} attempt ${attempt + 1}/3 rate limited, waiting ${waitSec}s...`);
+      console.log(`[ai] ${PRIMARY_MODEL} intento ${attempt + 1}/${ATTEMPTS} falló (${err.code || 'API'}), reintento en ${waitSec}s...`);
       await sleep(waitSec * 1000);
     }
   }
 
   // All retries exhausted — try fallback model
-  console.log(`Falling back to ${FALLBACK_MODEL}...`);
+  console.log(`[ai] Cayendo a ${FALLBACK_MODEL}...`);
   try {
-    const response = await callGemini(FALLBACK_MODEL, parts);
-    return normalize(JSON.parse(response.text || '{}'));
+    return await callGemini(FALLBACK_MODEL, parts);
   } catch (fallbackErr) {
-    console.error('Fallback model also failed:', fallbackErr.message);
-    throw lastError; // Throw original 503 error
+    console.error('[ai] El modelo de respaldo también falló:', fallbackErr.message);
+    throw lastError; // Surface the original failure, it's more informative
   }
 }
 
@@ -186,15 +309,32 @@ function normalize(raw) {
   const cleanItems = items
     .filter(i => i && i.name)
     .map((it, idx) => {
-      const quantity = Number.isFinite(+it.quantity) && +it.quantity > 0 ? Math.round(+it.quantity) : 1;
-      const unitPrice = +(+it.unitPrice || 0).toFixed(2);
-      const totalPrice = +(+it.totalPrice || unitPrice * quantity).toFixed(2);
+      const rawQty = +it.quantity;
+      const rawUnit = +it.unitPrice;
+      const rawTotal = +it.totalPrice;
+
+      // Weighed lines ("0,378 kg a 2,20 €/kg") come back with a fractional
+      // quantity. The claim screen draws one tappable pill per unit, so a
+      // fraction of a unit cannot be split between people — and Math.round on
+      // 0.378 used to yield 0, which silently dropped the line from the total.
+      // Collapse any such line to a single unit priced at the line amount.
+      let quantity = Number.isFinite(rawQty) ? Math.round(rawQty) : 1;
+      if (!(quantity >= 1)) quantity = 1;
+
+      // The whole app derives money from quantity × unitPrice, so make that
+      // product match the receipt's line amount instead of trusting three
+      // independently-read numbers to agree.
+      const lineTotal = Number.isFinite(rawTotal) && rawTotal > 0
+        ? rawTotal
+        : (Number.isFinite(rawUnit) ? rawUnit * quantity : 0);
+      const unitPrice = +(lineTotal / quantity).toFixed(2);
+
       return {
         id: idx + 1,
         name: String(it.name).trim(),
         quantity,
         unitPrice,
-        totalPrice,
+        totalPrice: +(unitPrice * quantity).toFixed(2),
         shared: !!it.shared
       };
     });
@@ -213,4 +353,5 @@ function normalize(raw) {
   };
 }
 
-module.exports = { extractItemsFromImages };
+// normalize se exporta para poder testearlo sin gastar llamadas a la API.
+module.exports = { extractItemsFromImages, normalize, PRIMARY_MODEL, FALLBACK_MODEL };

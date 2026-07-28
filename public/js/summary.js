@@ -42,14 +42,16 @@ async function loadData() {
   document.getElementById('ticketDate').textContent =
     timePart ? `${datePart}  ${timePart}` : datePart;
 
-  document.getElementById('ticketTotal').textContent = `${ticketData.total.toFixed(2)}€`;
+  document.getElementById('ticketTotal').textContent = Money.formatEUR(ticketData.total, lang);
 
-  // Per person average
-  const pp = claimsData.length > 0
-    ? ticketData.total / claimsData.length
-    : ticketData.total;
-  document.getElementById('perPerson').textContent = `${pp.toFixed(2)}€`;
+  // Media por persona: se divide entre los participantes esperados, no entre
+  // los que han marcado hasta ahora. Con un solo claim, lo segundo mostraba
+  // la cuenta entera como si fuera lo que paga cada uno.
+  const heads = ticketData.expectedParticipants || claimsData.length || 1;
+  document.getElementById('perPerson').textContent =
+    Money.formatEUR(ticketData.total / heads, lang);
 
+  renderUnassigned();
   renderPeople();
 
   if (ticketData.status === 'closed') {
@@ -118,6 +120,7 @@ function buildPeopleBreakdown() {
     return {
       name: claim.personName,
       isPayer: !!claim.isPayer,
+      confirmed: claim.confirmed !== false,
       total,
       items
     };
@@ -179,12 +182,12 @@ function renderPeople() {
       if (it.solo > 0) {
         const unitsPart = it.solo > 1 ? ` ×${it.solo}` : '';
         const detail = it.solo > 1
-          ? `<div class="pi-detail">${unitPrice.toFixed(2)}€ ${esc(t.perUnit)}</div>`
+          ? `<div class="pi-detail">${Money.formatEUR(unitPrice, lang)}${esc(t.perUnit)}</div>`
           : '';
         lines.push(`<div class="person-item">
           <div class="pi-main">
             <span class="pi-name">· ${esc(it.name)}${unitsPart}</span>
-            <span class="pi-amt">${it.soloAmt.toFixed(2)}€</span>
+            <span class="pi-amt">${Money.formatEUR(it.soloAmt, lang)}</span>
           </div>
           ${detail}
         </div>`);
@@ -197,22 +200,40 @@ function renderPeople() {
         lines.push(`<div class="person-item">
           <div class="pi-main">
             <span class="pi-name">· ${esc(it.name)}</span>
-            <span class="pi-amt">${sh.amt.toFixed(2)}€</span>
+            <span class="pi-amt">${Money.formatEUR(sh.amt, lang)}</span>
           </div>
-          <div class="pi-detail">${unitPrice.toFixed(2)}€${esc(t.perUnit)} (1/${sh.divider})${sharedPart}</div>
+          <div class="pi-detail">${Money.formatEUR(unitPrice, lang)}${esc(t.perUnit)} (1/${sh.divider})${sharedPart}</div>
         </div>`);
       });
     });
 
+    if (!p.confirmed) row.classList.add('is-picking');
     row.innerHTML = `
       <div class="person-head">
-        <div class="person-name">${esc(p.name)}${p.isPayer ? `<span class="person-tag">${t.payer}</span>` : ''}</div>
-        <span class="person-amount">${p.total.toFixed(2)}€</span>
+        <div class="person-name">${esc(p.name)}${p.isPayer ? `<span class="person-tag">${t.payer}</span>` : ''}${p.confirmed ? '' : `<span class="person-tag picking">${esc(t.stillPicking)}</span>`}</div>
+        <span class="person-amount">${Money.formatEUR(p.total, lang)}</span>
       </div>
       <div class="person-items">${lines.join('')}</div>
     `;
     list.appendChild(row);
   });
+}
+
+/**
+ * El número que faltaba: cuánto del ticket no está pagando nadie.
+ * Visible desde el primer claim, no solo al cerrar — al cerrar ya es tarde,
+ * la gente se ha ido de la mesa.
+ */
+function renderUnassigned() {
+  const row = document.getElementById('unassignedRow');
+  const label = document.getElementById('lblUnassigned');
+  const value = document.getElementById('unassignedVal');
+  const check = Money.reconcileClaims(ticketData.items, ticketData.total, claimsData);
+
+  row.classList.toggle('is-clear', check.balanced);
+  label.textContent = check.balanced ? t.allAssigned : t.unassigned;
+  value.textContent = check.balanced ? '0,00€' : Money.formatEUR(check.pending, lang);
+  return check;
 }
 
 function renderProgress() {
@@ -224,29 +245,36 @@ function renderProgress() {
   // Only the creator sees the close button — guests see the progress only
   if (bottomArea) bottomArea.classList.toggle('hidden', !creator || (ticketData && ticketData.status === 'closed'));
 
-  if (!el) return;
+  // No se cierra una cuenta con dinero sin asignar, hayan participado todos
+  // o no: lo que quede suelto se lo come el pagador sin enterarse.
+  const money = Money.reconcileClaims(ticketData.items, ticketData.total, claimsData);
   const expected = ticketData && ticketData.expectedParticipants;
-  if (!expected) {
-    el.classList.add('hidden');
-    if (closeBtn) closeBtn.disabled = false;
-    return;
+  // Solo cuenta quien ha confirmado: alguien a medias puede irse sin terminar.
+  const ready = Money.confirmedOnly(claimsData).length;
+  const everyone = !expected || ready >= expected;
+  const canClose = money.balanced && everyone && ticketData.status !== 'closed';
+
+  if (closeBtn) {
+    closeBtn.disabled = !canClose;
+    closeBtn.title = !money.balanced
+      ? t.cantCloseUnassigned.replace('{x}', money.pending.toFixed(2))
+      : (everyone ? '' : t.waitingParticipants);
   }
+
+  if (!el) return;
+  if (!expected) { el.classList.add('hidden'); return; }
+
   el.classList.remove('hidden');
-  const count = claimsData.length;
-  const complete = count >= expected;
-  el.classList.toggle('complete', complete);
-  const label = complete
+  el.classList.toggle('complete', everyone);
+  const picking = claimsData.length - ready;
+  const label = everyone
     ? t.allReady
-    : `${t.waitingFor} ${Math.max(0, expected - count)}`;
+    : (picking > 0 ? `${picking} ${t.stillPicking}` : `${t.waitingFor} ${Math.max(0, expected - ready)}`);
   el.innerHTML = `
     <span class="pp-label">${esc(t.participantsShort)}</span>
-    <span class="pp-count">${count} ${esc(t.ofN)} ${expected}</span>
+    <span class="pp-count">${ready} ${esc(t.ofN)} ${expected}</span>
     <span class="pp-state">${esc(label)}</span>
   `;
-  if (closeBtn) {
-    closeBtn.disabled = !complete || ticketData.status === 'closed';
-    closeBtn.title = complete ? '' : t.waitingParticipants;
-  }
 }
 
 function showClosed() {
@@ -257,6 +285,27 @@ function showClosed() {
 
 // Refresh data
 document.getElementById('refreshBtn').addEventListener('click', loadData);
+
+// Actualización automática: quien creó el ticket se queda mirando esta
+// pantalla mientras los demás eligen, así que se refresca sola. Consulta el
+// contador de versión (una lectura) y solo recarga cuando algo ha cambiado.
+let lastVersion = -1;
+async function checkForUpdates() {
+  if (ticketData && ticketData.status === 'closed') return;
+  try {
+    const r = await fetch(`/api/tickets/${ticketId}/pulse`);
+    if (!r.ok) return;
+    const { v } = await r.json();
+    if (v === lastVersion) return;
+    lastVersion = v;
+    await loadData();
+  } catch (_) {}
+}
+setInterval(() => { if (!document.hidden) checkForUpdates(); }, 3000);
+// Volver de otra app refresca al instante, sin esperar al siguiente ciclo.
+document.addEventListener('visibilitychange', () => {
+  if (!document.hidden) checkForUpdates();
+});
 
 // Build a sanitised filename using restaurant + receipt date
 function buildFilename() {
@@ -275,8 +324,10 @@ function buildFilename() {
 }
 
 // Download invoice = generate image + download
-document.getElementById('downloadBtn').addEventListener('click', () => {
-  generateImage();
+document.getElementById('downloadBtn').addEventListener('click', async () => {
+  // generateImage espera a que la tipografía esté lista, así que hay que
+  // esperarla: si no, se descargaba el canvas todavía en blanco.
+  await generateImage();
   const canvas = document.getElementById('shareCanvas');
   const link = document.createElement('a');
   link.download = buildFilename();
@@ -297,25 +348,32 @@ document.getElementById('closeBtn').addEventListener('click', async () => {
     toast(t.waitingParticipants);
     return;
   }
+  const pre = Money.reconcileClaims(ticketData.items, ticketData.total, claimsData);
+  if (!pre.balanced) {
+    toast(t.cantCloseUnassigned.replace('{x}', pre.pending.toFixed(2)));
+    return;
+  }
   const res = await fetch(`/api/tickets/${ticketId}/close`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ creatorKey: getCreatorKey() })
   });
   if (!res.ok) {
-    toast(t.onlyCreatorCanClose || 'Only the ticket creator can close it');
+    const err = await res.json().catch(() => ({}));
+    toast(err.error || t.onlyCreatorCanClose || 'Only the ticket creator can close it');
+    if (err.code === 'UNBALANCED_CLAIMS') { renderUnassigned(); renderProgress(); }
     return;
   }
   ticketData.status = 'closed';
   showClosed();
   showConfetti();
-  generateImage();
+  await generateImage();
   toast(t.closedMsg);
 });
 
 // Share top button (share claim link)
 document.getElementById('shareTopBtn').addEventListener('click', () => {
-  const url = `${location.origin}/claim.html?id=${ticketId}`;
+  const url = `${location.origin}/t/${ticketId}`;
   if (navigator.share) {
     navigator.share({ title: 'comparTICKET', url });
   } else {
@@ -325,7 +383,7 @@ document.getElementById('shareTopBtn').addEventListener('click', () => {
 
 // Share image
 document.getElementById('shareImgBtn').addEventListener('click', async () => {
-  generateImage();
+  await generateImage();
   const canvas = document.getElementById('shareCanvas');
   canvas.toBlob(async blob => {
     const fname = buildFilename();
@@ -344,218 +402,184 @@ document.getElementById('shareImgBtn').addEventListener('click', async () => {
 // ===================== CANVAS IMAGE GENERATION =====================
 // Mirrors the online summary exactly: black text, payer in red with PAGADOR
 // pill, no avatar circles, itemized breakdown, sorted by amount desc.
-function generateImage() {
+async function generateImage() {
   const wrap = document.getElementById('shareImgWrap');
   wrap.classList.remove('hidden');
   const canvas = document.getElementById('shareCanvas');
-  const ctx = canvas.getContext('2d');
 
-  // High-DPI: draw at 2× internal resolution for crisp output
-  const SCALE = 2;
-  const W = 600, P = 44, LH = 20;
+  // Sin esperar a la fuente, en una conexión lenta el canvas dibuja con la
+  // tipografía de reserva y la imagen sale con otra cara. En pantalla no se
+  // nota porque el texto se repinta solo; en un canvas queda congelado.
+  try { await document.fonts.ready; } catch (_) {}
+
+  // 3× en vez de 2×: la imagen acaba en WhatsApp, que la recomprime, así que
+  // conviene entregarla con margen de resolución.
+  const SCALE = 3;
+  const W = 600, P = 44, LH = 20, DETAIL_H = 15;
   const RED = '#DC2626';
   const BLACK = '#18181B';
   const GRAY = '#71717A';
   const GRAY_LIGHT = '#A1A1AA';
+  const PAPER = '#FFFEF8';
+  const EDGE = '#ECEAE4';
 
   const ordered = buildPeopleBreakdown();
+  const eur = n => Money.formatEUR(n, lang);
+  const itemMap = {};
+  ticketData.items.forEach(i => { itemMap[i.id] = i; });
 
-  // ---- Compute canvas height ----
-  const DETAIL_H = 14;
-  let H = 50 + 20 + 24 + 28 + 28 + 28;
-  ordered.forEach(p => {
-    let lineCount = 0;
-    let detailCount = 0;
-    p.items.forEach(it => {
-      if (it.solo > 0) {
-        lineCount += 1;
-        if (it.solo > 1) detailCount += 1;
+  /**
+   * Un solo recorrido que sirve para medir y para dibujar.
+   *
+   * Antes la altura se calculaba aparte, con sus propias constantes, y se
+   * desviaba del dibujo real: sobraban unos 60 px y el ticket quedaba
+   * descolgado con un hueco muerto debajo. Midiendo con el mismo código que
+   * dibuja, la altura es exacta por construcción y no se puede volver a
+   * desincronizar.
+   */
+  function layout(ctx) {
+    const on = !!ctx;
+    const text = (s, x, yy, align) => { if (on) { ctx.textAlign = align || 'left'; ctx.fillText(s, x, yy); } };
+    const font = f => { if (on) ctx.font = f; };
+    const fill = c => { if (on) ctx.fillStyle = c; };
+
+    let y = 50;
+
+    // ---- Cabecera ----
+    fill(BLACK); font('700 13px "Space Mono", monospace');
+    text((ticketData.restaurant || t.restaurant).toUpperCase(), W / 2, y, 'center');
+    y += 16;
+    if (ticketData.address) {
+      font('400 9px "Space Mono", monospace'); fill(GRAY);
+      text(ticketData.address, W / 2, y, 'center');
+      y += 14;
+    }
+    const d = new Date(ticketData.receiptDate || ticketData.createdAt);
+    font('400 10px "Space Mono", monospace'); fill(GRAY);
+    const datePart = d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US',
+      { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+    text(ticketData.receiptTime ? `${datePart}   ${ticketData.receiptTime}` : datePart, W / 2, y, 'center');
+    y += 24;
+
+    if (on) drawDash(ctx, P, y, W - P, y);
+    y += 28;
+
+    // ---- Total ----
+    font('400 12px "Space Mono", monospace'); fill('#52525B');
+    text(t.total, P, y);
+    font('700 20px "Space Mono", monospace'); fill(BLACK);
+    text(eur(ticketData.total), W - P, y, 'right');
+    y += 28;
+
+    if (on) drawDash(ctx, P, y, W - P, y);
+    y += 28;
+
+    // ---- Personas ----
+    ordered.forEach(p => {
+      const color = p.isPayer ? RED : BLACK;
+
+      font('700 14px "Space Mono", monospace'); fill(color);
+      text(p.name, P, y + 2);
+
+      if (p.isPayer && on) {
+        ctx.font = '700 14px "Space Mono", monospace';
+        const nameWidth = ctx.measureText(p.name).width;
+        ctx.font = '800 9px "Space Mono", monospace';
+        const pillW = ctx.measureText(t.payer).width + 14;
+        const pillX = P + nameWidth + 8, pillY = y - 8;
+        roundRect(ctx, pillX, pillY, pillW, 14, 4);
+        ctx.fillStyle = RED; ctx.fill();
+        ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center';
+        ctx.fillText(t.payer, pillX + pillW / 2, pillY + 10);
       }
-      if (it.shared) {
-        lineCount += it.shared.length;
-        detailCount += it.shared.length;
+
+      font('700 15px "Space Mono", monospace'); fill(color);
+      text(eur(p.total), W - P, y + 2, 'right');
+      y += 22;
+
+      p.items.forEach(item => {
+        const info = itemMap[item.id];
+        const unitPrice = info ? info.unitPrice : 0;
+
+        if (item.solo > 0) {
+          fill(GRAY); font('400 10px "Space Mono", monospace');
+          text('· ' + item.name + (item.solo > 1 ? ` ×${item.solo}` : ''), P + 12, y);
+          text(eur(item.soloAmt), W - P, y, 'right');
+          y += LH;
+          if (item.solo > 1) {
+            fill(GRAY_LIGHT); font('italic 400 9px "Space Mono", monospace');
+            text(`    ${eur(unitPrice)}${t.perUnit}`, P + 12, y);
+            y += DETAIL_H;
+          }
+        }
+
+        (item.shared || []).forEach(sh => {
+          fill(GRAY); font('400 10px "Space Mono", monospace');
+          text(`· ${item.name}`, P + 12, y);
+          text(eur(sh.amt), W - P, y, 'right');
+          y += LH;
+          fill(GRAY_LIGHT); font('italic 400 9px "Space Mono", monospace');
+          const con = sh.sharedWith.length ? ` · ${sh.sharedWith.join(', ')}` : '';
+          text(`    ${eur(unitPrice)}${t.perUnit} (1/${sh.divider})${con}`, P + 12, y);
+          y += DETAIL_H;
+        });
+      });
+
+      if (on) {
+        ctx.strokeStyle = '#E4E4E7';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([]);
+        ctx.beginPath(); ctx.moveTo(P, y + 2); ctx.lineTo(W - P, y + 2); ctx.stroke();
       }
+      y += 18;
     });
-    H += 32 + Math.max(1, lineCount) * LH + detailCount * DETAIL_H + 16;
-  });
-  H += 70; // footer padding + easter egg
-  if (ticketData.address) H += 14; // extra line for address
 
-  // Set canvas to 2× pixel size, scale context so drawing code stays the same
+    // ---- Pie ----
+    // Solo el dominio. El crédito personal se queda en la web: esta imagen la
+    // ven desconocidos en un grupo de WhatsApp.
+    y += 14;
+    font('400 9px "Space Mono", monospace'); fill('#C7C7CC');
+    text(location.hostname.replace(/^www\./, ''), W / 2, y, 'center');
+    y += 24;   // margen antes del borde dentado
+
+    return y;
+  }
+
+  // Paso 1: medir con un contexto de usar y tirar. Paso 2: dibujar.
+  const probe = document.createElement('canvas').getContext('2d');
+  const H = Math.ceil(layout(probe));
+
   canvas.width = W * SCALE;
   canvas.height = H * SCALE;
   canvas.style.width = W + 'px';
   canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
   ctx.scale(SCALE, SCALE);
 
-  // Paper background
-  ctx.fillStyle = '#FFFEF8';
+  ctx.fillStyle = PAPER;
   ctx.fillRect(0, 0, W, H);
+  layout(ctx);
 
-  let y = 50;
-
-  // ---- Header (restaurant + address + date) ----
-  ctx.fillStyle = BLACK;
-  ctx.font = '700 13px "Space Mono", monospace';
-  ctx.textAlign = 'center';
-  ctx.fillText((ticketData.restaurant || t.restaurant).toUpperCase(), W / 2, y);
-  y += 16;
-  if (ticketData.address) {
-    ctx.font = '400 9px "Space Mono", monospace';
-    ctx.fillStyle = GRAY;
-    ctx.fillText(ticketData.address, W / 2, y);
-    y += 14;
-  }
-
-  const d = new Date(ticketData.receiptDate || ticketData.createdAt);
-  ctx.font = '400 10px "Space Mono", monospace';
-  ctx.fillStyle = GRAY;
-  const canvasDatePart = d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
-  const canvasTimePart = ticketData.receiptTime || null;
-  ctx.fillText(
-    canvasTimePart ? `${canvasDatePart}   ${canvasTimePart}` : canvasDatePart,
-    W / 2, y
-  );
-  y += 24;
-
-  drawDash(ctx, P, y, W - P, y); y += 28;
-
-  // ---- Total ----
-  ctx.textAlign = 'left';
-  ctx.font = '400 12px "Space Mono", monospace';
-  ctx.fillStyle = '#52525B';
-  ctx.fillText(t.total, P, y);
-  ctx.textAlign = 'right';
-  ctx.font = '700 20px "Space Mono", monospace';
-  ctx.fillStyle = BLACK;
-  ctx.fillText(`${ticketData.total.toFixed(2)}€`, W - P, y);
-  y += 28;
-
-  drawDash(ctx, P, y, W - P, y); y += 28;
-
-  // ---- People ----
-  ordered.forEach(p => {
-    const color = p.isPayer ? RED : BLACK;
-
-    // Name (no avatar)
-    ctx.textAlign = 'left';
-    ctx.fillStyle = color;
-    ctx.font = '700 14px "Space Mono", monospace';
-    ctx.fillText(p.name, P, y + 2);
-
-    // PAGADOR pill
-    if (p.isPayer) {
-      const nameWidth = ctx.measureText(p.name).width;
-      const pillText = t.payer;
-      ctx.font = '800 9px "Space Mono", monospace';
-      const pillW = ctx.measureText(pillText).width + 14;
-      const pillH = 14;
-      const pillX = P + nameWidth + 8;
-      const pillY = y - 8;
-      // rounded rectangle
-      roundRect(ctx, pillX, pillY, pillW, pillH, 4);
-      ctx.fillStyle = RED;
-      ctx.fill();
-      ctx.fillStyle = '#FFFFFF';
-      ctx.textAlign = 'center';
-      ctx.fillText(pillText, pillX + pillW / 2, pillY + 10);
-    }
-
-    // Total amount on right
-    ctx.textAlign = 'right';
-    ctx.font = '700 15px "Space Mono", monospace';
-    ctx.fillStyle = color;
-    ctx.fillText(`${p.total.toFixed(2)}€`, W - P, y + 2);
-
-    y += 22;
-
-    // Items — look up original item for per-unit price
-    const itemMap = {};
-    ticketData.items.forEach(i => { itemMap[i.id] = i; });
-
-    ctx.font = '400 10px "Space Mono", monospace';
-    p.items.forEach(item => {
-      const info = itemMap[item.id];
-      const unitPrice = info ? info.unitPrice : 0;
-      // Solo line (whole units)
-      if (item.solo > 0) {
-        ctx.fillStyle = GRAY;
-        ctx.textAlign = 'left';
-        const unitsPart = item.solo > 1 ? ` ×${item.solo}` : '';
-        ctx.fillText('· ' + item.name + unitsPart, P + 12, y);
-        ctx.textAlign = 'right';
-        ctx.fillText(`${item.soloAmt.toFixed(2)}€`, W - P, y);
-        y += LH;
-        if (item.solo > 1) {
-          ctx.textAlign = 'left';
-          ctx.fillStyle = GRAY_LIGHT;
-          ctx.font = 'italic 400 9px "Space Mono", monospace';
-          ctx.fillText(`    ${unitPrice.toFixed(2)}€ ${t.perUnit}`, P + 12, y);
-          ctx.font = '400 10px "Space Mono", monospace';
-          y += DETAIL_H;
-        }
-      }
-      // One line per shared unit
-      (item.shared || []).forEach(sh => {
-        ctx.fillStyle = GRAY;
-        ctx.textAlign = 'left';
-        ctx.fillText(`· ${item.name}`, P + 12, y);
-        ctx.textAlign = 'right';
-        ctx.fillText(`${sh.amt.toFixed(2)}€`, W - P, y);
-        y += LH;
-        // Sub-detail
-        ctx.textAlign = 'left';
-        ctx.fillStyle = GRAY_LIGHT;
-        ctx.font = 'italic 400 9px "Space Mono", monospace';
-        const shared = sh.sharedWith.length > 0
-          ? ` · ${sh.sharedWith.join(', ')}`
-          : '';
-        ctx.fillText(`    ${unitPrice.toFixed(2)}€${t.perUnit} (1/${sh.divider})${shared}`, P + 12, y);
-        ctx.font = '400 10px "Space Mono", monospace';
-        y += DETAIL_H;
-      });
-    });
-
-    // Separator between people
-    ctx.strokeStyle = '#E4E4E7';
-    ctx.lineWidth = 1;
-    ctx.setLineDash([]);
-    ctx.beginPath();
-    ctx.moveTo(P, y + 2);
-    ctx.lineTo(W - P, y + 2);
-    ctx.stroke();
-    y += 16;
+  // Muescas laterales: media luna limpia del color del fondo, para que se lean
+  // como el troquelado de un ticket y no como una mancha.
+  ctx.fillStyle = EDGE;
+  [H * 0.32, H * 0.68].forEach(ny => {
+    ctx.beginPath(); ctx.arc(0, ny, 11, -Math.PI / 2, Math.PI / 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(W, ny, 11, Math.PI / 2, -Math.PI / 2); ctx.fill();
   });
 
-  // ---- Footer ----
-  y += 10;
-  ctx.textAlign = 'center';
-  ctx.font = '400 9px "Space Mono", monospace';
-  ctx.fillStyle = '#D4D4D8';
-  ctx.fillText('comparticket.app', W / 2, y);
-  y += 11;
-  ctx.font = 'italic 400 7px "Space Mono", monospace';
-  ctx.fillStyle = '#E4E4E7';
-  ctx.fillText('por alvaro saez ;)', W / 2, y);
-
-  // Side notches
-  ctx.fillStyle = '#ECEAE4';
-  [H * 0.3, H * 0.65].forEach(ny => {
-    ctx.beginPath(); ctx.arc(0, ny, 14, -Math.PI / 2, Math.PI / 2); ctx.fill();
-    ctx.beginPath(); ctx.arc(W, ny, 14, Math.PI / 2, -Math.PI / 2); ctx.fill();
-  });
-
-  // Zigzag bottom
+  // Borde dentado inferior, en una sola figura para que no queden costuras.
   const zz = 10;
-  ctx.fillStyle = '#ECEAE4';
+  ctx.fillStyle = EDGE;
+  ctx.beginPath();
+  ctx.moveTo(0, H);
   for (let x = 0; x < W; x += zz * 2) {
-    ctx.beginPath();
-    ctx.moveTo(x, H);
     ctx.lineTo(x + zz, H - zz);
     ctx.lineTo(x + zz * 2, H);
-    ctx.closePath();
-    ctx.fill();
   }
+  ctx.lineTo(W, H);
+  ctx.closePath();
+  ctx.fill();
 }
 
 function roundRect(ctx, x, y, w, h, r) {

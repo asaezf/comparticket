@@ -4,7 +4,31 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <meta name="theme-color" content="#ECEAE4">
-  <title>comparTICKET</title>
+  <title>comparTICKET — Divide la cuenta en segundos</title>
+  <meta name="description" content="Haz una foto del ticket y que cada uno marque lo que ha tomado. Sin discutir y sin calculadora.">
+
+  <!-- Icono. SVG para navegadores modernos; el de 16-32 px va sin renglones
+       porque a ese tamaño se convierten en una mancha gris. -->
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
+
+  <!-- Vista previa al compartir el enlace. La de la pantalla de reparto se
+       genera al vuelo en el servidor con el nombre del sitio y el importe. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="comparTICKET">
+  <meta property="og:title" content="comparTICKET — Divide la cuenta en segundos">
+  <meta property="og:description" content="Haz una foto del ticket y que cada uno marque lo que ha tomado. Sin discutir y sin calculadora.">
+  <meta property="og:image" content="/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <!-- Fuentes con preconexión. Antes se cargaban con @import dentro del CSS,
+       que es el método más lento: el navegador tenía que descargar y leer la
+       hoja de estilos antes de descubrir siquiera que hacían falta. -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:wght@500;700;800&display=swap">
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body>
@@ -74,12 +98,13 @@
     </div>
 
     <div class="home-indicator"></div>
-    <div class="easter-egg">por alvaro saez ;)</div>
+    <div class="easter-egg">desarrollado por A.Sáez.F</div>
   </div>
 
   <div class="toast hidden" id="toast"></div>
 
   <script src="/js/i18n.js"></script>
+  <script src="/js/imgprep.js"></script>
   <script src="/js/upload.js"></script>
 </body>
 </html>

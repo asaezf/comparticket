@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="comparTICKET">
+  <!--
+    Favicon — versión para 16-32 px (pestaña del navegador, marcadores).
+
+    Es el mismo icono pero SIN renglones: a ese tamaño se funden en una mancha
+    gris y ensucian la silueta. Aquí solo sobreviven tres cosas, y con eso
+    basta para reconocerlo: la forma de ticket, el borde dentado y el corte
+    naranja por el que se divide la cuenta.
+
+    El corte va más grueso y con menos huecos que en icon.svg porque a 16 px
+    una línea de puntos fina desaparece del todo.
+  -->
+
+  <rect width="512" height="512" rx="96" fill="#18181B"/>
+
+  <path fill="#FEFEF8" d="
+    M 84 56
+    h 344
+    a 18 18 0 0 1 18 18
+    v 336
+    l -43 34 -43 -34 -43 34 -43 -34 -43 34 -43 -34 -43 34 -43 -34
+    v -336
+    a 18 18 0 0 1 18 -18
+    z"/>
+
+  <line x1="256" y1="86" x2="256" y2="410"
+        stroke="#FF6B35" stroke-width="34" stroke-linecap="round"
+        stroke-dasharray="10 48"/>
+</svg>

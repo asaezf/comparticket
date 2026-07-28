@@ -77,7 +77,26 @@ const translations = {
     ctut3: 'Si una unidad ya tiene el nombre de otra persona, al tocarla se compartirá automáticamente entre vosotros.',
     onlyCreatorCanClose: 'Solo quien creó el ticket puede cerrarlo',
     cameraLabel: 'Cámara',
-    galleryLabel: 'Galería'
+    galleryLabel: 'Galería',
+    // Cuadre de la cuenta
+    sumLines: 'Suma líneas',
+    mismatchFalta: 'El total del ticket es mayor que la suma de las líneas. Revisa los importes de arriba o elige:',
+    mismatchSobra: 'Las líneas suman más que el total del ticket. Revisa los importes de arriba o elige:',
+    mmAddLine: 'Añadir la diferencia como línea',
+    mmUseSum: 'Usar la suma como total',
+    adjustmentName: 'Servicio / otros',
+    discountName: 'Descuento',
+    unassigned: 'Sin asignar',
+    allAssigned: 'Todo repartido',
+    cantCloseUnassigned: 'Quedan {x}€ sin asignar. Nadie los está pagando.',
+    itemsLocked: 'Ya hay gente que ha marcado lo suyo — los artículos ya no se pueden cambiar.',
+    // Tiempo real
+    picking: '· eligiendo',
+    each: 'cada uno',
+    stillPicking: 'eligiendo ahora',
+    tipFirstPill: 'Toca las unidades que hayas tomado',
+    askName: '¿Cómo te llamas?',
+    rotate: 'Girar'
   },
   en: {
     brand: 'compar',
@@ -156,7 +175,26 @@ const translations = {
     ctut3: 'If a unit already has someone else\u2019s name, tapping it shares that unit between you both.',
     onlyCreatorCanClose: 'Only the ticket creator can close it',
     cameraLabel: 'Camera',
-    galleryLabel: 'Gallery'
+    galleryLabel: 'Gallery',
+    // Bill reconciliation
+    sumLines: 'Lines sum',
+    mismatchFalta: 'The receipt total is higher than the sum of the lines. Check the amounts above or pick one:',
+    mismatchSobra: 'The lines add up to more than the receipt total. Check the amounts above or pick one:',
+    mmAddLine: 'Add the difference as a line',
+    mmUseSum: 'Use the sum as the total',
+    adjustmentName: 'Service / other',
+    discountName: 'Discount',
+    unassigned: 'Unassigned',
+    allAssigned: 'All split',
+    cantCloseUnassigned: '{x}€ still unassigned. Nobody is paying for it.',
+    itemsLocked: 'People have already picked their items — the list can no longer be changed.',
+    // Live updates
+    picking: '· picking',
+    each: 'each',
+    stillPicking: 'picking now',
+    tipFirstPill: 'Tap the units you had',
+    askName: "What's your name?",
+    rotate: 'Rotate'
   }
 };
 
