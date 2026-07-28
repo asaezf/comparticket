@@ -86,6 +86,11 @@ function renderItems() {
     inp.addEventListener('input', onChange);
   });
   list.querySelectorAll('.e-del').forEach(b => b.addEventListener('click', onDel));
+
+  // El ticket acaba de cambiar de alto: hay que remedir para que la animación
+  // de impresión no lo recorte. Con la lista larga del Mercadona el tope fijo
+  // que había antes se comía el total.
+  fitTicket();
 }
 
 function autoSize(ta) {
@@ -174,23 +179,33 @@ document.getElementById('addBtn').addEventListener('click', () => {
   if (inps.length) inps[inps.length - 1].focus();
 });
 
+/** Señala un campo que hay que rellenar y lleva la vista hasta él. */
+function reclamarCampo(input, mensaje) {
+  toast(mensaje);
+  if (!input) return;
+  input.focus();
+  input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  input.animate([
+    { transform: 'translateX(0)' }, { transform: 'translateX(-5px)' },
+    { transform: 'translateX(5px)' }, { transform: 'translateX(0)' }
+  ], { duration: 260 });
+}
+
 document.getElementById('shareBtn').addEventListener('click', async () => {
-  // Validate participants count
+  const btn = document.getElementById('shareBtn');
+  if (btn.disabled) return;   // ya se está compartiendo
+
+  // Quién pagó es obligatorio. Sin él nadie sabe a quién devolver el dinero,
+  // y además el pagador no se puede marcar en rojo en el reparto.
+  const payerInput = document.getElementById('payerInput');
+  const payerName = payerInput ? payerInput.value.trim() : '';
+  if (!payerName) return reclamarCampo(payerInput, t.needPayer);
+
+  // Cuántos son también: es el divisor de "por persona" y lo que decide
+  // cuándo están todos y se puede cerrar la cuenta.
   const pInput = document.getElementById('participantsInput');
   const pVal = pInput ? parseInt(pInput.value, 10) : NaN;
-  if (!Number.isFinite(pVal) || pVal < 1) {
-    toast(t.needParticipants);
-    if (pInput) {
-      pInput.focus();
-      pInput.animate([
-        { transform: 'translateX(0)' },
-        { transform: 'translateX(-5px)' },
-        { transform: 'translateX(5px)' },
-        { transform: 'translateX(0)' }
-      ], { duration: 260 });
-    }
-    return;
-  }
+  if (!Number.isFinite(pVal) || pVal < 1) return reclamarCampo(pInput, t.needParticipants);
 
   // Segundo cinturón: la pantalla ya bloquea el botón, pero si el descuadre
   // llegara hasta aquí el servidor lo rechaza igualmente.
@@ -201,43 +216,63 @@ document.getElementById('shareBtn').addEventListener('click', async () => {
     return;
   }
 
-  const itemsRes = await fetch(`/api/tickets/${ticketId}/items`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ items: ticketData.items, total: ticketData.total })
-  });
-  if (!itemsRes.ok) {
-    const err = await itemsRes.json().catch(() => ({}));
-    return toast(err.error || t.itemsLocked);
-  }
-  // Save payer
-  const payerInput = document.getElementById('payerInput');
-  const payerName = payerInput ? payerInput.value.trim() : '';
-  await fetch(`/api/tickets/${ticketId}/payer`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ payerName })
-  });
-  // Save participants
-  await fetch(`/api/tickets/${ticketId}/participants`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ expectedParticipants: pVal })
-  });
-  const shareRes = await fetch(`/api/tickets/${ticketId}/share`, { method: 'POST' });
-  if (!shareRes.ok) {
-    const err = await shareRes.json().catch(() => ({}));
-    if (err.reconciliation) {
-      ticketData.total = err.reconciliation.total;
-      updateTotal();
-      document.getElementById('mismatch').scrollIntoView({ behavior: 'smooth', block: 'center' });
+  // Compartir son cuatro peticiones seguidas. Sin aviso ni bloqueo, un toque
+  // de más lanzaba dos cadenas a la vez y un fallo de red dejaba la pantalla
+  // muerta sin decir nada: era lo que se sentía como "se atasca".
+  const textoOriginal = btn.textContent;
+  btn.disabled = true;
+  btn.textContent = t.sharing;
+
+  try {
+    const itemsRes = await fetch(`/api/tickets/${ticketId}/items`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ items: ticketData.items, total: ticketData.total })
+    });
+    if (!itemsRes.ok) {
+      const err = await itemsRes.json().catch(() => ({}));
+      throw new Error(err.error || t.itemsLocked);
     }
-    return toast(err.error || 'No se ha podido compartir');
+
+    // Pagador y participantes son independientes: en paralelo se ahorra un
+    // viaje de ida y vuelta, que en móvil se nota.
+    await Promise.all([
+      fetch(`/api/tickets/${ticketId}/payer`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payerName })
+      }),
+      fetch(`/api/tickets/${ticketId}/participants`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ expectedParticipants: pVal })
+      })
+    ]);
+
+    const shareRes = await fetch(`/api/tickets/${ticketId}/share`, { method: 'POST' });
+    if (!shareRes.ok) {
+      const err = await shareRes.json().catch(() => ({}));
+      if (err.reconciliation) {
+        ticketData.total = err.reconciliation.total;
+        updateTotal();
+        document.getElementById('mismatch').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+      throw new Error(err.error || t.shareFailed);
+    }
+
+    ticketData.status = 'shared';
+    ticketData.payerName = payerName;
+    ticketData.expectedParticipants = pVal;
+    showShare();
+  } catch (e) {
+    // Un corte de red llega aquí como TypeError('Failed to fetch'), que no le
+    // dice nada a nadie. Los mensajes propios sí son útiles y se respetan.
+    const esFalloDeRed = e instanceof TypeError;
+    toast(esFalloDeRed || !e.message ? t.shareFailed : e.message);
+    // Se recupera el botón: el usuario puede volver a intentarlo.
+    btn.disabled = false;
+    btn.textContent = textoOriginal;
   }
-  ticketData.status = 'shared';
-  ticketData.payerName = payerName;
-  ticketData.expectedParticipants = pVal;
-  showShare();
 });
 
 function showShare() {

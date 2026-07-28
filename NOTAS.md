@@ -347,6 +347,62 @@ de fallo que el bug nº1 de este documento. Añadido `scripts/test-pages.js`, qu
 comprueba que cada página carga los módulos que su JS usa y que existen todos
 los ids que toca. **Eso ya no puede volver a pasar sin que salte.**
 
+### Ronda 1 de pruebas de Álvaro ✅ **HECHO** *(28/07/2026)*
+
+Primera vez que la app se prueba de verdad, con el ticket largo del Mercadona.
+Salieron nueve cosas. Las dos primeras eran graves e impedían usarla.
+
+**1. 🔴 El ticket largo se cortaba y no se podía terminar de usar.**
+La animación de impresión terminaba en `max-height: 2000px` y, al ser
+`forwards`, ese tope se quedaba puesto para siempre junto con
+`overflow: hidden`. **Con el ticket del Mercadona el contenido mide 8.597 px:
+se veía el 23% y se perdía el resto.** En la pantalla de revisión desaparecía
+el total; en la de marcar había artículos que era **imposible tocar**; y en la
+de resumen parecía que la animación se atascaba, porque el papel dejaba de
+crecer a mitad de camino.
+
+Arreglado midiendo el contenido real (`fitTicket()` en `i18n.js`) y pasándolo
+al CSS en `--ticket-h`. Al acabar la animación, el ticket pasa a `.printed` y
+**se le quitan todas las ataduras**: sin `max-height` y sin `overflow`, ya no
+puede recortar nada pase lo que pase. Más una red de seguridad por si la
+animación no llega a emitir su evento (pestaña en segundo plano, movimiento
+reducido). Se remide en cada pintado de las tres pantallas.
+
+Verificado con 35 líneas: el último artículo se ve **y se puede marcar**.
+Siete comprobaciones nuevas en `test-pages.js` para que no vuelva.
+
+**2. 🔴 El pagador no salía en rojo ni con su etiqueta**, ni en la lista ni en
+la imagen descargable. El servidor guardaba `isPayer` fijo dentro de cada
+claim, calculado *en el momento de marcar*. Eso falla siempre en el caso
+normal: se comparte el enlace, la gente marca, y el nombre del pagador se
+anota o se corrige después — todos esos claims se quedaban con `isPayer:
+false` para siempre. Ahora se decide al leer, comparando con el `payerName`
+actual del ticket.
+
+**3. Compartir enlace se atascaba.** Son cuatro peticiones en cadena sin aviso
+ni bloqueo: un toque de más lanzaba dos cadenas y un fallo de red dejaba la
+pantalla muerta en silencio. Ahora el botón se bloquea y pone "Generando
+enlace…", los errores se avisan en cristiano (un corte de red llegaba como
+`TypeError: Failed to fetch`) y el botón se recupera para reintentar. Pagador
+y participantes se mandan en paralelo, que ahorra un viaje.
+
+**4. Quién pagó y cuántos son pasan a ser obligatorios** antes de compartir.
+Sin pagador nadie sabe a quién devolver el dinero — y era además la causa
+raíz del punto 2.
+
+**5. La imagen solo se descarga con la cuenta cerrada.** Un reparto a medias
+circulando por WhatsApp es peor que no tener imagen: la gente paga la cifra
+que le llegó y esa cifra todavía puede cambiar.
+
+**6. Icono rehecho.** El anterior —un ticket con una línea de puntos— no se
+reconocía. Ahora es **la impresora con el ticket saliendo**, la misma imagen
+que el usuario ya ve mientras se procesa la foto. Los dos tamaños comparten
+silueta; el grande lleva la marca impresa en la carcasa y el de pestaña se
+queda con lo que sobrevive a 16 px. `og.png` regenerada con él.
+
+**7. Textos.** La vista previa pasa a *"…Marca lo que has tomado para saber
+cuánto le debes. 💸"* y el mensaje de WhatsApp a *"Marca lo tuyo"*.
+
 ### Bloque G — El salto a app ← **siguiente**
 21. Cuentas de usuario → tickets abiertos pendientes y carpetas por viaje
 22. Capacitor → App Store y Play Store, con este mismo código

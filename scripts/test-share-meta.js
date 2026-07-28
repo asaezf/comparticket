@@ -38,9 +38,9 @@ function shareMeta(ticket, claims) {
   } else if (listos > 0) {
     description = `Ya hay ${listos} marcando lo suyo. Te toca.`;
   } else if (quien) {
-    description = `${quien} ha pagado ${eur}. Marca lo que has tomado tú.`;
+    description = `${quien} ha pagado ${eur}. Marca lo que has tomado para saber cuánto le debes. 💸`;
   } else {
-    description = `${eur} sobre la mesa. Marca lo que has tomado tú.`;
+    description = `${eur} sobre la mesa. Marca lo que has tomado para saber cuánto le debes. 💸`;
   }
   return { title: `${sitio} · ${eur}`, description };
 }
@@ -51,7 +51,7 @@ console.log('\n1. El texto cambia según el estado de la cuenta');
 check('título con sitio e importe',
   shareMeta(base, []).title, 'MERCADONA · 84,50 €');
 check('recién compartida: apela al pagador',
-  shareMeta(base, []).description, 'Álvaro ha pagado 84,50 €. Marca lo que has tomado tú.');
+  shareMeta(base, []).description, 'Álvaro ha pagado 84,50 €. Marca lo que has tomado para saber cuánto le debes. 💸');
 check('con gente dentro: presión social',
   shareMeta(base, [{ personName: 'A', confirmed: true }, { personName: 'B', confirmed: true }]).description,
   'Ya han marcado 2 de 6. Faltas tú.');
@@ -63,7 +63,7 @@ check('cerrada',
   'Cuenta cerrada. Mira cómo quedó el reparto de 84,50 €.');
 check('sin pagador anotado',
   shareMeta({ ...base, payerName: null }, []).description,
-  '84,50 € sobre la mesa. Marca lo que has tomado tú.');
+  '84,50 € sobre la mesa. Marca lo que has tomado para saber cuánto le debes. 💸');
 check('sin nombre de sitio',
   shareMeta({ ...base, restaurant: null }, []).title, 'La cuenta · 84,50 €');
 
@@ -87,7 +87,8 @@ console.log('\n3. Las etiquetas se sustituyen de verdad en el HTML');
     .replace(/<title>[^<]*<\/title>/, `<title>${escAttr(meta.title)}</title>`);
 
   check('og:title sustituido', out.includes('<meta property="og:title" content="MERCADONA · 84,50 €">'), true);
-  check('og:description sustituido', out.includes('Marca lo que has tomado tú'), true);
+  check('og:description sustituido', out.includes('para saber cuánto le debes'), true);
+  check('el emoji sobrevive al escapado', out.includes('💸'), true);
   check('title de la pestaña sustituido', out.includes('<title>MERCADONA · 84,50 €</title>'), true);
   check('la imagen de marca sigue puesta', out.includes('<meta property="og:image" content="/og.png">'), true);
   check('el HTML no se ha roto', out.includes('</html>') && out.includes('id="itemsList"'), true);

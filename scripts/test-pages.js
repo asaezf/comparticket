@@ -72,5 +72,33 @@ for (const pagina of Object.keys(PAGINAS)) {
   check(`${pagina}`, falta.length === 0, falta.length ? `falta: ${falta.join(', ')}` : '');
 }
 
+console.log('\n4. La animación de impresión no puede recortar tickets largos');
+{
+  const css = fs.readFileSync(path.join(PUB, 'css', 'style.css'), 'utf8');
+  const i18n = fs.readFileSync(path.join(PUB, 'js', 'i18n.js'), 'utf8');
+
+  // Un tope fijo en píxeles cortaba el ticket de Mercadona por la mitad: el
+  // total desaparecía en la pantalla de revisión y en la de marcar había
+  // artículos imposibles de tocar. La altura debe venir del contenido.
+  const topeFijo = /max-height:\s*\d+px[^;]*;\s*\n?\s*padding-top:\s*18px/.test(css);
+  check('el fotograma final no usa un alto fijo', !topeFijo,
+    'ticketEmerge vuelve a tener un max-height en píxeles fijos');
+  check('el alto final sale de --ticket-h', /max-height:\s*var\(--ticket-h/.test(css));
+  check('existe el estado .printed que suelta las ataduras', /\.ticket\.printed\b/.test(css));
+  check('.printed quita el max-height', /\.ticket\.printed[^}]*max-height:\s*none/s.test(css));
+  check('.printed devuelve el overflow', /\.ticket\.printed[^}]*overflow:\s*visible/s.test(css));
+  check('fitTicket existe y mide el contenido', /function fitTicket[\s\S]*scrollHeight/.test(i18n));
+  check('fitTicket tiene red de seguridad por si no salta la animación',
+    /function fitTicket[\s\S]*setTimeout\(liberar/.test(i18n));
+
+  // Las tres pantallas que dibujan un ticket tienen que remedir al pintar.
+  for (const [pagina, script] of Object.entries(PAGINAS)) {
+    if (pagina === 'index.html') continue;   // la portada no lleva lista
+    const js = fs.readFileSync(path.join(PUB, 'js', script), 'utf8');
+    check(`${script} remide tras pintar`, /fitTicket\(/.test(js),
+      'sin fitTicket, un ticket largo se queda recortado');
+  }
+}
+
 console.log(`\n${pass} ok, ${fail} fallos\n`);
 process.exit(fail ? 1 : 0);

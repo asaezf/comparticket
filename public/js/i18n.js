@@ -15,7 +15,7 @@ const translations = {
     perPerson: 'Por persona',
     shareBtn: 'Compartir enlace',
     shareTitle: 'Comparte con tus amigos',
-    shareHint: 'Cada uno marca lo suyo',
+    shareHint: 'Marca lo tuyo',
     copyLink: 'Copiar enlace',
     copied: '¡Enlace copiado!',
     share: 'Compartir',
@@ -71,6 +71,10 @@ const translations = {
     pickUnitsHint: 'Toca las unidades que has consumido',
     perUnit: '/ud',
     needParticipants: 'Indica el nº de participantes',
+    needPayer: 'Indica quién pagó la cuenta',
+    sharing: 'Generando enlace…',
+    shareFailed: 'No se ha podido compartir. Inténtalo otra vez.',
+    downloadOnlyClosed: 'Podrás descargarla cuando la cuenta esté cerrada',
     waitingParticipants: 'Esperando a que participen todos',
     ctut1: 'Escribe tu nombre real arriba — sin apodos, así tus amigos te identifican.',
     ctut2: 'Toca las píldoras de cada artículo según las unidades que has consumido.',
@@ -113,7 +117,7 @@ const translations = {
     perPerson: 'Per Person',
     shareBtn: 'Share link',
     shareTitle: 'Share with friends',
-    shareHint: 'Each person picks their items',
+    shareHint: 'Pick what you had',
     copyLink: 'Copy link',
     copied: 'Link copied!',
     share: 'Share',
@@ -169,6 +173,10 @@ const translations = {
     pickUnitsHint: 'Tap the units you had',
     perUnit: '/unit',
     needParticipants: 'Set the nº of participants',
+    needPayer: 'Set who paid the bill',
+    sharing: 'Creating link…',
+    shareFailed: "Couldn't share. Try again.",
+    downloadOnlyClosed: "You'll be able to download it once the bill is closed",
     waitingParticipants: 'Waiting for everyone to join',
     ctut1: 'Enter your real name above — no nicknames, so your friends recognize you.',
     ctut2: 'Tap the pills of each item for the units you consumed.',
@@ -205,3 +213,50 @@ function detectLang() {
 
 const lang = detectLang();
 const t = translations[lang];
+
+/**
+ * Termina la animación de "el ticket sale de la impresora" sin recortar nada.
+ *
+ * La animación crece el `max-height` desde 0, y como es `forwards` el valor
+ * final se queda fijo para siempre. Con un tope fijo, cualquier ticket más
+ * largo quedaba cortado de forma permanente — se comía el total en la pantalla
+ * de revisión y media lista en la de marcar.
+ *
+ * Aquí se mide el alto real del contenido y se pasa al CSS, y en cuanto
+ * termina la animación se le quitan todas las ataduras al ticket.
+ *
+ * Hay que llamarla DESPUÉS de pintar el contenido, y otra vez si el contenido
+ * cambia de alto mientras aún se está imprimiendo (añadir una línea, desplegar
+ * la ayuda).
+ */
+function fitTicket(el) {
+  el = el || document.getElementById('ticket');
+  if (!el) return;
+
+  // Ya terminó: no hay nada que atar.
+  if (el.classList.contains('printed')) return;
+
+  const liberar = () => {
+    el.classList.add('printed');
+    el.classList.remove('printing');
+  };
+
+  if (!el.classList.contains('printing')) return liberar();
+
+  // scrollHeight ignora el max-height que impone la animación, así que da el
+  // alto de verdad del contenido. El margen extra evita que un redondeo deje
+  // la última línea a medias.
+  const alto = el.scrollHeight + 40;
+  el.style.setProperty('--ticket-h', alto + 'px');
+
+  if (!el.dataset.fitBound) {
+    el.dataset.fitBound = '1';
+    el.addEventListener('animationend', e => {
+      if (e.animationName === 'ticketEmerge') liberar();
+    });
+    // Red de seguridad: si la animación no llega a emitir el evento (pestaña
+    // en segundo plano, `prefers-reduced-motion`, un navegador raro), el
+    // ticket se libera igual. Nunca puede quedarse recortado.
+    setTimeout(liberar, 4200);
+  }
+}

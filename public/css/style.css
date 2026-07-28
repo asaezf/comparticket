@@ -411,16 +411,40 @@ body {
   margin-top: -1px; /* seamless with ticket */
 }
 
-/* Print animation — paper pushes out from the slot */
+/* Print animation — paper pushes out from the slot.
+ *
+ * El alto final lo mide el JS y lo pasa en --ticket-h. Antes había un
+ * `max-height: 2000px` fijo y, como la animación es `forwards`, ese límite se
+ * quedaba puesto para siempre junto con `overflow: hidden`: cualquier ticket
+ * más alto de 2000 px quedaba CORTADO de forma permanente. Con el ticket de
+ * Mercadona (35 líneas) se comía el total en la pantalla de revisión y media
+ * lista en la de marcar, que era imposible de completar.
+ *
+ * El respaldo de 12000px es para el caso raro de que el JS no llegue a medir:
+ * es preferible pasarse de largo que volver a cortar contenido.
+ */
 .ticket.printing {
-  animation: ticketEmerge 6.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: ticketEmerge 3.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
   transform-origin: top center;
-  will-change: max-height, transform;
   overflow: hidden;
 }
 .ticket.printing + .ticket-zigzag {
-  animation: zigzagFollow 6.8s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: zigzagFollow 3.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
   opacity: 0;
+}
+
+/* Al terminar de "imprimirse" se quitan TODAS las ataduras. A partir de aquí
+ * el ticket es una caja normal: ni recortes ni alturas máximas, pase lo que
+ * pase con el contenido (añadir líneas, plegar la ayuda, girar el móvil). */
+.ticket.printed {
+  animation: none;
+  max-height: none;
+  overflow: visible;
+}
+.ticket.printed + .ticket-zigzag {
+  animation: none;
+  opacity: 1;
+  transform: none;
 }
 
 @keyframes ticketEmerge {
@@ -437,7 +461,7 @@ body {
     padding-bottom: 0;
   }
   100% {
-    max-height: 2000px;
+    max-height: var(--ticket-h, 12000px);
     padding-top: 18px;
     padding-bottom: 18px;
     opacity: 1;

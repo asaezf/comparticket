@@ -71,6 +71,24 @@ async function loadData() {
  * per-person: if a person has two whole units and one half of unit #3, we
  * show "· Cerveza ×2 + ½" + separate rows as needed.
  */
+/**
+ * Quién es el pagador, decidido AHORA y no cuando la persona marcó.
+ *
+ * El servidor guardaba un `isPayer` fijo dentro de cada claim, calculado en el
+ * momento de marcar. Eso fallaba siempre en el caso normal: el dueño comparte
+ * el enlace, la gente marca, y el nombre del pagador se anota después o se
+ * corrige. Todos esos claims se quedaban con `isPayer: false` para siempre, y
+ * por eso el pagador no salía en rojo ni con su etiqueta, ni en la lista ni en
+ * la imagen descargable.
+ *
+ * Comparando contra el `payerName` actual del ticket, siempre acierta.
+ */
+function esPagador(nombre) {
+  const pagador = (ticketData.payerName || '').trim().toLowerCase();
+  if (!pagador) return false;
+  return (nombre || '').trim().toLowerCase() === pagador;
+}
+
 function buildPeopleBreakdown() {
   const itemMap = {};
   ticketData.items.forEach(i => { itemMap[i.id] = i; });
@@ -119,7 +137,7 @@ function buildPeopleBreakdown() {
     }).filter(Boolean);
     return {
       name: claim.personName,
-      isPayer: !!claim.isPayer,
+      isPayer: esPagador(claim.personName),
       confirmed: claim.confirmed !== false,
       total,
       items
@@ -217,6 +235,11 @@ function renderPeople() {
     `;
     list.appendChild(row);
   });
+
+  // Esta pantalla crece según va marcando la gente. Sin remedir, la animación
+  // de impresión se quedaba con el alto de cuando no había nadie y recortaba
+  // la lista: era lo que hacía que pareciera atascada.
+  fitTicket();
 }
 
 /**
@@ -259,6 +282,16 @@ function renderProgress() {
     closeBtn.title = !money.balanced
       ? t.cantCloseUnassigned.replace('{x}', money.pending.toFixed(2))
       : (everyone ? '' : t.waitingParticipants);
+  }
+
+  // La imagen solo se descarga con la cuenta cerrada. Un reparto a medias
+  // circulando por WhatsApp es peor que no tener imagen: la gente paga la
+  // cifra del cuadro que le llegó y esa cifra todavía puede cambiar.
+  const dl = document.getElementById('downloadBtn');
+  if (dl) {
+    const cerrada = ticketData.status === 'closed';
+    dl.disabled = !cerrada;
+    dl.title = cerrada ? '' : t.downloadOnlyClosed;
   }
 
   if (!el) return;
@@ -325,6 +358,9 @@ function buildFilename() {
 
 // Download invoice = generate image + download
 document.getElementById('downloadBtn').addEventListener('click', async () => {
+  // Segundo cinturón: el botón ya sale desactivado, pero un reparto a medias
+  // no debe poder salir de aquí ni por accidente.
+  if (!ticketData || ticketData.status !== 'closed') return toast(t.downloadOnlyClosed);
   // generateImage espera a que la tipografía esté lista, así que hay que
   // esperarla: si no, se descargaba el canvas todavía en blanco.
   await generateImage();

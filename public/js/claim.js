@@ -414,6 +414,11 @@ function renderItems() {
     list.appendChild(row);
     refreshPills(row, item, others);
   });
+
+  // Esta es la pantalla donde más dolía el recorte: con un ticket largo la
+  // lista se cortaba a media altura y había artículos que era IMPOSIBLE
+  // marcar. Remedir en cada pintado lo garantiza para cualquier longitud.
+  fitTicket();
 }
 
 function pillInner(item, u, others) {

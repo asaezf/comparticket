@@ -362,9 +362,9 @@ function shareMeta(ticket, claims) {
   } else if (listos > 0) {
     description = `Ya hay ${listos} marcando lo suyo. Te toca.`;
   } else if (quien) {
-    description = `${quien} ha pagado ${eur}. Marca lo que has tomado tú.`;
+    description = `${quien} ha pagado ${eur}. Marca lo que has tomado para saber cuánto le debes. 💸`;
   } else {
-    description = `${eur} sobre la mesa. Marca lo que has tomado tú.`;
+    description = `${eur} sobre la mesa. Marca lo que has tomado para saber cuánto le debes. 💸`;
   }
 
   return { title: `${sitio} · ${eur}`, description };

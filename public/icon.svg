@@ -1,44 +1,45 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="comparTICKET">
   <!--
-    Icono comparTICKET — versión grande (app, pantalla de inicio, tiendas).
+    Icono comparTICKET — versión grande (pantalla de inicio, tiendas, futura app).
 
-    Idea: un ticket partido por la mitad. Es lo que hace la app en una imagen.
+    Es la impresora térmica con el ticket saliendo por la ranura: la misma
+    imagen que el usuario ya ve mientras se procesa la foto. La versión
+    anterior era un ticket suelto con una línea de puntos y no se reconocía a
+    ningún tamaño.
 
-    Lenguaje visual del proyecto: papel crema (#FEFEF8), negro (#18181B),
-    naranja de acento (#FF6B35) y el borde dentado del ticket al salir de la
-    impresora. Sin degradados ni sombras: aguantan el escalado y que las
-    tiendas recorten el icono en círculo.
-
-    Para 16-32 px usar favicon.svg, que quita los renglones: aquí se
-    convertirían en una mancha gris.
+    Los tres tamaños comparten silueta —impresora arriba, papel saliendo— para
+    que sea el mismo icono a cualquier escala. Aquí, que hay sitio, el ticket
+    lleva impresa la marca.
   -->
 
-  <rect width="512" height="512" rx="114" fill="#18181B"/>
+  <rect width="512" height="512" rx="114" fill="#ECEAE4"/>
 
-  <!-- Papel. Ocupa buena parte del marco a propósito: con más aire alrededor
-       el icono se deshacía por debajo de 64 px. -->
+  <!-- Cuerpo de la impresora -->
+  <rect x="56" y="76" width="400" height="120" rx="30" fill="#18181B"/>
+  <!-- Marca impresa en la carcasa -->
+  <text x="92" y="152" font-family="'DM Sans',system-ui,sans-serif" font-size="44"
+        font-weight="800" fill="#FEFEF8" letter-spacing="-1">compar<tspan fill="#FF6B35">T</tspan></text>
+  <!-- Piloto encendido -->
+  <circle cx="410" cy="136" r="14" fill="#4ADE80"/>
+  <!-- Ranura de salida -->
+  <rect x="86" y="180" width="340" height="9" rx="4.5" fill="#000" opacity="0.5"/>
+
+  <!-- Papel saliendo, con el borde inferior dentado -->
   <path fill="#FEFEF8" d="
-    M 96 64
-    h 320
-    a 18 18 0 0 1 18 18
-    v 322
-    l -40 32 -40 -32 -40 32 -40 -32 -40 32 -40 -32 -40 32 -40 -32
-    v -322
-    a 18 18 0 0 1 18 -18
+    M 114 188
+    h 284
+    v 216
+    l -35.5 30 -35.5 -30 -35.5 30 -35.5 -30 -35.5 30 -35.5 -30 -35.5 30 -35.5 -30
     z"/>
 
-  <!-- Renglones: sugieren líneas de artículos sin dibujar texto -->
+  <!-- Renglones del ticket -->
   <g fill="#D4D4D8">
-    <rect x="134" y="134" width="86" height="22" rx="11"/>
-    <rect x="134" y="208" width="66" height="22" rx="11"/>
-    <rect x="134" y="282" width="78" height="22" rx="11"/>
-    <rect x="292" y="134" width="86" height="22" rx="11"/>
-    <rect x="292" y="208" width="86" height="22" rx="11"/>
-    <rect x="292" y="282" width="86" height="22" rx="11"/>
+    <rect x="148" y="234" width="126" height="19" rx="9.5"/>
+    <rect x="148" y="286" width="94"  height="19" rx="9.5"/>
+    <rect x="148" y="338" width="110" height="19" rx="9.5"/>
+    <rect x="306" y="234" width="58"  height="19" rx="9.5"/>
+    <rect x="306" y="286" width="58"  height="19" rx="9.5"/>
   </g>
-
-  <!-- El corte. Único elemento en color: es lo que identifica el icono. -->
-  <line x1="256" y1="88" x2="256" y2="404"
-        stroke="#FF6B35" stroke-width="22" stroke-linecap="round"
-        stroke-dasharray="4 44"/>
+  <!-- El importe, en el naranja de la marca -->
+  <rect x="306" y="338" width="58" height="19" rx="9.5" fill="#FF6B35"/>
 </svg>
