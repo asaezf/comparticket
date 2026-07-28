@@ -680,6 +680,31 @@ body {
   color: var(--green);
 }
 
+/* Suma de lo marcado — un escalón por debajo de las otras filas, porque es
+   una comprobación de apoyo y no una cifra que nadie tenga que pagar. */
+.claimed-row {
+  margin-top: -2px;
+}
+.claimed-row .data-label,
+.claimed-row .data-value {
+  font-size: 0.66rem;
+  color: var(--gray-400);
+}
+/* Mientras falte gente por marcar, que no cuadre es lo normal: se queda gris
+   para no alarmar. Solo cuando han marcado todos el número significa algo. */
+.claimed-row.is-final .data-label,
+.claimed-row.is-final .data-value {
+  font-weight: 700;
+}
+.claimed-row.is-ok .data-label,
+.claimed-row.is-ok .data-value {
+  color: var(--green);
+}
+.claimed-row.is-off .data-label,
+.claimed-row.is-off .data-value {
+  color: var(--red);
+}
+
 /* Revisión: las líneas no suman el total del ticket */
 .mismatch {
   margin-top: 10px;
@@ -857,6 +882,16 @@ body {
 .claim-help > summary::-webkit-details-marker { display: none; }
 .claim-help > summary::after { content: ' +'; font-weight: 700; }
 .claim-help[open] > summary::after { content: ' −'; }
+
+/* Ayuda de la pantalla de revisión: qué hacer si la lectura se dejó algo */
+.review-help { margin-top: 6px; }
+.review-help .rh-body {
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  line-height: 1.5;
+  color: var(--gray-500);
+  padding: 4px 2px 2px;
+}
 
 /* Botón de girar sobre la miniatura */
 /* Mismo tamaño y peso visual que el botón de quitar, en la esquina opuesta */

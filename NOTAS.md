@@ -403,6 +403,51 @@ queda con lo que sobrevive a 16 px. `og.png` regenerada con él.
 **7. Textos.** La vista previa pasa a *"…Marca lo que has tomado para saber
 cuánto le debes. 💸"* y el mensaje de WhatsApp a *"Marca lo tuyo"*.
 
+### Ronda 2 de pruebas de Álvaro ✅ **HECHO** *(29/07/2026)*
+
+**1. Nueva fila "Suma de lo marcado"** en el resumen, para comparar de un
+vistazo con el total sin sumar a mano. La jerarquía del bloque queda:
+
+| Línea | Tamaño | Color |
+|---|---|---|
+| Total | 20 px | negro |
+| Por persona a partes iguales | 15 px | negro |
+| Sin marcar / Todo marcado y asignado | 15 px | rojo → verde al cuadrar |
+| Suma de lo marcado | 10,5 px | gris → verde/rojo |
+
+La última usa una **comparación exacta**, no la tolerancia de 0,02 € del
+cierre. Son dos preguntas distintas: *"¿se puede cerrar?"* admite el ruido del
+redondeo, pero *"¿la suma coincide?"* es sí o no. **Un céntimo la pinta en
+rojo y aun así deja cerrar**, como acordamos. Se queda gris mientras falte
+gente por marcar, porque hasta entonces no cuadrar es lo normal.
+
+Renombradas *"Por persona"* → *"Por persona a partes iguales"* (se confundía
+con lo que cada uno debe de verdad) y *"Sin asignar"* → *"Sin marcar"*.
+
+**2. El botón azul de descargar se queda al cerrar la cuenta.** Desaparecía
+justo en el momento en que la imagen sirve para algo. Ahora se queda y pasa a
+ancho completo; lo que se retira es "Actualizar", que ya no pinta nada.
+
+**3. La imagen compartida de una factura grande era ilegible.** Con 35 líneas
+repartidas entre 4 personas salía de **1800×5733 px — proporción 1:3,2 y
+975 KB**: una tira que WhatsApp encoge hasta que no se lee. Ahora, cuando el
+bloque de gente pasa de cierto alto, **se reparte en dos columnas** metiendo
+cada persona en la más corta para que acaben parejas, el lienzo se ensancha a
+900 px y baja a 2× (a ese tamaño sigue nítido y pesa la mitad).
+
+Resultado: **1800×1038, proporción 1:0,6 y 490 KB.** Las facturas pequeñas
+siguen exactamente igual que antes, en una columna a 3×.
+
+**4. Ayuda desplegable en la pantalla de revisión**, debajo de "+ Añadir
+línea": qué hacer si falta un artículo o el total no cuadra. Plegada, para no
+dar una charla a quien no la necesita.
+
+**5. La app ya no habla de "la IA"** de cara al usuario. Que use IA por dentro
+es un detalle de implementación, no algo que el usuario tenga que saber.
+
+Siete tests nuevos en `test-money.js` que fijan los tres estados de color de
+la fila nueva, incluido que un céntimo pinte rojo pero no bloquee el cierre.
+
 ### Bloque G — El salto a app ← **siguiente**
 21. Cuentas de usuario → tickets abiertos pendientes y carpetas por viaje
 22. Capacitor → App Store y Play Store, con este mismo código

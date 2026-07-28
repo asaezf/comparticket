@@ -171,5 +171,37 @@ console.log('\n6. Claims antiguos (formato viejo)');
   check('itemIds sigue funcionando', r2.perPerson['B'], 2.00);
 }
 
+console.log('\n7. Fila "suma de lo marcado" del resumen');
+{
+  // Misma regla que summary.js: gris mientras falte gente; con todos dentro,
+  // verde solo si coincide EXACTO — un céntimo ya la pone en rojo. Esto es
+  // más estricto que el criterio de cerrar, que tolera 0,02 € de redondeo.
+  const estado = (items, total, claims, esperados) => {
+    const c = M.reconcileClaims(items, total, claims);
+    const listos = M.confirmedOnly(claims).length;
+    if (!esperados || listos < esperados) return 'gris';
+    return Math.abs(c.total - c.assigned) < 0.005 ? 'verde' : 'rojo';
+  };
+
+  const items = [{ id: 1, quantity: 2, unitPrice: 10 }];
+  const dos = [
+    { personName: 'A', itemUnits: { 1: [0] }, confirmed: true },
+    { personName: 'B', itemUnits: { 1: [1] }, confirmed: true }
+  ];
+
+  check('falta gente → gris aunque no cuadre', estado(items, 20, [dos[0]], 2), 'gris');
+  check('todos y cuadra → verde', estado(items, 20, dos, 2), 'verde');
+  check('todos y falta 1 céntimo → rojo', estado(items, 20.01, dos, 2), 'rojo');
+  check('todos y sobra 1 céntimo → rojo', estado(items, 19.99, dos, 2), 'rojo');
+  check('un borrador no completa el grupo → gris',
+    estado(items, 20, [dos[0], { ...dos[1], confirmed: false }], 2), 'gris');
+  check('sin nº de participantes → gris', estado(items, 20, dos, 0), 'gris');
+
+  // Y que sigan siendo criterios distintos: 1 céntimo pinta rojo pero no
+  // impide cerrar.
+  check('1 céntimo no bloquea el cierre',
+    M.reconcileClaims(items, 20.01, dos).balanced, true);
+}
+
 console.log(`\n${pass} ok, ${fail} fallos\n`);
 process.exit(fail ? 1 : 0);

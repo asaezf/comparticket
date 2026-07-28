@@ -256,7 +256,46 @@ function renderUnassigned() {
   row.classList.toggle('is-clear', check.balanced);
   label.textContent = check.balanced ? t.allAssigned : t.unassigned;
   value.textContent = check.balanced ? '0,00€' : Money.formatEUR(check.pending, lang);
+
+  renderClaimedSum(check);
   return check;
+}
+
+/**
+ * Suma de lo que ha marcado la gente, para poder comparar de un vistazo con el
+ * total sin sumar a mano.
+ *
+ * El color dice en qué punto está la cuenta:
+ *   gris  — todavía falta gente por marcar, así que no cuadrar es lo normal
+ *   verde — ya han marcado todos y la suma coincide con el total
+ *   rojo  — ya han marcado todos pero falta o sobra algo, aunque sea un céntimo
+ *
+ * El rojo NO impide cerrar: eso lo decide el botón de cerrar con su propio
+ * criterio, que ya acordamos.
+ */
+function renderClaimedSum(check) {
+  const label = document.getElementById('lblClaimed');
+  const value = document.getElementById('claimedVal');
+  const row = document.getElementById('claimedRow');
+  if (!row) return;
+
+  label.textContent = t.claimedSum;
+  value.textContent = Money.formatEUR(check.assigned, lang);
+
+  // Solo cuenta quien ha confirmado: un borrador puede irse sin terminar.
+  const esperados = ticketData.expectedParticipants || 0;
+  const listos = Money.confirmedOnly(claimsData).length;
+  const todosHanMarcado = esperados > 0 && listos >= esperados;
+
+  // Aquí la comparación es EXACTA, no la tolerante de 0,02 € que usa el botón
+  // de cerrar. Son dos preguntas distintas: "¿se puede cerrar?" admite el
+  // ruido del redondeo, pero "¿la suma coincide con el total?" es sí o no.
+  // Un céntimo de diferencia se marca en rojo aunque cerrar siga permitido.
+  const coincideExacto = Math.abs(check.total - check.assigned) < 0.005;
+
+  row.classList.toggle('is-final', todosHanMarcado);
+  row.classList.toggle('is-ok', todosHanMarcado && coincideExacto);
+  row.classList.toggle('is-off', todosHanMarcado && !coincideExacto);
 }
 
 function renderProgress() {
@@ -313,7 +352,19 @@ function renderProgress() {
 function showClosed() {
   document.getElementById('bottomArea').classList.add('hidden');
   document.getElementById('closedArea').classList.remove('hidden');
-  document.getElementById('actionBtns').classList.add('hidden');
+  // La fila de acciones SE QUEDA: cerrar la cuenta es justo cuando la imagen
+  // sirve para algo, y antes era el momento en que desaparecía el botón de
+  // descargarla. Solo se retira "Actualizar", que ya no tiene sentido.
+  document.getElementById('actionBtns').classList.remove('hidden');
+  const refresh = document.getElementById('refreshBtn');
+  if (refresh) refresh.classList.add('hidden');
+  const dl = document.getElementById('downloadBtn');
+  if (dl) {
+    dl.disabled = false;
+    dl.title = '';
+    dl.classList.remove('btn-half');   // ocupa el ancho que deja "Actualizar"
+    dl.classList.add('btn-full');
+  }
 }
 
 // Refresh data
@@ -448,10 +499,7 @@ async function generateImage() {
   // nota porque el texto se repinta solo; en un canvas queda congelado.
   try { await document.fonts.ready; } catch (_) {}
 
-  // 3× en vez de 2×: la imagen acaba en WhatsApp, que la recomprime, así que
-  // conviene entregarla con margen de resolución.
-  const SCALE = 3;
-  const W = 600, P = 44, LH = 20, DETAIL_H = 15;
+  const P = 44, LH = 20, DETAIL_H = 15, GAP = 34;
   const RED = '#DC2626';
   const BLACK = '#18181B';
   const GRAY = '#71717A';
@@ -465,13 +513,98 @@ async function generateImage() {
   ticketData.items.forEach(i => { itemMap[i.id] = i; });
 
   /**
+   * Dibuja (o solo mide, si ctx es null) el bloque de una persona, y devuelve
+   * lo que ha crecido en alto. Está separado del resto para poder colocar los
+   * bloques en una o en dos columnas sin duplicar el código de dibujo.
+   */
+  function bloquePersona(ctx, p, x, y, ancho) {
+    const on = !!ctx;
+    const text = (s, xx, yy, align) => { if (on) { ctx.textAlign = align || 'left'; ctx.fillText(s, xx, yy); } };
+    const font = f => { if (on) ctx.font = f; };
+    const fill = c => { if (on) ctx.fillStyle = c; };
+    const der = x + ancho;
+    const y0 = y;
+    const color = p.isPayer ? RED : BLACK;
+
+    font('700 14px "Space Mono", monospace'); fill(color);
+    text(p.name, x, y + 2);
+
+    if (p.isPayer && on) {
+      ctx.font = '700 14px "Space Mono", monospace';
+      const anchoNombre = ctx.measureText(p.name).width;
+      ctx.font = '800 9px "Space Mono", monospace';
+      const pillW = ctx.measureText(t.payer).width + 14;
+      const pillX = x + anchoNombre + 8, pillY = y - 8;
+      roundRect(ctx, pillX, pillY, pillW, 14, 4);
+      ctx.fillStyle = RED; ctx.fill();
+      ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center';
+      ctx.fillText(t.payer, pillX + pillW / 2, pillY + 10);
+    }
+
+    font('700 15px "Space Mono", monospace'); fill(color);
+    text(eur(p.total), der, y + 2, 'right');
+    y += 22;
+
+    p.items.forEach(item => {
+      const info = itemMap[item.id];
+      const unitPrice = info ? info.unitPrice : 0;
+
+      if (item.solo > 0) {
+        fill(GRAY); font('400 10px "Space Mono", monospace');
+        text('· ' + item.name + (item.solo > 1 ? ` ×${item.solo}` : ''), x + 12, y);
+        text(eur(item.soloAmt), der, y, 'right');
+        y += LH;
+        if (item.solo > 1) {
+          fill(GRAY_LIGHT); font('italic 400 9px "Space Mono", monospace');
+          text(`    ${eur(unitPrice)}${t.perUnit}`, x + 12, y);
+          y += DETAIL_H;
+        }
+      }
+
+      (item.shared || []).forEach(sh => {
+        fill(GRAY); font('400 10px "Space Mono", monospace');
+        text(`· ${item.name}`, x + 12, y);
+        text(eur(sh.amt), der, y, 'right');
+        y += LH;
+        fill(GRAY_LIGHT); font('italic 400 9px "Space Mono", monospace');
+        const con = sh.sharedWith.length ? ` · ${sh.sharedWith.join(', ')}` : '';
+        text(`    ${eur(unitPrice)}${t.perUnit} (1/${sh.divider})${con}`, x + 12, y);
+        y += DETAIL_H;
+      });
+    });
+
+    if (on) {
+      ctx.strokeStyle = '#E4E4E7';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(x, y + 2); ctx.lineTo(der, y + 2); ctx.stroke();
+    }
+    y += 18;
+    return y - y0;
+  }
+
+  // --- Cuántas columnas ---
+  // Con una factura grande (35 líneas repartidas entre 4) la imagen salía de
+  // 1800×5733: una tira de proporción 1:3,2 que WhatsApp encoge hasta que no
+  // se lee nada, y de casi 1 MB. Repartiendo a la gente en dos columnas la
+  // altura se parte por la mitad y la imagen vuelve a ser legible.
+  const alturas = ordered.map(p => bloquePersona(null, p, 0, 0, 500));
+  const altoGente = alturas.reduce((s, h) => s + h, 0);
+  const dosColumnas = ordered.length > 2 && altoGente > 900;
+
+  const W = dosColumnas ? 900 : 600;
+  // Una imagen de dos columnas ya es enorme en píxeles; a 2× sigue nítida y
+  // pesa la mitad, que importa cuando va por WhatsApp.
+  const SCALE = dosColumnas ? 2 : 3;
+  const anchoCol = dosColumnas ? (W - P * 2 - GAP) / 2 : W - P * 2;
+
+  /**
    * Un solo recorrido que sirve para medir y para dibujar.
    *
    * Antes la altura se calculaba aparte, con sus propias constantes, y se
    * desviaba del dibujo real: sobraban unos 60 px y el ticket quedaba
    * descolgado con un hueco muerto debajo. Midiendo con el mismo código que
-   * dibuja, la altura es exacta por construcción y no se puede volver a
-   * desincronizar.
+   * dibuja, la altura es exacta por construcción.
    */
   function layout(ctx) {
     const on = !!ctx;
@@ -511,64 +644,19 @@ async function generateImage() {
     y += 28;
 
     // ---- Personas ----
-    ordered.forEach(p => {
-      const color = p.isPayer ? RED : BLACK;
-
-      font('700 14px "Space Mono", monospace'); fill(color);
-      text(p.name, P, y + 2);
-
-      if (p.isPayer && on) {
-        ctx.font = '700 14px "Space Mono", monospace';
-        const nameWidth = ctx.measureText(p.name).width;
-        ctx.font = '800 9px "Space Mono", monospace';
-        const pillW = ctx.measureText(t.payer).width + 14;
-        const pillX = P + nameWidth + 8, pillY = y - 8;
-        roundRect(ctx, pillX, pillY, pillW, 14, 4);
-        ctx.fillStyle = RED; ctx.fill();
-        ctx.fillStyle = '#FFFFFF'; ctx.textAlign = 'center';
-        ctx.fillText(t.payer, pillX + pillW / 2, pillY + 10);
-      }
-
-      font('700 15px "Space Mono", monospace'); fill(color);
-      text(eur(p.total), W - P, y + 2, 'right');
-      y += 22;
-
-      p.items.forEach(item => {
-        const info = itemMap[item.id];
-        const unitPrice = info ? info.unitPrice : 0;
-
-        if (item.solo > 0) {
-          fill(GRAY); font('400 10px "Space Mono", monospace');
-          text('· ' + item.name + (item.solo > 1 ? ` ×${item.solo}` : ''), P + 12, y);
-          text(eur(item.soloAmt), W - P, y, 'right');
-          y += LH;
-          if (item.solo > 1) {
-            fill(GRAY_LIGHT); font('italic 400 9px "Space Mono", monospace');
-            text(`    ${eur(unitPrice)}${t.perUnit}`, P + 12, y);
-            y += DETAIL_H;
-          }
-        }
-
-        (item.shared || []).forEach(sh => {
-          fill(GRAY); font('400 10px "Space Mono", monospace');
-          text(`· ${item.name}`, P + 12, y);
-          text(eur(sh.amt), W - P, y, 'right');
-          y += LH;
-          fill(GRAY_LIGHT); font('italic 400 9px "Space Mono", monospace');
-          const con = sh.sharedWith.length ? ` · ${sh.sharedWith.join(', ')}` : '';
-          text(`    ${eur(unitPrice)}${t.perUnit} (1/${sh.divider})${con}`, P + 12, y);
-          y += DETAIL_H;
-        });
+    if (!dosColumnas) {
+      ordered.forEach(p => { y += bloquePersona(ctx, p, P, y, anchoCol); });
+    } else {
+      // Reparto en dos columnas metiendo cada bloque en la más corta, para que
+      // acaben a la misma altura y no quede una columna colgando.
+      const colY = [y, y];
+      const colX = [P, P + anchoCol + GAP];
+      ordered.forEach((p, i) => {
+        const c = colY[0] <= colY[1] ? 0 : 1;
+        colY[c] += bloquePersona(ctx, p, colX[c], colY[c], anchoCol);
       });
-
-      if (on) {
-        ctx.strokeStyle = '#E4E4E7';
-        ctx.lineWidth = 1;
-        ctx.setLineDash([]);
-        ctx.beginPath(); ctx.moveTo(P, y + 2); ctx.lineTo(W - P, y + 2); ctx.stroke();
-      }
-      y += 18;
-    });
+      y = Math.max(colY[0], colY[1]);
+    }
 
     // ---- Pie ----
     // Solo el dominio. El crédito personal se queda en la web: esta imagen la

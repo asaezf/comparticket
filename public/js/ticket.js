@@ -19,6 +19,8 @@ document.getElementById('copyText').textContent    = t.copyLink;
 document.getElementById('nativeText').textContent  = t.share;
 document.getElementById('payerLabel').textContent  = t.payerLabel;
 document.getElementById('participantsLabel').textContent = t.participants;
+document.getElementById('reviewHelpTitle').textContent = t.reviewHelpTitle;
+document.getElementById('reviewHelpBody').textContent = t.reviewHelpBody;
 
 let ticketData = null;
 // Contador monótono de ids: solo sube, nunca reutiliza un id liberado.
