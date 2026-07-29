@@ -62,7 +62,21 @@ function myName() {
 // La gente parte cuentas con el mismo móvil una y otra vez. Guardarlo hace que
 // a partir de la segunda vez no haya que escribir nada: el paso desaparece en
 // lugar de añadirse.
+//
+// Pero hay que distinguir dos cosas que antes se confundían, y esa confusión
+// era un fallo grave:
+//
+//   ct_name          — cómo me suelo llamar. Sirve para rellenar el campo.
+//   ct_claim_<id>    — con qué nombre he marcado YO en ESTE ticket concreto.
+//
+// Solo lo segundo autoriza a cargar una selección guardada. Con lo primero se
+// rellena el campo y nada más. El caso que rompía: en una mesa el móvil se
+// pasa de mano en mano, y la segunda persona abría el enlace con el nombre de
+// la primera puesto Y sus artículos ya marcados. Al tocar los suyos se sumaban
+// a los de la otra, y al confirmar se sobrescribía su selección. La app
+// acababa diciendo que alguien había pedido cosas que no pidió.
 const NAME_KEY = 'ct_name';
+const CLAIM_KEY = () => 'ct_claim_' + ticketId;
 
 function rememberName(name) {
   try { if (name) localStorage.setItem(NAME_KEY, name); } catch (_) {}
@@ -70,6 +84,81 @@ function rememberName(name) {
 
 function recalledName() {
   try { return localStorage.getItem(NAME_KEY) || ''; } catch (_) { return ''; }
+}
+
+/** Deja constancia de que esta selección de este ticket es mía. */
+function rememberMyClaim(name) {
+  try { if (name) localStorage.setItem(CLAIM_KEY(), name.trim().toLowerCase()); } catch (_) {}
+}
+
+/** Con qué nombre he marcado yo en este ticket, si es que lo he hecho. */
+function myClaimOnThisTicket() {
+  try { return localStorage.getItem(CLAIM_KEY()) || ''; } catch (_) { return ''; }
+}
+
+/** ¿Existe ya una selección guardada con este nombre, y no es mía? */
+function nameBelongsToSomeoneElse(name) {
+  const n = (name || '').trim().toLowerCase();
+  if (!n) return false;
+  if (n === myClaimOnThisTicket()) return false;   // soy yo volviendo
+  return claimsData.some(c => (c.personName || '').trim().toLowerCase() === n);
+}
+
+// Mientras esto esté puesto, el nombre escrito pertenece a otra persona y no
+// se guarda nada: haría falta que el usuario diga primero quién es.
+let identityBlocked = false;
+
+/**
+ * Avisa de que el nombre escrito ya tiene una selección guardada, y pregunta
+ * de quién es. Hasta que se responda no se carga ni se guarda nada.
+ *
+ * Es el guardarraíl del fallo más grave que ha tenido la app: dos personas
+ * usando el mismo móvil acababan compartiendo un único claim, y la selección
+ * de la primera se perdía sin que nadie se enterara.
+ */
+function askWhoYouAre(name) {
+  const box = document.getElementById('nameTaken');
+  if (!box) return;
+  identityBlocked = true;
+  // Nada de lo que hubiera cargado es de fiar hasta que se responda.
+  Object.keys(myUnits).forEach(k => delete myUnits[k]);
+  prefilledFrom = null;
+  box.classList.remove('hidden');
+  document.getElementById('nameTakenText').textContent =
+    t.nameTaken.replace('{name}', name);
+  document.getElementById('nameTakenMine').textContent = t.nameTakenMine;
+  document.getElementById('nameTakenOther').textContent = t.nameTakenOther;
+}
+
+function clearWhoYouAre() {
+  const box = document.getElementById('nameTaken');
+  if (box) box.classList.add('hidden');
+  identityBlocked = false;
+}
+
+/** "Sí, soy yo": se recupera la selección guardada y se toma esa identidad. */
+function claimThisIdentity() {
+  const name = myName();
+  clearWhoYouAre();
+  rememberMyClaim(name);       // a partir de ahora este ticket es mío con ese nombre
+  prefillMineFromName(true);
+  renderItems();
+  update();
+  renderLivePeople();
+}
+
+/** "No, soy otra persona": se limpia todo y se pide un nombre distinto. */
+function rejectThisIdentity() {
+  clearWhoYouAre();
+  Object.keys(myUnits).forEach(k => delete myUnits[k]);
+  prefilledFrom = null;
+  const input = document.getElementById('nameInput');
+  input.value = '';
+  input.focus();
+  renderItems();
+  update();
+  renderLivePeople();
+  toast(t.nameTakenPickAnother);
 }
 
 /**
@@ -90,7 +179,8 @@ function nudgeName() {
 
 /** Guarda el borrador, agrupando pulsaciones seguidas en una sola escritura. */
 function saveDraft() {
-  if (!myName()) return;   // sin nombre no hay a quién atribuir la selección
+  if (!myName()) return;      // sin nombre no hay a quién atribuir la selección
+  if (identityBlocked) return; // el nombre es de otro y aún no se ha aclarado
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     const payload = {};
@@ -286,14 +376,32 @@ async function loadTicket() {
     }).toUpperCase() + ' | ' +
     d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-  // Nombre recordado de veces anteriores: para quien repite no hay ningún
-  // paso que dar. Se rellena antes de pintar para que sus propias marcas de
-  // una sesión anterior salgan ya como suyas.
+  // Nombre recordado: para quien repite no hay ningún paso que dar.
+  //
+  // Pero si ese nombre YA tiene una selección en este ticket, no se carga sin
+  // preguntar. Desde el navegador es imposible distinguir estos dos casos:
+  //
+  //   a) vuelvo yo a ajustar lo mío   → quiero recuperar mi selección
+  //   b) le paso el móvil al siguiente → necesita empezar en blanco
+  //
+  // Y el coste de equivocarse no es simétrico: en (a) son unos toques de más;
+  // en (b) se sobrescribe la selección de otro y la app acaba diciendo que
+  // alguien pidió cosas que no pidió. Así que se pregunta.
+  //
+  // Solo pasa al reabrir un ticket ya marcado. Abrir uno nuevo sigue sin
+  // ningún paso: se rellena el nombre y a marcar.
   const input = document.getElementById('nameInput');
-  const saved = recalledName();
-  if (saved && !input.value) {
-    input.value = saved;
-    prefillMineFromName();
+  // Se prefiere el nombre exacto con el que ya marqué aquí; si esa selección
+  // ya no existe (la borraron, o es otro ticket), el habitual.
+  const mio = myClaimOnThisTicket();
+  const previo = mio && claimsData.find(
+    c => (c.personName || '').trim().toLowerCase() === mio);
+  const sugerido = (previo && previo.personName) || recalledName();
+  if (!input.value && sugerido) {
+    input.value = sugerido;
+    const yaHayClaim = claimsData.some(
+      c => (c.personName || '').trim().toLowerCase() === sugerido.trim().toLowerCase());
+    if (yaHayClaim) askWhoYouAre(sugerido);   // sin cargar nada todavía
   }
 
   renderItems();
@@ -350,8 +458,21 @@ function otherClaimants() {
 // otro. Por eso se anota de quién se cargó, para poder deshacerlo.
 let prefilledFrom = null;
 
-function prefillMineFromName() {
+function prefillMineFromName(autorizado) {
   const mine = myNameNormalized();
+
+  // Solo se recupera una selección guardada si consta que es MÍA en este
+  // ticket, o si el usuario acaba de decir "sí, soy yo". En cualquier otro
+  // caso se pregunta antes: cargar en silencio lo de otro es exactamente lo
+  // que hacía que la app dijera que alguien pidió cosas que no pidió.
+  if (!autorizado && nameBelongsToSomeoneElse(mine)) {
+    Object.keys(myUnits).forEach(k => delete myUnits[k]);
+    prefilledFrom = null;
+    askWhoYouAre(document.getElementById('nameInput').value.trim());
+    return false;
+  }
+  if (identityBlocked) clearWhoYouAre();
+
   const prev = mine && claimsData.find(c => (c.personName || '').trim().toLowerCase() === mine);
   if (!prev) {
     // Lo que había cargado era de otra persona y el nombre ya no coincide:
@@ -523,8 +644,11 @@ function update() {
 
   const name = document.getElementById('nameInput').value.trim();
   const anyPicked = Object.values(myUnits).some(s => s && s.size > 0);
-  document.getElementById('confirmBtn').disabled = !name || !anyPicked;
+  document.getElementById('confirmBtn').disabled = !name || !anyPicked || identityBlocked;
 }
+
+document.getElementById('nameTakenMine').addEventListener('click', claimThisIdentity);
+document.getElementById('nameTakenOther').addEventListener('click', rejectThisIdentity);
 
 let nameSettle = null;
 document.getElementById('nameInput').addEventListener('input', () => {
@@ -551,6 +675,11 @@ document.getElementById('nameInput').addEventListener('input', () => {
 // confirmación y la degradaba otra vez a borrador.
 window.addEventListener('pagehide', () => {
   if (confirmedNow) return;
+  // Solo se guarda si esta persona ha tocado algo. Sin esta condición, con
+  // solo ABRIR el enlace y salir se reescribía la selección de quien tuviera
+  // ese nombre — y encima la degradaba a borrador, así que dejaba de contar
+  // como participante listo.
+  if (!lastTouch || identityBlocked) return;
   if (!myName() || !Object.keys(myUnits).length) return;
   const payload = {};
   Object.keys(myUnits).forEach(id => {
@@ -574,10 +703,18 @@ document.getElementById('confirmBtn').addEventListener('click', async () => {
   });
   if (!name || Object.keys(itemUnitsPayload).length === 0) return;
 
+  // Último cinturón: nunca confirmar sobre la selección de otra persona.
+  if (identityBlocked || nameBelongsToSomeoneElse(name)) {
+    askWhoYouAre(name);
+    document.getElementById('nameTaken').scrollIntoView({ behavior: 'smooth', block: 'center' });
+    return;
+  }
+
   const btn = document.getElementById('confirmBtn');
   btn.disabled = true;
   confirmedNow = true;       // bloquea el guardado de emergencia de pagehide
   clearTimeout(saveTimer);   // que el borrador pendiente no pise la confirmación
+  rememberMyClaim(name);     // este ticket queda asociado a mí con este nombre
 
   try {
     await fetch(`/api/tickets/${ticketId}/claim`, {

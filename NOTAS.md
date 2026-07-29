@@ -448,6 +448,54 @@ es un detalle de implementación, no algo que el usuario tenga que saber.
 Siete tests nuevos en `test-money.js` que fijan los tres estados de color de
 la fila nueva, incluido que un céntimo pinte rojo pero no bloquee el cierre.
 
+### Ronda 3 — el fallo de identidad 🔴 **ARREGLADO** *(29/07/2026)*
+
+Álvaro: *"la app se está inventando cosas que dice que he seleccionado y que no
+he hecho"*. El más grave que ha tenido la app, porque mentía sobre dinero.
+
+**Lo primero que se comprobó fue que el cálculo estaba bien.** Con dos personas
+y nombres distintos escritos a mano, cada una mostraba exactamente lo suyo. El
+reparto, el resumen y la imagen no tenían ningún fallo.
+
+**El fallo era de identidad, y venía de la comodidad de recordar el nombre.**
+En una mesa el móvil se pasa de mano en mano — que es justo como se probó. La
+segunda persona abría el enlace y se encontraba el nombre de la primera puesto
+**y sus artículos ya marcados**. Al tocar los suyos se sumaban a los de la
+otra, y al confirmar sobrescribía su selección. Un solo claim con las cosas de
+dos personas.
+
+Se confundían dos cosas distintas:
+
+| Guardado | Qué significa | Qué autoriza |
+|---|---|---|
+| `ct_name` | cómo me suelo llamar | rellenar el campo, nada más |
+| `ct_claim_<ticket>` | con qué nombre marqué **en este ticket** | recuperar mi selección |
+
+Aun así, desde el navegador es **imposible** distinguir estos dos casos:
+
+- vuelvo yo a ajustar lo mío → quiero recuperar mi selección
+- le paso el móvil al siguiente → necesita empezar en blanco
+
+Y el coste de equivocarse no es simétrico: en el primero son unos toques de
+más; en el segundo se corrompe la cuenta de otro. **Así que se pregunta**:
+*"Ya hay una selección guardada a nombre de «Alvaro»"* → **[Soy yo]** recupera
+la selección · **[Soy otra persona]** limpia y pide nombre.
+
+Solo aparece al reabrir un ticket que ya tiene una selección con ese nombre.
+**Abrir un ticket nuevo sigue sin ningún paso**: nombre puesto y a marcar.
+
+Dos fallos más de la misma familia, encontrados de camino:
+
+- **Abrir el enlace y salir sin tocar nada reescribía el claim de otro** y lo degradaba a borrador, así que esa persona dejaba de contar como lista. El guardado de emergencia ahora exige haber marcado algo.
+- **Confirmar con un nombre ya usado** sobrescribía a esa persona sin avisar. Ahora se comprueba también al confirmar.
+
+20 tests en `scripts/test-identity.js` que fijan la regla completa.
+
+**Además:** el texto de ayuda de la pantalla de revisión respeta el salto de
+línea (hacía falta `white-space: pre-line`, porque se pone con `textContent`).
+Se comprobó que el nombre del PNG descargable **ya** incluía establecimiento y
+fecha (`comparticket-mercadona-20260725.png`) — no hizo falta tocarlo.
+
 ### Bloque G — El salto a app ← **siguiente**
 21. Cuentas de usuario → tickets abiertos pendientes y carpetas por viaje
 22. Capacitor → App Store y Play Store, con este mismo código

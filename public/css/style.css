@@ -860,6 +860,36 @@ body {
   animation: live-pulse 1.6s ease-in-out infinite;
 }
 
+/* Aviso: el nombre escrito ya tiene una selección guardada.
+   Es el guardarraíl contra que dos personas del mismo móvil acaben
+   compartiendo un claim y se pisen la selección. */
+.name-taken {
+  margin: 8px 0 2px;
+  padding: 10px 12px;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  background: rgba(255, 107, 53, 0.07);
+}
+.name-taken .nt-text {
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--black);
+  margin-bottom: 8px;
+}
+.name-taken .nt-actions {
+  display: flex;
+  gap: 8px;
+}
+.name-taken .nt-actions .btn {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  padding: 7px 6px;
+  border-radius: 8px;
+}
+
 /* Campo del nombre reclamando atención al marcar sin haberlo puesto */
 .name-field.needs-name input {
   border-color: var(--accent);
@@ -891,6 +921,9 @@ body {
   line-height: 1.5;
   color: var(--gray-500);
   padding: 4px 2px 2px;
+  /* El texto trae un salto de línea a propósito antes de "o vuelve atrás";
+     sin esto, el \n de textContent se colapsa en un espacio y no se ve. */
+  white-space: pre-line;
 }
 
 /* Botón de girar sobre la miniatura */

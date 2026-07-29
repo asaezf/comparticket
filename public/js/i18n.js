@@ -93,7 +93,7 @@ const translations = {
     unassigned: 'Sin marcar',
     claimedSum: 'Suma de lo marcado',
     reviewHelpTitle: '¿Falta algo o no cuadra?',
-    reviewHelpBody: 'Si falta algún artículo en la lista, o el total no cuadra con la suma de líneas, añade las líneas a mano con «+ Añadir línea» — o vuelve atrás y escanea la foto otra vez.',
+    reviewHelpBody: 'Si falta algún artículo en la lista, o el total no cuadra con la suma de líneas, añade las líneas a mano con «+ Añadir línea» \no vuelve atrás y escanea la foto otra vez.',
     allAssigned: 'Todo marcado y asignado',
     cantCloseUnassigned: 'Quedan {x}€ sin asignar. Nadie los está pagando.',
     itemsLocked: 'Ya hay gente que ha marcado lo suyo — los artículos ya no se pueden cambiar.',
@@ -103,7 +103,11 @@ const translations = {
     stillPicking: 'eligiendo ahora',
     tipFirstPill: 'Toca las unidades que hayas tomado',
     askName: '¿Cómo te llamas?',
-    rotate: 'Girar'
+    rotate: 'Girar',
+    nameTaken: 'Ya hay una selección guardada a nombre de «{name}».',
+    nameTakenMine: 'Soy yo',
+    nameTakenOther: 'Soy otra persona',
+    nameTakenPickAnother: 'Escribe tu nombre para marcar lo tuyo'
   },
   en: {
     brand: 'compar',
@@ -208,7 +212,11 @@ const translations = {
     stillPicking: 'picking now',
     tipFirstPill: 'Tap the units you had',
     askName: "What's your name?",
-    rotate: 'Rotate'
+    rotate: 'Rotate',
+    nameTaken: 'There is already a selection saved under «{name}».',
+    nameTakenMine: "That's me",
+    nameTakenOther: "I'm someone else",
+    nameTakenPickAnother: 'Type your name to pick your items'
   }
 };
 
