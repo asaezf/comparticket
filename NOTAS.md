@@ -1,7 +1,7 @@
 # comparTICKET — estado, bugs y hoja de ruta
 
 Documento de trabajo entre Álvaro y Claude. Se actualiza según avanzamos.
-Última revisión: **28/07/2026**. Bloques A-F cerrados.
+Última revisión: **29/07/2026**. Bloques A-F cerrados, más 7 rondas de pruebas y una auditoría de seguridad.
 
 Leyenda: `[ ]` pendiente · `[x]` hecho · **P0** rompe la app · **P1** afecta al
 dinero o bloquea lanzar · **P2** mejora.
@@ -46,7 +46,7 @@ se paga entre sí.
 ## 3. Seguridad — bloquea lanzar en público
 
 - [ ] **P1** **No hay autorización.** El ID de 8 caracteres del enlace es la única credencial. Cualquiera que lo tenga puede reescribir todos los artículos y el total, cambiar quién pagó, cambiar el número de participantes, reclamar con el nombre de otro y **borrar el claim de cualquiera**. Solo cerrar valida el `creatorKey`.
-- [x] **P1** ~~Sin rate limiting~~ → 8 peticiones por minuto y IP. **Parcial**: en Vercel el contador es por instancia, no global. El definitivo, con almacén compartido, en 8.2.
+- [x] **P1** ~~Sin rate limiting~~ → 8 peticiones por minuto y IP. **Parcial y no basta**: el contador vive en memoria y en Vercel cada instancia tiene el suyo. **→ 8.2.b lo explica entero, con lo que costaría un abuso.**
 - [x] **P1** ~~Backdoor en `verifyCreatorKey`~~ → un ticket sin clave ya no lo cierra nadie, y la comparación es en tiempo constante.
 - [x] **P2** ~~`npm audit`: 20 vulnerabilidades~~ → **8 moderadas, 0 críticas, 0 altas**. Las restantes exigen subir versiones mayores.
 - [x] **P2** ~~`package-lock.json` en `.gitignore`~~ → ya se versiona, despliegues reproducibles.
@@ -751,11 +751,91 @@ personales de terceros y entra de lleno en el RGPD.
 - [ ] **Autorización de verdad.** Sigue siendo el agujero grande: cualquiera con el enlace puede reescribir artículos, cambiar quién pagó y **borrar el claim de otro**. Entre amigos se sobrevive; en público no. Lo natural es hacerlo junto con las cuentas de usuario (Bloque G).
 - [ ] **Repositorio en privado** o autorización arreglada. Hoy el código público documenta exactamente dónde están los huecos.
 - [ ] **Proyecto de Firebase propio.** Hoy comparTICKET vive dentro de `lifeos-74b8b`, compartido con otro proyecto tuyo: si uno cae, el radio de daño alcanza al otro. Además, es **requisito** para poder abrir acceso desde el navegador (ver 8.4) sin arriesgar los datos del otro proyecto.
-- [ ] **Límite de peticiones con almacén compartido** (Upstash Redis o similar). El actual es en memoria y en Vercel cada instancia tiene el suyo.
+- [ ] **Límite de peticiones con almacén compartido** (Upstash Redis o similar). El actual es en memoria y en Vercel cada instancia tiene el suyo. **→ explicado entero con números en 8.2.b**
 - [ ] **Reglas de seguridad de Firestore** revisadas, denegando por defecto.
 - [ ] **Recuperar el control de un ticket** si pierdes el `localStorage` (cambio de móvil, navegador de Instagram, limpieza del navegador). Hoy se pierde para siempre.
 - [ ] **Rotar la clave de Gemini** y revisar quién ha tenido acceso al `.env`.
 - [ ] Las 8 vulnerabilidades moderadas restantes exigen `npm audit fix --force`, que sube versiones mayores: hacerlo con las pruebas delante.
+
+### 8.2.b 🔴 El tope de gasto: lo único serio que queda abierto
+
+Es lo más importante de toda esta sección, así que va explicado entero.
+
+**El problema en una frase:** `POST /api/tickets` es el único sitio de la app
+que cuesta dinero de verdad —llama a Gemini— y hoy **no hay ningún techo**.
+Nada impide que la factura suba sin que nadie se entere hasta que llega.
+
+#### Cuánto cuesta cada cosa (medido, no estimado)
+
+Con `gemini-3.1-flash-lite` y el ticket real del Mercadona: 2.621 tokens de
+entrada y 1.620 de salida. A $0,25/$1,50 por millón:
+
+| | Coste |
+|---|---|
+| Un escaneo de 1 foto | **0,31 céntimos de dólar** |
+| Una petición con 6 fotos (el máximo) | ~0,57 céntimos |
+
+Ridículo por escaneo. El problema no es el precio unitario, es que **no hay
+nada que limite cuántos se hacen**.
+
+#### Qué pasa si alguien abusa
+
+| Ritmo | Escaneos | Coste (1 foto) | Coste (6 fotos) |
+|---|---|---|---|
+| 1 minuto al límite actual | 8 | $0,02 | $0,05 |
+| 1 hora seguida | 480 | $1,48 | $2,72 |
+| **1 día entero** | 11.520 | **$35,54** | **$65,26** |
+| 1 día, si el límite se multiplica ×10 | 115.200 | **$355** | **$653** |
+
+No es una ruina instantánea, pero es una factura que llega sola mientras
+duermes. Y el escenario ×10 no es teórico: mira el punto siguiente.
+
+#### Por qué el límite que hay no basta
+
+Hay un contador de 8 peticiones por minuto y IP en `server.js`. Tiene **dos
+agujeros**:
+
+**1. Vive en la memoria de la instancia.** En Vercel cada invocación puede caer
+en una instancia distinta, y cada una arranca con el contador a cero. Un bucle
+secuencial sí lo nota; **50 peticiones lanzadas en paralelo despiertan varias
+instancias y cada una concede sus 8 limpios**. De ahí el ×10 de la tabla.
+Es un amortiguador contra el despiste, no una barrera.
+
+**2. Cualquier web puede disparar escaneos desde el navegador de sus
+visitantes.** Como el envío es `multipart/form-data`, el navegador lo trata
+como petición "simple" y **no hay preflight de CORS**. Una web ajena puede
+meter un `fetch` a nuestro endpoint: no puede leer la respuesta, pero **la
+llamada a Gemini se hace igual**, y con la IP de cada visitante, así que cada
+uno estrena sus 8 peticiones. Nosotros no vemos nada raro; solo la factura.
+
+**Lo que sí funciona, comprobado:** falsear la cabecera `X-Forwarded-For` **no**
+salta el límite. Probado contra producción con 12 IPs falsas distintas desde
+una ventana limpia: 8 pasan y luego 429, porque Vercel sobrescribe esa
+cabecera. **Pero el código la lee tal cual**, así que el día que se salga de
+Vercel a un servidor propio, el límite pasa a saltarse con una línea de `curl`.
+Anotado también en 8.3.
+
+#### Qué hacer, por orden de rentabilidad
+
+- [ ] **1. Alerta de presupuesto en Google Cloud. Hoy, cinco minutos, gratis.**
+      No impide el gasto, pero **avisa por correo** al pasar de X$ al mes. Es lo
+      único de esta lista que funciona aunque todo lo demás falle, incluido un
+      fallo que no hayamos previsto. Ponla aunque no se haga nada más.
+- [ ] **2. Contador diario compartido en Firestore.** Un documento por día con
+      `FieldValue.increment`, y por encima de N escaneos se rechaza. Es la única
+      barrera que sobrevive a que Vercel reparta instancias, porque el contador
+      deja de estar en memoria. Unas 20 líneas.
+- [ ] **3. Comprobar la cabecera `Origin`** en ese endpoint. No detiene un
+      `curl` directo, pero **corta en seco el abuso desde webs ajenas**, que es
+      el vector que no requiere ningún esfuerzo del atacante. Cuatro líneas.
+- [ ] **4. Límite por IP con almacén compartido** (Upstash Redis o el propio
+      Firestore), que sustituya al contador en memoria. Ya estaba anotado en 8.2.
+- [ ] **5. Al salir de Vercel**: dejar de fiarse de `X-Forwarded-For` a pelo, o
+      configurar `trust proxy` con la lista de proxies de confianza.
+
+**Criterio:** el 1 hazlo ya. El 2 y el 3, antes de que el enlace salga del
+círculo de amigos. El 4 y el 5, cuando haya cuentas de usuario o se cambie de
+hosting.
 
 ### 8.3 Salir de Vercel, o quedarse con cabeza 🟠
 
