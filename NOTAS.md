@@ -496,6 +496,55 @@ línea (hacía falta `white-space: pre-line`, porque se pone con `textContent`).
 Se comprobó que el nombre del PNG descargable **ya** incluía establecimiento y
 fecha (`comparticket-mercadona-20260725.png`) — no hizo falta tocarlo.
 
+### Ronda 4 — la causa real: `merge: true` 🔴 **ARREGLADO** *(29/07/2026)*
+
+Álvaro, con el ticket largo y 3 personas: las dos primeras comparten todo menos
+los dos últimos artículos; la tercera marca **solo uno** de los dos. El resumen
+le adjudicaba **los dos**, la cuenta cuadraba y cerraba perfecta — pero al
+volver atrás solo había uno marcado. Su intuición: *"la app está forzando que
+todo encaje"*.
+
+**La causa estaba en `db.js`, en una sola opción:**
+
+```js
+await claimsRef(ticketId).doc(docId).set({ ...claim }, { merge: true });
+```
+
+Firestore, con `merge: true`, **fusiona los mapas anidados**. `itemUnits` es un
+mapa `{"1":[0], "2":[0]}`: al guardar `{"1":[0]}`, la clave `"2"` sobrevivía.
+Es decir, **desmarcar un artículo nunca lo quitaba de lo guardado**. El claim
+solo crecía, acumulando todo lo que esa persona hubiera tocado alguna vez —
+aunque lo hubiera desmarcado un segundo después.
+
+De ahí que la cuenta "cuadrara sola": los artículos desmarcados seguían
+contando, así que el reparto sumaba el total aunque nadie los estuviera
+pagando de verdad.
+
+**Por qué tardó tanto en salir:** el servidor de pruebas en memoria
+*reemplazaba* el documento en vez de fusionarlo, así que todos los tests
+pasaban. El fallo solo existía contra Firestore de verdad. Ya está alineado con
+el servidor real, y `scripts/test-claim-write.js` replica la semántica de
+fusión de Firestore para demostrarlo y fijarlo.
+
+Arreglado reemplazando el documento entero y conservando `createdAt` a mano
+(que era lo único que el merge aportaba).
+
+Verificado con el escenario exacto de Álvaro: la tercera persona se queda con
+**1 artículo**, el que marcó, y aparecen **9,75 € "Sin marcar"** — así que la
+cuenta ya no cuadra sola ni deja cerrar en falso.
+
+**Además, el interrogatorio de identidad era excesivo.** Preguntaba "¿eres
+Álvaro?" a quien acababa de marcar como Álvaro en ese mismo móvil. Ahora:
+
+| Situación | Qué hace |
+|---|---|
+| Ticket nuevo | Nombre puesto y a marcar. Sin nada |
+| Vuelvo a mi ticket | Recupera lo mío **sin preguntar**, con una barra discreta: *"Marcando como **Álvaro** · No soy yo"* |
+| Mi nombre habitual ya lo usa otro | **Ahí sí pregunta**: confirmar pisaría su selección |
+
+Informar en vez de interrogar. Quien vuelve a lo suyo ignora la barra; quien
+acaba de recibir el móvil ve el nombre de su amigo y sale con un toque.
+
 ### Bloque G — El salto a app ← **siguiente**
 21. Cuentas de usuario → tickets abiertos pendientes y carpetas por viaje
 22. Capacitor → App Store y Play Store, con este mismo código

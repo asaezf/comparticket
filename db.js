@@ -151,9 +151,14 @@ async function addClaim(ticketId, personName, itemIds, itemCounts = null, itemUn
   const dupSnap = await claimsRef(ticketId).get();
   const batch = db.batch();
   let hadLegacy = false;
+  let createdAt = null;
   dupSnap.forEach(doc => {
     const d = doc.data();
-    if (doc.id !== docId && (d.personName || '').trim().toLowerCase() === lowerName) {
+    if (doc.id === docId) {
+      createdAt = d.createdAt || null;   // se conserva de la primera vez
+      return;
+    }
+    if ((d.personName || '').trim().toLowerCase() === lowerName) {
       batch.delete(doc.ref);
       hadLegacy = true;
     }
@@ -194,11 +199,24 @@ async function addClaim(ticketId, personName, itemIds, itemCounts = null, itemUn
     confirmed: confirmed !== false,
     updatedAt: new Date().toISOString()
   };
-  // merge para no perder createdAt en las reescrituras del borrador.
+  // ¡SIN merge! Se reemplaza el documento entero, a propósito.
+  //
+  // Antes esto era `set(..., { merge: true })` y causaba el fallo más grave de
+  // la app: Firestore FUSIONA los mapas anidados. `itemUnits` es un mapa
+  // {"1":[0], "2":[0]}; al guardar {"1":[0]} la clave "2" sobrevivía. Es
+  // decir: **deseleccionar un artículo nunca lo quitaba de lo guardado**. El
+  // claim solo crecía y acababa acumulando todo lo que esa persona hubiera
+  // tocado alguna vez, aunque lo hubiera desmarcado.
+  //
+  // Efecto visible: en el resumen a alguien le aparecían artículos que no
+  // había marcado, la cuenta "cuadraba" sola y se cerraba con importes falsos.
+  //
+  // `createdAt` se conserva a mano (se ha leído arriba), que era lo único que
+  // el merge aportaba.
   await claimsRef(ticketId).doc(docId).set({
-    createdAt: new Date().toISOString(),
+    createdAt: createdAt || new Date().toISOString(),
     ...claim
-  }, { merge: true });
+  });
 
   await bumpClaimsVersion(ticketId);
   return claim;

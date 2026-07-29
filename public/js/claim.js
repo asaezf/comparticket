@@ -136,6 +136,27 @@ function clearWhoYouAre() {
   identityBlocked = false;
 }
 
+/**
+ * Barra informativa: "estás marcando como Álvaro · No soy yo".
+ *
+ * Se enseña cuando se ha recuperado una selección guardada en este móvil. No
+ * bloquea: quien vuelve a lo suyo la ignora, y quien acaba de recibir el móvil
+ * ve el nombre de su amigo y sale de ahí con un toque.
+ */
+function showIdentityBar(name) {
+  const bar = document.getElementById('identityBar');
+  if (!bar) return;
+  bar.classList.remove('hidden');
+  document.getElementById('identityBarText').innerHTML =
+    `${esc(t.markingAs)} <strong>${esc(name)}</strong>`;
+  document.getElementById('identityBarBtn').textContent = t.notMe;
+}
+
+function hideIdentityBar() {
+  const bar = document.getElementById('identityBar');
+  if (bar) bar.classList.add('hidden');
+}
+
 /** "Sí, soy yo": se recupera la selección guardada y se toma esa identidad. */
 function claimThisIdentity() {
   const name = myName();
@@ -150,8 +171,12 @@ function claimThisIdentity() {
 /** "No, soy otra persona": se limpia todo y se pide un nombre distinto. */
 function rejectThisIdentity() {
   clearWhoYouAre();
+  hideIdentityBar();
   Object.keys(myUnits).forEach(k => delete myUnits[k]);
   prefilledFrom = null;
+  // Este móvil deja de considerarse dueño de aquella selección: si no, al
+  // recargar volvería a recuperarla.
+  try { localStorage.removeItem(CLAIM_KEY()); } catch (_) {}
   const input = document.getElementById('nameInput');
   input.value = '';
   input.focus();
@@ -391,17 +416,31 @@ async function loadTicket() {
   // Solo pasa al reabrir un ticket ya marcado. Abrir uno nuevo sigue sin
   // ningún paso: se rellena el nombre y a marcar.
   const input = document.getElementById('nameInput');
-  // Se prefiere el nombre exacto con el que ya marqué aquí; si esa selección
-  // ya no existe (la borraron, o es otro ticket), el habitual.
   const mio = myClaimOnThisTicket();
   const previo = mio && claimsData.find(
     c => (c.personName || '').trim().toLowerCase() === mio);
-  const sugerido = (previo && previo.personName) || recalledName();
-  if (!input.value && sugerido) {
-    input.value = sugerido;
-    const yaHayClaim = claimsData.some(
-      c => (c.personName || '').trim().toLowerCase() === sugerido.trim().toLowerCase());
-    if (yaHayClaim) askWhoYouAre(sugerido);   // sin cargar nada todavía
+
+  if (!input.value) {
+    if (previo) {
+      // Este móvil ya marcó aquí con este nombre: se recupera la selección sin
+      // preguntar nada. Preguntar "¿eres Álvaro?" a quien acaba de marcar como
+      // Álvaro es absurdo, y era lo que hacía la versión anterior.
+      //
+      // El riesgo de que el móvil haya cambiado de manos no se ignora: se
+      // avisa con una barra que dice a nombre de quién se está marcando, con
+      // salida a un toque. Informar en vez de interrogar.
+      input.value = previo.personName;
+      prefillMineFromName(true);
+      showIdentityBar(previo.personName);
+    } else {
+      const habitual = recalledName();
+      if (habitual) {
+        input.value = habitual;
+        // El nombre habitual ya lo está usando alguien y no consta que sea yo:
+        // aquí sí hay duda real, porque confirmar pisaría su selección.
+        if (nameBelongsToSomeoneElse(habitual)) askWhoYouAre(habitual);
+      }
+    }
   }
 
   renderItems();
@@ -649,6 +688,10 @@ function update() {
 
 document.getElementById('nameTakenMine').addEventListener('click', claimThisIdentity);
 document.getElementById('nameTakenOther').addEventListener('click', rejectThisIdentity);
+document.getElementById('identityBarBtn').addEventListener('click', rejectThisIdentity);
+
+// Si el usuario escribe su nombre a mano, ya ha dicho quién es: la barra sobra.
+document.getElementById('nameInput').addEventListener('input', hideIdentityBar);
 
 let nameSettle = null;
 document.getElementById('nameInput').addEventListener('input', () => {

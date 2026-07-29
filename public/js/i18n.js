@@ -107,7 +107,9 @@ const translations = {
     nameTaken: 'Ya hay una selección guardada a nombre de «{name}».',
     nameTakenMine: 'Soy yo',
     nameTakenOther: 'Soy otra persona',
-    nameTakenPickAnother: 'Escribe tu nombre para marcar lo tuyo'
+    nameTakenPickAnother: 'Escribe tu nombre para marcar lo tuyo',
+    markingAs: 'Marcando como',
+    notMe: 'No soy yo'
   },
   en: {
     brand: 'compar',
@@ -216,7 +218,9 @@ const translations = {
     nameTaken: 'There is already a selection saved under «{name}».',
     nameTakenMine: "That's me",
     nameTakenOther: "I'm someone else",
-    nameTakenPickAnother: 'Type your name to pick your items'
+    nameTakenPickAnother: 'Type your name to pick your items',
+    markingAs: 'Picking as',
+    notMe: 'Not me'
   }
 };
 

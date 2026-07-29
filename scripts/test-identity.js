@@ -27,18 +27,29 @@ function check(label, got, want) {
 /**
  * Misma regla que claim.js. Se replica aquí para poder probarla sin navegador.
  *
- * Devuelve qué hacer al abrir el enlace:
- *   'libre'     — nombre sugerido, sin selección previa: a marcar directamente
- *   'preguntar' — ese nombre ya tiene selección: hay que aclarar quién eres
+ * Tres respuestas posibles al abrir el enlace:
+ *
+ *   'libre'      — nombre sugerido y a marcar. Sin fricción.
+ *   'recupera'   — este móvil ya marcó aquí: se recupera su selección y se
+ *                  avisa con una barra («Marcando como X · No soy yo»), que
+ *                  informa pero no bloquea.
+ *   'preguntar'  — el nombre sugerido ya lo usa alguien y NO consta que sea
+ *                  yo: hay duda real, porque confirmar pisaría su selección.
+ *
+ * La primera versión preguntaba también en el caso 'recupera', y Álvaro tenía
+ * razón en que era absurdo: preguntarle "¿eres Álvaro?" a quien acaba de
+ * marcar como Álvaro en ese mismo móvil no aporta nada y cansa.
  */
 function alAbrir({ claimEnEsteTicket, nombreHabitual, claimsExistentes }) {
   const previo = claimEnEsteTicket &&
     claimsExistentes.find(n => n.toLowerCase() === claimEnEsteTicket.toLowerCase());
-  const sugerido = previo || nombreHabitual || '';
+  if (previo) return { sugerido: previo, accion: 'recupera' };
+
+  const sugerido = nombreHabitual || '';
   if (!sugerido) return { sugerido: '', accion: 'libre' };
-  const yaHayClaim = claimsExistentes.some(
+  const loUsaOtro = claimsExistentes.some(
     n => n.toLowerCase() === sugerido.trim().toLowerCase());
-  return { sugerido, accion: yaHayClaim ? 'preguntar' : 'libre' };
+  return { sugerido, accion: loUsaOtro ? 'preguntar' : 'libre' };
 }
 
 console.log('\n1. Al abrir el enlace');
@@ -50,14 +61,14 @@ console.log('\n1. Al abrir el enlace');
   check('  y con el nombre habitual', r.sugerido, 'Alvaro');
 }
 {
-  // EL FALLO: el móvil pasa a la segunda persona. Antes se cargaba en silencio
-  // la selección de la primera; ahora se pregunta.
+  // Vuelvo a MI ticket: se recupera lo mío sin interrogatorio. La barra avisa
+  // a nombre de quién se está marcando, por si el móvil ha cambiado de manos.
   const r = alAbrir({ claimEnEsteTicket: 'alvaro', nombreHabitual: 'Alvaro', claimsExistentes: ['Alvaro'] });
-  check('ticket ya marcado desde este móvil → pregunta', r.accion, 'preguntar');
+  check('vuelvo a lo mío → lo recupera, SIN preguntar', r.accion, 'recupera');
 }
 {
-  // Otra vía al mismo fallo: nunca marqué aquí, pero mi nombre habitual
-  // coincide con alguien que sí. No puedo quedarme con su selección.
+  // Aquí sí hay duda real: nunca marqué en este ticket, pero mi nombre
+  // habitual ya lo usa alguien. Confirmar pisaría su selección.
   const r = alAbrir({ claimEnEsteTicket: '', nombreHabitual: 'Alvaro', claimsExistentes: ['Alvaro'] });
   check('mi nombre habitual ya lo usa otro → pregunta', r.accion, 'preguntar');
 }
@@ -76,6 +87,12 @@ console.log('\n1. Al abrir el enlace');
 {
   const r = alAbrir({ claimEnEsteTicket: '', nombreHabitual: '', claimsExistentes: ['Alvaro'] });
   check('móvil sin nombre guardado → campo vacío, sin preguntar', r.accion, 'libre');
+}
+{
+  // Tras decir "no soy yo" se borra el registro de este móvil, así que al
+  // recargar no puede volver a recuperar la selección de la otra persona.
+  const r = alAbrir({ claimEnEsteTicket: '', nombreHabitual: '', claimsExistentes: ['Alvaro'] });
+  check('tras "no soy yo" no vuelve a recuperar nada', r.accion !== 'recupera', true);
 }
 
 console.log('\n2. Mientras la identidad está sin aclarar');
@@ -114,6 +131,10 @@ console.log('\n4. El código sigue teniendo los guardarraíles');
     /identityBlocked \|\| nameBelongsToSomeoneElse/.test(src), true);
   check('pagehide exige haber tocado algo',
     /if \(!lastTouch \|\| identityBlocked\) return/.test(src), true);
+  check('existe la barra informativa (no interroga)',
+    /function showIdentityBar/.test(src), true);
+  check('"no soy yo" borra el registro de este móvil',
+    /removeItem\(CLAIM_KEY\(\)\)/.test(src), true);
 }
 
 console.log(`\n${pass} ok, ${fail} fallos\n`);
