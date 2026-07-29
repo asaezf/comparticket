@@ -111,7 +111,8 @@ const translations = {
     nameTakenOther: 'Soy otra persona',
     nameTakenPickAnother: 'Escribe tu nombre para marcar lo tuyo',
     markingAs: 'Marcando como',
-    notMe: 'No soy yo'
+    notMe: 'No soy yo',
+    nameLockedHint: 'para cambiar de nombre, abre de nuevo el enlace del ticket'
   },
   en: {
     brand: 'compar',
@@ -224,7 +225,8 @@ const translations = {
     nameTakenOther: "I'm someone else",
     nameTakenPickAnother: 'Type your name to pick your items',
     markingAs: 'Picking as',
-    notMe: 'Not me'
+    notMe: 'Not me',
+    nameLockedHint: 'to change name, open the ticket link again'
   }
 };
 

@@ -969,6 +969,15 @@ body {
 }
 .name-field.needs-name label { color: var(--accent); }
 
+/* Nombre bloqueado tras confirmar y volver con "atrás": se puede seguir
+   corrigiendo la selección, pero no cambiar de identidad. El aspecto apagado
+   comunica que el campo ya no responde al tacto, sin necesidad de texto. */
+.name-field.locked input {
+  background: var(--gray-100, #F4F4F5);
+  color: var(--gray-500);
+  cursor: default;
+}
+
 /* Ayuda plegable: disponible sin ocupar sitio */
 .claim-help { padding: 4px 0; }
 .claim-help > summary {

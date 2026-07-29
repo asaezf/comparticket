@@ -584,6 +584,47 @@ navegador de pruebas no reporta bien los colores calculados (le puse un fondo
 así que si el color fuera inválido el borde seguiría siendo `dashed`. **Merece
 un vistazo de Álvaro.**
 
+### Ronda 6 — nombre bloqueado tras confirmar 🔴 **ARREGLADO** *(29/07/2026)*
+
+Álvaro encontró un fallo muy concreto: creas el ticket, marcas lo tuyo sin
+compartir el enlace, confirmas, vuelves con el botón **"atrás"** del
+navegador y cambias el nombre — y antes de marcar nada ya aparecen en
+amarillo (compartido) los artículos de tu primera selección.
+
+**La causa:** el navegador restaura la pantalla tal cual la dejaste al
+volver atrás — a veces sin ni siquiera volver a ejecutar el script (la
+llamada `bfcache` del navegador) — así que tu selección seguía en memoria y
+nada avisaba de que el nombre había cambiado.
+
+En vez de perseguir ese caso concreto con más lógica de limpieza, Álvaro
+propuso cerrar la puerta de raíz: **una vez confirmas, ya no se puede
+cambiar de nombre volviendo atrás.** Se puede seguir corrigiendo la
+selección con total libertad; para marcar como otra persona hay que entrar
+de nuevo por el enlace del ticket.
+
+| Situación | Nombre | Selección |
+|---|---|---|
+| Confirmas y vuelves con "atrás" | **Bloqueado** (solo lectura) | Se puede seguir corrigiendo y reconfirmando |
+| Confirmas y entras de nuevo por el enlace (o "Marcar lo mío" desde el resumen) | Editable, con la barra y "No soy yo" | igual que antes |
+| Solo un borrador, nunca confirmaste | Editable | igual que antes |
+
+La detección de "¿he vuelto con atrás/adelante?" usa la Navigation Timing
+API del navegador (`performance.getEntriesByType('navigation')[0].type ===
+'back_forward'`), más un listener de `pageshow` con `persisted:true` como
+red de seguridad para el caso en que el navegador restaure la página sin
+recargar el script en absoluto.
+
+**Un fallo de mi propia implementación, encontrado al verificarlo:** até la
+decisión a que el campo del nombre estuviera vacío. Pero el navegador
+restaura por su cuenta el último valor de un formulario al volver atrás
+—incluso en una recarga completa, sin bfcache de por medio— así que el
+campo ya llegaba relleno antes de que el script corriera, y toda la lógica
+se saltaba entera. Arreglado quitando esa condición: la decisión se toma
+siempre, sea cual sea el valor que el navegador haya puesto por su cuenta.
+
+Verificado con `history.back()` real (no una recarga simulada) en las tres
+situaciones de la tabla. 11 tests nuevos en `test-identity.js`.
+
 ### Bloque G — El salto a app ← **siguiente**
 21. Cuentas de usuario → tickets abiertos pendientes y carpetas por viaje
 22. Capacitor → App Store y Play Store, con este mismo código

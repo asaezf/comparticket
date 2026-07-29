@@ -168,5 +168,49 @@ console.log('\n5. El código sigue teniendo los guardarraíles');
     /removeItem\(CLAIM_KEY\(\)\)/.test(src), true);
 }
 
+console.log('\n6. Nombre bloqueado tras confirmar y volver con "atrás"');
+{
+  // El fallo que encontró Álvaro: confirmas, vuelves con el botón "atrás" del
+  // navegador, escribes un nombre distinto ANTES de marcar nada, y aparecen ya
+  // marcados en amarillo (compartido) los artículos de tu primera selección.
+  //
+  // Causa: el navegador restaura el estado de la página tal cual la dejaste
+  // — a veces sin ni siquiera recargar el script (bfcache) — así que la
+  // selección seguía en memoria y nada avisaba de que el nombre había
+  // cambiado. Solución, decidida por Álvaro: una vez confirmas, ya no se
+  // puede cambiar de nombre volviendo atrás. Se puede seguir corrigiendo la
+  // selección con libertad; para marcar como otra persona hay que entrar de
+  // nuevo por el enlace del ticket.
+  const decision = ({ confirmado, volviendoAtras }) =>
+    (confirmado && volviendoAtras) ? 'bloqueado' : 'editable';
+
+  check('confirmas y vuelves con "atrás" → nombre bloqueado',
+    decision({ confirmado: true, volviendoAtras: true }), 'bloqueado');
+  check('confirmas y entras de nuevo por el enlace → editable',
+    decision({ confirmado: true, volviendoAtras: false }), 'editable');
+  check('solo un borrador (nunca confirmaste) y vuelves atrás → editable',
+    decision({ confirmado: false, volviendoAtras: true }), 'editable');
+  check('primera visita, sin nada confirmado → editable',
+    decision({ confirmado: false, volviendoAtras: false }), 'editable');
+}
+{
+  const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'claim.js'), 'utf8');
+  check('existe la detección de "atrás/adelante" del navegador',
+    /function cameBackViaHistory/.test(src), true);
+  check('usa la Navigation Timing API para detectarlo',
+    /getEntriesByType\('navigation'\)/.test(src), true);
+  check('existe lockName y dos usos: al cargar y en pageshow',
+    (src.match(/lockName\(/g) || []).length >= 3, true);   // definición + 2 llamadas
+  check('el candado solo mira claims YA confirmados',
+    /previo\.confirmed !== false && cameBackViaHistory\(\)/.test(src), true);
+  check('el campo bloqueado queda en readOnly',
+    /input\.readOnly = true/.test(src), true);
+  check('red de seguridad para bfcache (pageshow + persisted)',
+    /pageshow'.*\n.*e\.persisted && confirmedNow/.test(src) ||
+    /e\.persisted && confirmedNow/.test(src), true);
+  check('la decisión NO depende de que el campo esté vacío (bug real: el navegador lo rellena solo)',
+    /if \(previo\) \{/.test(src) && !/if \(!input\.value\) \{\s*\n\s*if \(previo\)/.test(src), true);
+}
+
 console.log(`\n${pass} ok, ${fail} fallos\n`);
 process.exit(fail ? 1 : 0);

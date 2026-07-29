@@ -136,25 +136,83 @@ function clearWhoYouAre() {
   identityBlocked = false;
 }
 
+// Se pone a true tras confirmar y volver con el botón "atrás" del navegador.
+// Con el nombre bloqueado se puede seguir corrigiendo la selección con toda
+// libertad — lo único que no se puede es cambiar de identidad sin recargar el
+// enlace del ticket. Ver lockName() para el porqué.
+let nameLocked = false;
+
 /**
- * Barra informativa: "estás marcando como Álvaro · No soy yo".
+ * Barra bajo el nombre. Dos modos:
  *
- * Se enseña cuando se ha recuperado una selección guardada en este móvil. No
- * bloquea: quien vuelve a lo suyo la ignora, y quien acaba de recibir el móvil
- * ve el nombre de su amigo y sale de ahí con un toque.
+ *   normal  — "Marcando como Álvaro · No soy yo". Informa, no bloquea: quien
+ *             vuelve a lo suyo la ignora, y quien acaba de recibir el móvil
+ *             sale de ahí con un toque.
+ *   locked  — sin botón de acción: el campo ya está bloqueado (ver lockName),
+ *             así que no hay nada que ofrecer salvo explicar por qué.
  */
-function showIdentityBar(name) {
+function showIdentityBar(name, locked) {
   const bar = document.getElementById('identityBar');
   if (!bar) return;
   bar.classList.remove('hidden');
-  document.getElementById('identityBarText').innerHTML =
-    `${esc(t.markingAs)} <strong>${esc(name)}</strong>`;
-  document.getElementById('identityBarBtn').textContent = t.notMe;
+  const btn = document.getElementById('identityBarBtn');
+  if (locked) {
+    document.getElementById('identityBarText').innerHTML =
+      `${esc(t.markingAs)} <strong>${esc(name)}</strong> — ${esc(t.nameLockedHint)}`;
+    btn.classList.add('hidden');
+  } else {
+    document.getElementById('identityBarText').innerHTML =
+      `${esc(t.markingAs)} <strong>${esc(name)}</strong>`;
+    btn.classList.remove('hidden');
+    btn.textContent = t.notMe;
+  }
 }
 
 function hideIdentityBar() {
   const bar = document.getElementById('identityBar');
   if (bar) bar.classList.add('hidden');
+}
+
+/**
+ * Bloquea el campo del nombre. Regla que pidió Álvaro tras encontrar un fallo
+ * muy concreto: al confirmar, volver con el botón "atrás" y escribir un
+ * nombre distinto, aparecían en amarillo (compartido) los artículos de la
+ * primera selección, porque el navegador restaura la página en el mismo
+ * estado en que la dejaste (con tu selección todavía en memoria) y nada
+ * avisaba de que el nombre había cambiado.
+ *
+ * En vez de perseguir ese caso concreto con más lógica de limpieza — arriesgo
+ * de meter un bug nuevo por uno que ya de por sí es raro de provocar — se
+ * cierra la puerta de raíz: una vez confirmas, ya no puedes cambiar de nombre
+ * volviendo atrás. Puedes seguir corrigiendo tu propia selección con total
+ * libertad; para marcar como otra persona hay que volver a entrar por el
+ * enlace del ticket, que es una carga nueva y sin este problema.
+ */
+function lockName(name) {
+  nameLocked = true;
+  const input = document.getElementById('nameInput');
+  input.value = name;
+  input.readOnly = true;
+  input.closest('.name-field')?.classList.add('locked');
+  clearWhoYouAre();
+  showIdentityBar(name, true);
+}
+
+/**
+ * ¿Ha llegado esta carga volviendo con "atrás/adelante", en vez de por un
+ * enlace nuevo? Es la señal que distingue "corrijo lo mío" (se permite
+ * cambiar de nombre) de "vuelvo a una pantalla que ya confirmé" (no se
+ * permite): entrar de nuevo por el enlace del ticket —desde WhatsApp, o
+ * pulsando "Marcar lo mío" en el resumen— siempre cuenta como entrada nueva,
+ * aunque la URL sea la misma.
+ */
+function cameBackViaHistory() {
+  try {
+    const nav = performance.getEntriesByType('navigation')[0];
+    if (nav) return nav.type === 'back_forward';
+  } catch (_) {}
+  try { return performance.navigation && performance.navigation.type === 2; }
+  catch (_) { return false; }
 }
 
 /** "Sí, soy yo": se recupera la selección guardada y se toma esa identidad. */
@@ -431,26 +489,38 @@ async function loadTicket() {
   const previo = mio && claimsData.find(
     c => (c.personName || '').trim().toLowerCase() === mio);
 
-  if (!input.value) {
-    if (previo) {
-      // Este móvil ya marcó aquí con este nombre: se recupera la selección sin
-      // preguntar nada. Preguntar "¿eres Álvaro?" a quien acaba de marcar como
-      // Álvaro es absurdo, y era lo que hacía la versión anterior.
-      //
-      // El riesgo de que el móvil haya cambiado de manos no se ignora: se
-      // avisa con una barra que dice a nombre de quién se está marcando, con
-      // salida a un toque. Informar en vez de interrogar.
-      input.value = previo.personName;
-      prefillMineFromName(true);
-      showIdentityBar(previo.personName);
+  // OJO: esto NO se condiciona a "si el campo está vacío". Al volver con el
+  // botón atrás, el navegador restaura por su cuenta lo último que había en
+  // el campo de un formulario — incluso en una recarga completa, sin bfcache
+  // de por medio — así que `input.value` puede llegar ya relleno antes de que
+  // este script corra. Si la decisión dependiera de encontrarlo vacío, el
+  // navegador se adelantaba y toda esta lógica se saltaba entera: era la
+  // causa real de que el bloqueo no se aplicara al volver atrás.
+  if (previo) {
+    // Este móvil ya marcó aquí con este nombre: se recupera la selección sin
+    // preguntar nada. Preguntar "¿eres Álvaro?" a quien acaba de marcar como
+    // Álvaro es absurdo, y era lo que hacía la versión anterior.
+    input.value = previo.personName;
+    prefillMineFromName(true);
+
+    // Si ya está CONFIRMADO y se ha llegado volviendo atrás (no por un
+    // enlace nuevo), el nombre se bloquea: solo se puede corregir la
+    // selección, no cambiar de identidad. Ver lockName() para el porqué.
+    if (previo.confirmed !== false && cameBackViaHistory()) {
+      lockName(previo.personName);
     } else {
-      const habitual = recalledName();
-      if (habitual) {
-        input.value = habitual;
-        // El nombre habitual ya lo está usando alguien y no consta que sea yo:
-        // aquí sí hay duda real, porque confirmar pisaría su selección.
-        if (nameBelongsToSomeoneElse(habitual)) askWhoYouAre(habitual);
-      }
+      // El riesgo de que el móvil haya cambiado de manos no se ignora: se
+      // avisa con una barra que dice a nombre de quién se está marcando,
+      // con salida a un toque. Informar en vez de interrogar.
+      showIdentityBar(previo.personName, false);
+    }
+  } else if (!input.value) {
+    const habitual = recalledName();
+    if (habitual) {
+      input.value = habitual;
+      // El nombre habitual ya lo está usando alguien y no consta que sea yo:
+      // aquí sí hay duda real, porque confirmar pisaría su selección.
+      if (nameBelongsToSomeoneElse(habitual)) askWhoYouAre(habitual);
     }
   }
 
@@ -742,6 +812,8 @@ function update() {
 
 document.getElementById('nameTakenMine').addEventListener('click', claimThisIdentity);
 document.getElementById('nameTakenOther').addEventListener('click', rejectThisIdentity);
+// El botón se oculta cuando el nombre está bloqueado (showIdentityBar con
+// locked:true), así que si se llega a pulsar es que no lo está.
 document.getElementById('identityBarBtn').addEventListener('click', rejectThisIdentity);
 
 // Si el usuario escribe su nombre a mano, ya ha dicho quién es: la barra sobra.
@@ -764,6 +836,19 @@ document.getElementById('nameInput').addEventListener('input', () => {
     rememberName(myName());
     saveDraft();
   }, 1500);
+});
+
+// Red de seguridad para el caso concreto que encontró Álvaro: confirmas,
+// vuelves con el botón "atrás" del navegador, y el navegador puede restaurar
+// la página desde su caché de retroceso (bfcache) SIN volver a ejecutar este
+// script — con lo que loadTicket() nunca vuelve a correr y el bloqueo de más
+// arriba no llega a aplicarse. `pageshow` con `persisted:true` es la señal de
+// que ha pasado justo eso, y se bloquea el nombre en el acto, antes de que dé
+// tiempo a teclear nada en el campo.
+window.addEventListener('pageshow', (e) => {
+  if (e.persisted && confirmedNow && !nameLocked) {
+    lockName(document.getElementById('nameInput').value.trim());
+  }
 });
 
 // Guardar lo pendiente si el usuario cierra o cambia de app a media selección.
