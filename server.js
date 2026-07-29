@@ -14,6 +14,102 @@ const PORT = process.env.PORT || 3000;
 // Middleware
 app.use(express.json({ limit: '1mb' }));
 
+/* =============================================================
+   VALIDACIÓN DE ENTRADA
+   =============================================================
+   Nada de lo que llega en el cuerpo de una petición se guardaba
+   comprobando el tipo. Eso no era solo suciedad: un `payerName` que fuese un
+   objeto en vez de un texto se guardaba tal cual, y a partir de ahí CADA
+   apertura del enlace reventaba con `.trim is not a function`. Como el valor
+   malo queda escrito en la base de datos, el enlace quedaba roto para todo el
+   grupo de forma permanente.
+
+   La regla ahora: lo que no tenga la forma esperada se rechaza en la puerta,
+   nunca se guarda. */
+
+/** Texto de verdad, recortado y con tope de longitud. null si no vale. */
+function asText(v, max = 60) {
+  if (typeof v !== 'string') return null;
+  const s = v.trim();
+  if (!s || s.length > max) return null;
+  return s;
+}
+
+/** Número finito y razonable. null si no vale. */
+function asNumber(v, { min = -1e6, max = 1e6 } = {}) {
+  const n = typeof v === 'number' ? v : (typeof v === 'string' ? Number(v) : NaN);
+  if (!Number.isFinite(n) || n < min || n > max) return null;
+  return n;
+}
+
+/**
+ * Deja la lista de artículos en una forma conocida, o devuelve null.
+ *
+ * Se reconstruye campo a campo en lugar de aceptar lo que venga: así ni se
+ * cuelan claves extra en Firestore ni llega texto donde el resto de la app
+ * espera un número. La pantalla de revisión pinta la cantidad dentro de un
+ * atributo HTML, y un valor no numérico ahí permitía inyectar código.
+ */
+function asItems(v) {
+  if (!Array.isArray(v) || v.length === 0 || v.length > 300) return null;
+  const out = [];
+  for (const it of v) {
+    if (!it || typeof it !== 'object' || Array.isArray(it)) return null;
+    const id = asNumber(it.id, { min: 0, max: 1e9 });
+    const name = typeof it.name === 'string' ? it.name.trim().slice(0, 120) : null;
+    const quantity = asNumber(it.quantity, { min: 1, max: 9999 });
+    const unitPrice = asNumber(it.unitPrice, { min: -100000, max: 100000 });
+    if (id === null || name === null || quantity === null || unitPrice === null) return null;
+    out.push({
+      id: Math.round(id),
+      name,
+      quantity: Math.round(quantity),
+      unitPrice: +unitPrice.toFixed(2),
+      totalPrice: +(Math.round(quantity) * unitPrice).toFixed(2),
+      shared: it.shared === true
+    });
+  }
+  return out;
+}
+
+/**
+ * Comprueba el mapa de unidades marcadas: { "3": [0,1], "7": [0] }.
+ * Sin esto se podía guardar un objeto de cualquier forma y tamaño.
+ */
+function asItemUnits(v) {
+  if (v === null || v === undefined) return {};
+  if (typeof v !== 'object' || Array.isArray(v)) return null;
+  const claves = Object.keys(v);
+  if (claves.length > 300) return null;
+  const out = {};
+  for (const k of claves) {
+    // __proto__ y compañía nunca deben viajar como clave de datos.
+    if (k === '__proto__' || k === 'constructor' || k === 'prototype') return null;
+    if (!/^\d{1,9}$/.test(k)) return null;
+    const arr = v[k];
+    if (!Array.isArray(arr) || arr.length > 999) return null;
+    const unidades = [];
+    for (const u of arr) {
+      const n = asNumber(u, { min: 0, max: 9998 });
+      if (n === null) return null;
+      const i = Math.round(n);
+      if (!unidades.includes(i)) unidades.push(i);
+    }
+    if (unidades.length) out[k] = unidades.sort((a, b) => a - b);
+  }
+  return out;
+}
+
+/**
+ * Envuelve una ruta async para que un fallo no tumbe el proceso.
+ *
+ * Express 4 no recoge los rechazos de un manejador async: se convertían en un
+ * `unhandled rejection` y Node mata la instancia, llevándose por delante las
+ * peticiones de otra gente que estuvieran en vuelo.
+ */
+const ruta = (fn) => (req, res, next) =>
+  Promise.resolve(fn(req, res, next)).catch(next);
+
 // Cabeceras de seguridad. Sin dependencias: son cuatro líneas y evitan que la
 // app se pueda embeber en un iframe ajeno o que el navegador adivine tipos.
 app.use((req, res, next) => {
@@ -101,7 +197,7 @@ function handleUpload(req, res, next) {
 // --- API Routes ---
 
 // Upload images → Gemini extracts items → ticket created in Firestore
-app.post('/api/tickets', rateLimit({ windowMs: 60_000, max: 8 }), handleUpload, async (req, res) => {
+app.post('/api/tickets', rateLimit({ windowMs: 60_000, max: 8 }), handleUpload, ruta(async (req, res) => {
   try {
     const files = req.files && req.files.length ? req.files : (req.file ? [req.file] : []);
     if (!files.length) {
@@ -148,34 +244,53 @@ app.post('/api/tickets', rateLimit({ windowMs: 60_000, max: 8 }), handleUpload, 
     console.error('Error creating ticket:', err);
     res.status(500).json({ error: 'Failed to process image' });
   }
-});
+}));
 
 // Set payer for a ticket
-app.post('/api/tickets/:id/payer', async (req, res) => {
-  const { payerName } = req.body;
+app.post('/api/tickets/:id/payer', ruta(async (req, res) => {
+  // Se admite vaciarlo (null), pero si viene algo tiene que ser texto: un
+  // objeto aquí dejaba el enlace del ticket roto para todo el grupo.
+  const bruto = (req.body || {}).payerName;
+  const payerName = (bruto === null || bruto === undefined || bruto === '')
+    ? null
+    : asText(bruto, 40);
+  if (bruto !== null && bruto !== undefined && bruto !== '' && payerName === null) {
+    return res.status(400).json({ error: 'Nombre de pagador no válido', code: 'BAD_PAYER' });
+  }
   const ticket = await db.setTicketPayer(req.params.id, payerName);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
   res.json(ticket);
-});
+}));
 
 // Set expected participants count
-app.post('/api/tickets/:id/participants', async (req, res) => {
-  const { expectedParticipants } = req.body;
+app.post('/api/tickets/:id/participants', ruta(async (req, res) => {
+  const { expectedParticipants } = req.body || {};
   const ticket = await db.setTicketParticipants(req.params.id, expectedParticipants);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
   res.json(ticket);
-});
+}));
 
 // Get ticket data (public — creatorKey stripped)
-app.get('/api/tickets/:id', async (req, res) => {
+app.get('/api/tickets/:id', ruta(async (req, res) => {
   const ticket = await db.getPublicTicket(req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
   res.json(ticket);
-});
+}));
 
 // Update ticket items
-app.put('/api/tickets/:id/items', async (req, res) => {
-  const { items, total } = req.body;
+app.put('/api/tickets/:id/items', ruta(async (req, res) => {
+  // La lista se reconstruye campo a campo. Antes se guardaba lo que viniera:
+  // una cantidad con texto acababa dentro de un atributo HTML de la pantalla
+  // de revisión y permitía ejecutar código en el navegador del creador.
+  const items = asItems((req.body || {}).items);
+  if (!items) {
+    return res.status(400).json({ error: 'Lista de artículos no válida', code: 'BAD_ITEMS' });
+  }
+  const brutoTotal = (req.body || {}).total;
+  const total = brutoTotal === undefined ? undefined : asNumber(brutoTotal, { min: 0, max: 1e6 });
+  if (brutoTotal !== undefined && total === null) {
+    return res.status(400).json({ error: 'Total no válido', code: 'BAD_TOTAL' });
+  }
 
   // Claims point at items by id. Once somebody has picked their units, editing
   // the item list silently reassigns or destroys what they owe — so the list is
@@ -191,13 +306,13 @@ app.put('/api/tickets/:id/items', async (req, res) => {
   const ticket = await db.updateTicketItems(req.params.id, items, total);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
   res.json(ticket);
-});
+}));
 
 // Share ticket (change status to shared)
 // Gate #1: the extracted lines must add up to the receipt total before anyone
 // is invited in. Sharing a ticket that doesn't reconcile guarantees the split
 // will be wrong and nobody will notice.
-app.post('/api/tickets/:id/share', async (req, res) => {
+app.post('/api/tickets/:id/share', ruta(async (req, res) => {
   const ticket = await db.getTicket(req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
@@ -214,10 +329,10 @@ app.post('/api/tickets/:id/share', async (req, res) => {
 
   const updated = await db.setTicketStatus(req.params.id, 'shared');
   res.json(updated);
-});
+}));
 
 // Close ticket — creator only
-app.post('/api/tickets/:id/close', async (req, res) => {
+app.post('/api/tickets/:id/close', ruta(async (req, res) => {
   const { creatorKey } = req.body || {};
   const valid = await db.verifyCreatorKey(req.params.id, creatorKey);
   if (!valid) {
@@ -244,54 +359,67 @@ app.post('/api/tickets/:id/close', async (req, res) => {
   const updated = await db.setTicketStatus(req.params.id, 'closed');
   const { creatorKey: _k, ...safe } = updated;
   res.json(safe);
-});
+}));
 
 // Add a claim (person selects items)
-app.post('/api/tickets/:id/claim', async (req, res) => {
-  const { personName, itemIds, itemCounts, itemUnits, confirmed } = req.body;
-  const hasUnits = itemUnits && typeof itemUnits === 'object' &&
-    Object.values(itemUnits).some(a => Array.isArray(a) && a.length > 0);
-  const hasIds = itemIds && itemIds.length;
+app.post('/api/tickets/:id/claim', ruta(async (req, res) => {
+  const { itemIds, itemCounts, itemUnits, confirmed } = req.body || {};
+
+  // Antes bastaba con que el nombre fuera "truthy": un número pasaba el
+  // control y luego reventaba al construir el id del documento.
+  const personName = asText((req.body || {}).personName, 40);
   if (!personName) {
-    return res.status(400).json({ error: 'Name required' });
+    return res.status(400).json({ error: 'Nombre no válido', code: 'BAD_NAME' });
   }
+
+  const unidades = asItemUnits(itemUnits);
+  if (unidades === null) {
+    return res.status(400).json({ error: 'Selección no válida', code: 'BAD_UNITS' });
+  }
+
+  const ids = Array.isArray(itemIds)
+    ? itemIds.map(x => asNumber(x, { min: 0, max: 1e9 })).filter(x => x !== null).map(Math.round)
+    : [];
+
+  const hasUnits = Object.keys(unidades).length > 0;
   // Un borrador puede quedarse sin nada marcado (alguien que deselecciona todo);
   // una confirmación no.
-  if (confirmed !== false && !hasUnits && !hasIds) {
+  if (confirmed !== false && !hasUnits && !ids.length) {
     return res.status(400).json({ error: 'Name and items required' });
   }
+
   const claim = await db.addClaim(
     req.params.id,
     personName,
-    itemIds || [],
-    itemCounts || null,
-    itemUnits || null,
+    ids,
+    (itemCounts && typeof itemCounts === 'object' && !Array.isArray(itemCounts)) ? itemCounts : null,
+    hasUnits ? unidades : null,
     confirmed !== false
   );
   res.json(claim);
-});
+}));
 
 // Latido para el tiempo real: una sola lectura de documento. La pantalla de
 // reparto lo consulta cada pocos segundos y solo recarga la lista completa de
 // claims cuando el número cambia.
-app.get('/api/tickets/:id/pulse', async (req, res) => {
+app.get('/api/tickets/:id/pulse', ruta(async (req, res) => {
   const pulse = await db.getPulse(req.params.id);
   if (!pulse) return res.status(404).json({ error: 'Ticket not found' });
   res.set('Cache-Control', 'no-store');
   res.json(pulse);
-});
+}));
 
 // Get all claims for a ticket
-app.get('/api/tickets/:id/claims', async (req, res) => {
+app.get('/api/tickets/:id/claims', ruta(async (req, res) => {
   const claims = await db.getClaims(req.params.id);
   res.json(claims);
-});
+}));
 
 // Remove a claim
-app.delete('/api/tickets/:id/claim/:personName', async (req, res) => {
+app.delete('/api/tickets/:id/claim/:personName', ruta(async (req, res) => {
   await db.removeClaim(req.params.id, decodeURIComponent(req.params.personName));
   res.json({ ok: true });
-});
+}));
 
 /**
  * Enlace corto para compartir: /t/:id
@@ -306,7 +434,7 @@ app.delete('/api/tickets/:id/claim/:personName', async (req, res) => {
  * del CDN. Y se cachea en el CDN para que una ráfaga de diez personas abriendo
  * el enlace a la vez no despierte diez funciones.
  */
-app.get('/t/:id', async (req, res) => {
+app.get('/t/:id', ruta(async (req, res) => {
   const file = path.join(__dirname, 'public', 'claim.html');
   let html;
   try {
@@ -320,8 +448,13 @@ app.get('/t/:id', async (req, res) => {
 
   if (ticket) {
     const claims = await db.getClaims(req.params.id).catch(() => []);
-    const meta = shareMeta(ticket, claims);
-    html = html
+    // Si la vista previa falla por lo que sea, se sirve la página igual sin
+    // ella. Un enlace que abre sin tarjeta bonita es un problema menor; un
+    // enlace que devuelve error a todo el grupo es un problema grave.
+    let meta = null;
+    try { meta = shareMeta(ticket, claims); }
+    catch (e) { console.error('shareMeta falló:', e && e.message); }
+    if (meta) html = html
       .replace(/<meta property="og:title" content="[^"]*">/,
         `<meta property="og:title" content="${escAttr(meta.title)}">`)
       .replace(/<meta property="og:description" content="[^"]*">/,
@@ -332,7 +465,7 @@ app.get('/t/:id', async (req, res) => {
   // 60 s en el CDN, y mientras se revalida se sigue sirviendo lo anterior.
   res.set('Cache-Control', 'public, s-maxage=60, stale-while-revalidate=300');
   res.type('html').send(html);
-});
+}));
 
 function escAttr(s) {
   return String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;')
@@ -374,6 +507,23 @@ function shareMeta(ticket, claims) {
 app.get('/ticket.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'ticket.html')));
 app.get('/claim.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'claim.html')));
 app.get('/summary.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'summary.html')));
+
+/**
+ * Manejador de errores final. Cualquier fallo que se escape de una ruta acaba
+ * aquí en vez de tumbar la instancia.
+ *
+ * Se registra el error entero en el log del servidor, pero al cliente solo le
+ * llega una frase: los mensajes internos pueden delatar rutas de ficheros o
+ * detalles de la base de datos.
+ */
+app.use((err, req, res, next) => {
+  console.error('Error no controlado:', req.method, req.path, err && (err.stack || err.message || err));
+  if (res.headersSent) return next(err);
+  res.status(500).json({
+    error: 'Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos segundos.',
+    code: 'SERVER_ERROR'
+  });
+});
 
 // Export for Vercel serverless; listen only when run directly (local dev)
 if (require.main === module) {

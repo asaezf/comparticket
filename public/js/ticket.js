@@ -65,14 +65,17 @@ function renderItems() {
   const list = document.getElementById('itemsList');
   list.innerHTML = '';
   ticketData.items.forEach((item, idx) => {
-    const lineTotal = (item.quantity * item.unitPrice).toFixed(2);
+    // Se fuerza a número antes de pintar. La cantidad va dentro de un atributo
+    // HTML: si llegara texto podría romper el atributo y colar un manejador de
+    // eventos, y este ticket puede haberlo escrito cualquiera con el enlace.
+    const lineTotal = ((+item.quantity || 0) * (+item.unitPrice || 0)).toFixed(2);
     const row = document.createElement('div');
     row.className = 'edit-row';
     row.style.animationDelay = `${0.12 + idx * 0.08}s`;
     row.innerHTML = `
       <textarea class="e-name" rows="1" placeholder="${t.itemName || 'Ítem'}" data-i="${idx}" data-f="name">${esc(item.name)}</textarea>
-      <input class="e-qty"  type="number" value="${item.quantity}" min="1" data-i="${idx}" data-f="quantity">
-      <input class="e-price" type="number" value="${item.unitPrice.toFixed(2)}" step="0.01" min="0" data-i="${idx}" data-f="unitPrice">
+      <input class="e-qty"  type="number" value="${+item.quantity || 1}" min="1" data-i="${idx}" data-f="quantity">
+      <input class="e-price" type="number" value="${(+item.unitPrice || 0).toFixed(2)}" step="0.01" min="0" data-i="${idx}" data-f="unitPrice">
       <span class="e-total">${Money.formatEUR(lineTotal, lang)}</span>
       <button class="e-del" data-i="${idx}" title="Eliminar">&times;</button>
     `;

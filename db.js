@@ -94,7 +94,11 @@ async function setTicketPayer(id, payerName) {
   const ref = ticketRef(id);
   const snap = await ref.get();
   if (!snap.exists) return null;
-  await ref.update({ payerName: payerName || null });
+  // Segunda capa: solo se guarda texto. Un objeto aquí dejaba el enlace del
+  // ticket roto de forma permanente para todo el grupo, porque la vista previa
+  // hace .trim() sobre este valor cada vez que alguien lo abre.
+  const limpio = typeof payerName === 'string' ? payerName.trim().slice(0, 40) : '';
+  await ref.update({ payerName: limpio || null });
   return (await ref.get()).data();
 }
 
@@ -134,7 +138,10 @@ async function setTicketStatus(id, status) {
 // la anterior en lugar de borrar y crear. Firestore no admite '/' ni '.' al
 // principio, así que se codifica.
 function claimDocId(personName) {
-  const clean = (personName || '').trim().toLowerCase();
+  // String() a propósito: aunque el servidor ya valida la entrada, esta función
+  // construye el id de un documento y no puede permitirse reventar por un tipo
+  // inesperado que llegue por otro camino.
+  const clean = String(personName == null ? '' : personName).trim().toLowerCase();
   return 'p_' + Buffer.from(clean, 'utf8').toString('base64')
     .replace(/\//g, '_').replace(/\+/g, '-').slice(0, 400);
 }

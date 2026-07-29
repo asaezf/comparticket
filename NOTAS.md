@@ -625,6 +625,73 @@ siempre, sea cual sea el valor que el navegador haya puesto por su cuenta.
 Verificado con `history.back()` real (no una recarga simulada) en las tres
 situaciones de la tabla. 11 tests nuevos en `test-identity.js`.
 
+### Ronda 7 — auditoría de seguridad 🔴 **ARREGLADO** *(29/07/2026)*
+
+Revisión completa buscando bugs y fallos de seguridad. **Sobre el método:** se
+lanzó una auditoría automática con varios agentes, pero **6 de sus 8 agentes
+fallaron** por errores de API, y su hallazgo principal —"`/js/money.js` da 404
+y la app está rota en producción"— **era falso**: se comprobó y el fichero se
+sirve con 200, byte a byte idéntico al local. Lo que sigue es solo lo
+verificado a mano.
+
+**1. 🔴 Un tipo de dato inesperado rompía el enlace para siempre.**
+`setTicketPayer` guardaba el nombre sin comprobar que fuera texto. Con
+`{"payerName": {"a":1}}` se guardaba un objeto, y a partir de ahí **cada
+apertura del enlace** reventaba en `shareMeta` con `.trim is not a function`.
+Como el valor malo quedaba escrito en Firestore, **el enlace quedaba roto para
+todo el grupo de forma permanente**. Reproducido en local con objeto, array,
+número y booleano. Lo mismo en `claimDocId` con el nombre de quien marca.
+
+Agravante: **9 de las 12 rutas async no tenían `try/catch`** y no había
+manejador de errores global. En Express 4 eso es un *unhandled rejection* que
+tumba la instancia, llevándose por delante las peticiones de otra gente.
+
+**2. 🔴 XSS almacenado en la pantalla del creador.** `PUT /items` escribía la
+lista sin validar nada, y la pantalla de revisión metía la cantidad **en crudo
+dentro de un atributo HTML**. Verificado que el HTML generado rompe el atributo
+y cuela un manejador de eventos. Un atacante con el enlace, antes del primer
+claim, podía robar el `creatorKey` del `localStorage` y cerrar la cuenta.
+
+**3. 🟠 `total` sin validar** en `PUT /items`: podía envenenar el cálculo.
+
+**Arreglos aplicados:**
+- Validadores en `server.js`: `asText`, `asNumber`, `asItems`, `asItemUnits`.
+  La lista de artículos y el mapa de unidades **se reconstruyen campo a campo**,
+  así que no se cuelan ni claves extra ni tipos raros. Se rechaza `__proto__`
+  como clave.
+- Envoltorio `ruta()` en las 12 rutas async + manejador de errores final que
+  registra el detalle en el log pero **solo devuelve una frase genérica** al
+  cliente.
+- `shareMeta` protegido aparte: si falla, el enlace se sirve igual sin vista
+  previa. Un enlace sin tarjeta bonita es un problema menor; uno que devuelve
+  error a todo el grupo es grave.
+- Segunda capa en `db.js` (`setTicketPayer`, `claimDocId`) por si algo llega
+  por otro camino.
+- Cantidad y precio forzados a número antes de pintarlos en el atributo.
+
+36 tests nuevos en `scripts/test-validacion.js`, que arrancan el `server.js`
+**real** con la base de datos simulada y le lanzan peticiones malformadas.
+
+**Revisado y limpio** (para que conste): los IDs de ticket tienen 2,8 × 10¹⁴
+combinaciones y no son enumerables; `verifyCreatorKey` no tiene puerta trasera
+y compara en tiempo constante; **el cierre de cuenta recalcula el dinero en el
+servidor** y no se fía de ninguna cifra del cliente; los nombres de artículos
+sí van escapados en las tres pantallas (el vector "ticket falso con XSS en el
+nombre" está cerrado); `.env` nunca se ha commiteado.
+
+**Matiz medido, en contra de lo que decía la auditoría automática:** falsear la
+cabecera `X-Forwarded-For` **no** salta el límite de peticiones. Probado contra
+producción con 12 IPs falsas distintas desde una ventana limpia: 8 pasan y
+luego 429. Vercel sobrescribe esa cabecera. El patrón sí sería peligroso si
+algún día se sale de Vercel — anotado en la sección 8.
+
+**Sigue pendiente (sección 8):** no hay tope de gasto global en el endpoint que
+llama a Gemini. El contador está en memoria y en Vercel cada instancia tiene el
+suyo. Además, al enviarse como `multipart/form-data` no hay preflight de CORS,
+así que cualquier web podría disparar escaneos desde el navegador de sus
+visitantes. **Lo más rentable hoy: poner una alerta de presupuesto en Google
+Cloud, que es gratis y avisa aunque todo lo demás falle.**
+
 ### Bloque G — El salto a app ← **siguiente**
 21. Cuentas de usuario → tickets abiertos pendientes y carpetas por viaje
 22. Capacitor → App Store y Play Store, con este mismo código
