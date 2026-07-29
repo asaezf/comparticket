@@ -545,6 +545,45 @@ cuenta ya no cuadra sola ni deja cerrar en falso.
 Informar en vez de interrogar. Quien vuelve a lo suyo ignora la barra; quien
 acaba de recibir el móvil ve el nombre de su amigo y sale con un toque.
 
+### Ronda 5 — ajustes y "¿qué falta por marcar?" ✅ *(29/07/2026)*
+
+**1. La fila ya no cambia de nombre al llegar a cero.** Se llama siempre
+*"Faltan por marcar"*, en rojo con la cifra pendiente y en verde con 0,00 €.
+Antes pasaba a *"Todo marcado y asignado"* y obligaba a releer para saber qué
+número estabas mirando.
+
+**2. 🔴 La pregunta de identidad salía en la PRIMERA visita.** Álvaro: *"si es
+la primera vez que me meto y pongo mi nombre, ¿por qué me pregunta si soy yo?"*.
+Tenía razón y era un bug mío:
+
+`rememberMyClaim()` solo se llamaba **al confirmar**. Pero el borrador se
+guarda antes, así que al ir a confirmar la app se encontraba un claim con tu
+nombre en el servidor que no constaba como tuyo — **y te preguntaba por tu
+propio borrador**. Arreglado anotándolo desde el primer borrador.
+
+Las tres situaciones, ya como pedía Álvaro:
+
+| Situación | Qué hace |
+|---|---|
+| Primera vez en un ticket | **Nada.** Escribes, marcas y confirmas |
+| Vuelves con el mismo nombre | Recupera lo tuyo, con la barra discreta. **Sin preguntar** |
+| El nombre ya lo usa otro | **Ahí sí pregunta**: confirmar pisaría su selección |
+
+**3. Idea de Álvaro: botón "?" en la fila de "Faltan por marcar".** Lleva a la
+pantalla de marcar con las unidades que no ha cogido nadie **latiendo en
+rojo**, y avisa de cuántas son. Al tocar una, deja de latir. Con un ticket
+largo, averiguar qué quedaba suelto obligaba a comparar la lista a ojo.
+
+Verificado que señala exactamente las que faltan: en la prueba, 64 latiendo +
+3 mías + 2 de otra persona = 69 unidades del ticket.
+
+**Aviso honesto:** no he podido confirmar *visualmente* el rojo del latido. El
+navegador de pruebas no reporta bien los colores calculados (le puse un fondo
+`rgb(1,2,3)` y devolvió otro), así que la comprobación es lógica, no visual:
+`border-style: solid` sí se lee, y viene de la misma declaración que el color,
+así que si el color fuera inválido el borde seguiría siendo `dashed`. **Merece
+un vistazo de Álvaro.**
+
 ### Bloque G — El salto a app ← **siguiente**
 21. Cuentas de usuario → tickets abiertos pendientes y carpetas por viaje
 22. Capacitor → App Store y Play Store, con este mismo código

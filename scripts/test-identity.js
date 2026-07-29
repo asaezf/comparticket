@@ -95,7 +95,38 @@ console.log('\n1. Al abrir el enlace');
   check('tras "no soy yo" no vuelve a recuperar nada', r.accion !== 'recupera', true);
 }
 
-console.log('\n2. Mientras la identidad está sin aclarar');
+console.log('\n2. Mi propio borrador no puede tomarse por el de un desconocido');
+{
+  // El fallo: escribías tu nombre por primera vez, el guardado automático
+  // creaba un claim con él en el servidor, y al ir a confirmar la app se
+  // encontraba "un claim llamado Álvaro" que no constaba como tuyo... y te
+  // preguntaba si eras tú. Te preguntaba por tu propio borrador.
+  //
+  // Se arregla anotando el claim como propio desde el PRIMER borrador, no
+  // solo al confirmar.
+  const alConfirmar = ({ claimEnEsteTicket, nombre, claimsExistentes }) => {
+    const n = nombre.trim().toLowerCase();
+    if (n === (claimEnEsteTicket || '').toLowerCase()) return 'confirma';
+    return claimsExistentes.some(x => x.toLowerCase() === n) ? 'preguntar' : 'confirma';
+  };
+
+  check('primera vez, tras guardar mi borrador → confirma sin preguntar',
+    alConfirmar({ claimEnEsteTicket: 'alvaro', nombre: 'Alvaro', claimsExistentes: ['Alvaro'] }), 'confirma');
+  check('si NO se anotara al guardar, preguntaría por mi propio borrador',
+    alConfirmar({ claimEnEsteTicket: '', nombre: 'Alvaro', claimsExistentes: ['Alvaro'] }), 'preguntar');
+  check('nombre de otro sí sigue preguntando',
+    alConfirmar({ claimEnEsteTicket: 'alvaro', nombre: 'Maria', claimsExistentes: ['Alvaro', 'Maria'] }), 'preguntar');
+  check('nombre nuevo, nadie lo usa → confirma',
+    alConfirmar({ claimEnEsteTicket: 'alvaro', nombre: 'Nerea', claimsExistentes: ['Alvaro'] }), 'confirma');
+}
+{
+  const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'claim.js'), 'utf8');
+  const enSaveDraft = src.slice(src.indexOf('function saveDraft'), src.indexOf('async function checkForUpdates'));
+  check('el borrador ya anota el claim como propio',
+    /rememberMyClaim\(myName\(\)\)/.test(enSaveDraft), true);
+}
+
+console.log('\n3. Mientras la identidad está sin aclarar');
 {
   // Nada de lo que se enseñe puede darse por mío, ni escribirse en el ticket.
   const bloqueado = true;
@@ -104,7 +135,7 @@ console.log('\n2. Mientras la identidad está sin aclarar');
   check('el botón de confirmar está bloqueado', bloqueado, true);
 }
 
-console.log('\n3. Salir de la página sin haber tocado nada');
+console.log('\n4. Salir de la página sin haber tocado nada');
 {
   // El guardado de emergencia solo debe dispararse si esta persona ha marcado
   // algo. Sin esta condición, con solo ABRIR el enlace y salir se reescribía
@@ -119,7 +150,7 @@ console.log('\n3. Salir de la página sin haber tocado nada');
   check('marcó algo y se va a medias → sí lo guarda', debeGuardar(123, false, false), true);
 }
 
-console.log('\n4. El código sigue teniendo los guardarraíles');
+console.log('\n5. El código sigue teniendo los guardarraíles');
 {
   const src = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'claim.js'), 'utf8');
   check('el claim propio se guarda por ticket, no global',

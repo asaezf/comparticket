@@ -680,6 +680,46 @@ body {
   color: var(--green);
 }
 
+/* Botón "?" junto a la cifra que falta por marcar */
+.pending-btn {
+  margin-left: 7px;
+  width: 17px; height: 17px;
+  padding: 0;
+  border: 1.5px solid var(--red);
+  border-radius: 50%;
+  background: transparent;
+  color: var(--red);
+  font-family: var(--sans);
+  font-size: 0.6rem;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.pending-btn:active { background: var(--red); color: #fff; }
+
+/* Latido rojo sobre las unidades que no ha cogido nadie. Se llega aquí desde
+   el resumen: con un ticket largo, saber qué faltaba obligaba a comparar la
+   lista a ojo. */
+/* Se declara el borde entero, no solo el color: la regla base de .unit-pill
+   usa la forma abreviada `border:`, y así no queda ninguna duda de cuál gana
+   ni depende del orden en que estén escritas. */
+.unit-pill.pending-beat {
+  border: 1.5px solid var(--red);
+  color: var(--red);
+  animation: pending-beat 1.25s ease-in-out infinite;
+}
+@keyframes pending-beat {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0); }
+  45%      { box-shadow: 0 0 0 4px rgba(220, 38, 38, 0.30); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .unit-pill.pending-beat {
+    animation: none;
+    box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.28);
+  }
+}
+
 /* Suma de lo marcado — un escalón por debajo de las otras filas, porque es
    una comprobación de apoyo y no una cifra que nadie tenga que pagar. */
 .claimed-row {

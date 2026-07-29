@@ -79,7 +79,11 @@
           <!-- Dinero que todavía no está pagando nadie -->
           <div class="data-row unassigned-row" id="unassignedRow">
             <span class="data-label" id="lblUnassigned"></span>
-            <span class="data-value" id="unassignedVal">0,00€</span>
+            <span class="data-value">
+              <span id="unassignedVal">0,00€</span>
+              <!-- Lleva a la pantalla de marcar señalando lo que falta -->
+              <button type="button" class="pending-btn hidden" id="pendingBtn">?</button>
+            </span>
           </div>
           <!-- Suma de lo que ha marcado la gente, para ver de un vistazo si
                cuadra con el total sin tener que sumar a mano -->

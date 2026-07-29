@@ -253,9 +253,20 @@ function renderUnassigned() {
   const value = document.getElementById('unassignedVal');
   const check = Money.reconcileClaims(ticketData.items, ticketData.total, claimsData);
 
+  // El texto NO cambia al llegar a cero: "Faltan por marcar 0,00 €" en verde
+  // se lee de un vistazo junto a las otras filas, mientras que cambiarlo por
+  // otra frase obligaba a releer para saber qué número estabas mirando.
   row.classList.toggle('is-clear', check.balanced);
-  label.textContent = check.balanced ? t.allAssigned : t.unassigned;
-  value.textContent = check.balanced ? '0,00€' : Money.formatEUR(check.pending, lang);
+  label.textContent = t.unassigned;
+  value.textContent = Money.formatEUR(check.balanced ? 0 : check.pending, lang);
+
+  // Botón para ir a ver exactamente qué falta. Solo tiene sentido si falta algo.
+  const btn = document.getElementById('pendingBtn');
+  if (btn) {
+    btn.classList.toggle('hidden', check.balanced);
+    btn.title = t.showPending;
+    btn.setAttribute('aria-label', t.showPending);
+  }
 
   renderClaimedSum(check);
   return check;
@@ -459,6 +470,13 @@ document.getElementById('closeBtn').addEventListener('click', async () => {
 });
 
 // Share top button (share claim link)
+// "¿Qué falta por marcar?" → vuelve a la pantalla de marcar señalando en rojo
+// justo las unidades que nadie ha cogido. Antes, saber qué faltaba obligaba a
+// ir comparando la lista a ojo.
+document.getElementById('pendingBtn').addEventListener('click', () => {
+  window.location.href = `/t/${ticketId}?pendientes=1`;
+});
+
 document.getElementById('shareTopBtn').addEventListener('click', () => {
   const url = `${location.origin}/t/${ticketId}`;
   if (navigator.share) {

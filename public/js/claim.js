@@ -206,6 +206,17 @@ function nudgeName() {
 function saveDraft() {
   if (!myName()) return;      // sin nombre no hay a quién atribuir la selección
   if (identityBlocked) return; // el nombre es de otro y aún no se ha aclarado
+
+  // Este móvil pasa a ser el dueño de esa selección DESDE EL PRIMER BORRADOR,
+  // no solo al confirmar.
+  //
+  // Antes se anotaba únicamente al confirmar, y provocaba una pregunta absurda
+  // la primera vez que alguien usaba la app: escribías tu nombre, el borrador
+  // creaba un claim con él en el servidor, y al ir a confirmar la app se
+  // encontraba "un claim llamado Álvaro" que no constaba como tuyo y te
+  // preguntaba si eras tú. Te preguntaba por tu propio borrador.
+  rememberMyClaim(myName());
+
   clearTimeout(saveTimer);
   saveTimer = setTimeout(async () => {
     const payload = {};
@@ -579,6 +590,48 @@ function renderItems() {
   // lista se cortaba a media altura y había artículos que era IMPOSIBLE
   // marcar. Remedir en cada pintado lo garantiza para cualquier longitud.
   fitTicket();
+
+  if (highlightPending) markPendingUnits();
+}
+
+// Se llega desde el resumen pulsando "¿qué falta por marcar?".
+const highlightPending = new URLSearchParams(location.search).get('pendientes') === '1';
+
+/**
+ * Señala con un latido rojo las unidades que no ha cogido nadie.
+ *
+ * Con un ticket largo, averiguar qué quedaba suelto obligaba a ir comparando
+ * la lista a ojo. Aquí se ven de un vistazo y se puede tocar directamente.
+ */
+function markPendingUnits() {
+  const others = otherClaimants();
+  let primera = null;
+  let n = 0;
+
+  document.querySelectorAll('.unit-pill').forEach(pill => {
+    const id = pill.dataset.itemId;
+    const u = +pill.dataset.unit;
+    const laTieneOtro = !!(others[id] && others[id][u] && others[id][u].length);
+    const laTengoYo = !!(myUnits[id] && myUnits[id].has(u));
+    if (laTieneOtro || laTengoYo) return;
+
+    pill.classList.add('pending-beat');
+    if (!primera) primera = pill;
+    n++;
+  });
+
+  if (!n) return;
+  toast(t.pendingHint.replace('{n}', n));
+  if (primera) {
+    // Un respiro antes de desplazar: si se hace a la vez que se pinta, el
+    // navegador todavía está colocando el ticket y salta a un sitio raro.
+    setTimeout(() => primera.scrollIntoView({ behavior: 'smooth', block: 'center' }), 350);
+  }
+}
+
+/** El latido se apaga en cuanto tocas esa unidad: ya no está pendiente. */
+function stopBeat(pill) {
+  if (pill) pill.classList.remove('pending-beat');
 }
 
 function pillInner(item, u, others) {
@@ -627,6 +680,7 @@ function refreshPills(row, item, othersMap) {
 
 function onPillClick(e) {
   const pill = e.currentTarget;
+  stopBeat(pill);            // si latía por estar pendiente, deja de hacerlo
   const itemId = +pill.dataset.itemId;
   const u = +pill.dataset.unit;
   if (!myUnits[itemId]) myUnits[itemId] = new Set();
