@@ -80,9 +80,11 @@
           <div class="data-row unassigned-row" id="unassignedRow">
             <span class="data-label" id="lblUnassigned"></span>
             <span class="data-value">
-              <span id="unassignedVal">0,00€</span>
-              <!-- Lleva a la pantalla de marcar señalando lo que falta -->
+              <!-- Lleva a la pantalla de marcar señalando lo que falta. Va
+                   antes de la cifra para que esta quede alineada con el resto
+                   de importes de la columna, como estaba antes de añadirlo. -->
               <button type="button" class="pending-btn hidden" id="pendingBtn">?</button>
+              <span id="unassignedVal">0,00€</span>
             </span>
           </div>
           <!-- Suma de lo que ha marcado la gente, para ver de un vistazo si

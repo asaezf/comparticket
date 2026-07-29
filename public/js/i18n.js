@@ -12,7 +12,7 @@ const translations = {
     editTitle: 'Revisa los ítems',
     addItem: '+ Añadir línea',
     total: 'Total',
-    perPerson: 'Por persona a partes iguales',
+    perPerson: 'A partes iguales',
     shareBtn: 'Compartir enlace',
     shareTitle: 'Comparte con tus amigos',
     shareHint: 'Marca lo tuyo',

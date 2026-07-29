@@ -682,7 +682,7 @@ body {
 
 /* Botón "?" junto a la cifra que falta por marcar */
 .pending-btn {
-  margin-left: 7px;
+  margin-right: 7px;
   width: 17px; height: 17px;
   padding: 0;
   border: 1.5px solid var(--red);
