@@ -242,3 +242,71 @@ _pon('viaSueltaLabel', t.viaSuelta);
 _pon('viaGrupoLabel', t.viaGrupo);
 _pon('groupCtaText', t.createGroup);
 _pon('groupCtaSub', t.createGroupSub);
+
+/**
+ * Los grupos en los que ya has entrado desde este movil.
+ *
+ * No es una sesion ni da acceso a nada: el enlace sigue siendo la llave. Es
+ * solo que el movil se acuerda, para no tener que rebuscar el enlace en
+ * WhatsApp cada vez que quieres apuntar un gasto.
+ */
+function pintarMisGrupos() {
+  let lista = [];
+  try { lista = JSON.parse(localStorage.getItem('ct_grupos') || '[]'); } catch (_) {}
+  lista = (lista || []).filter(g => g && g.id && g.name);
+
+  const caja = document.getElementById('misGrupos');
+  const cont = document.getElementById('misGruposLista');
+  if (!caja || !cont) return;
+  if (!lista.length) { caja.classList.add('hidden'); return; }
+
+  caja.classList.remove('hidden');
+  const etq = document.getElementById('misGruposLabel');
+  if (etq && typeof t !== 'undefined' && t.yourGroups) etq.textContent = t.yourGroups;
+
+  cont.innerHTML = '';
+  lista.slice(0, 6).forEach(g => {
+    const a = document.createElement('a');
+    a.className = 'mg-row';
+    a.href = '/g/' + encodeURIComponent(g.id);
+    const total = (typeof Money !== 'undefined' && typeof g.total === 'number')
+      ? Money.formatEUR(g.total, lang) : '';
+    a.innerHTML =
+      '<span class="mg-name"></span>' +
+      '<span class="mg-total"></span>';
+    // textContent y no innerHTML: el nombre lo escribio un usuario.
+    a.querySelector('.mg-name').textContent = g.name;
+    a.querySelector('.mg-total').textContent = total;
+    cont.appendChild(a);
+  });
+}
+
+pintarMisGrupos();
+
+/**
+ * Modo grupo: escanear un ticket desde dentro de un grupo.
+ *
+ * Quien ya esta en un grupo no necesita que le presenten la aplicacion otra
+ * vez. Se esconde todo lo que sobra —marca, tutorial, la otra via— y quedan
+ * los dos botones de camara y galeria, que es lo unico a lo que ha venido.
+ */
+function modoGrupo() {
+  if (!grupoDestino) return;
+  document.body.classList.add('en-grupo');
+
+  // De donde viene y a donde vuelve si se arrepiente.
+  const volver = document.getElementById('volverGrupo');
+  if (volver) volver.href = '/g/' + encodeURIComponent(grupoDestino);
+
+  // El nombre del grupo, para que se vea a que grupo va este ticket.
+  fetch('/api/groups/' + encodeURIComponent(grupoDestino))
+    .then(r => r.ok ? r.json() : null)
+    .then(g => {
+      if (!g) return;
+      const el = document.getElementById('grupoDestinoNombre');
+      if (el) el.textContent = g.name;
+    })
+    .catch(() => {});
+}
+
+modoGrupo();

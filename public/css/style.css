@@ -2787,23 +2787,23 @@ input[type="file"] { display: none; }
   margin-left: 5px;
 }
 
-/* Expandir / compactar una lista larga */
+/* Mostrar mas / mostrar menos. Se lee igual que la aclaracion de la
+   izquierda ("sin ticket"), para que no compita con el titulo. */
 .fold-btn {
   flex-shrink: 0;
   appearance: none;
   border: none;
   background: none;
-  padding: 2px 0 2px 8px;
+  padding: 2px 0 2px 10px;
   font-family: var(--mono);
-  font-size: 0.56rem;
-  font-weight: 700;
+  font-size: 0.6rem;
+  font-weight: 400;
   letter-spacing: 0.04em;
-  color: var(--accent);
-  text-decoration: underline;
+  color: var(--gray-400);
   cursor: pointer;
   text-transform: none;
 }
-.fold-btn:active { opacity: .6; }
+.fold-btn:active { color: var(--accent); }
 
 /* Aviso discreto dentro del historial, donde se buscarian las fotos */
 .soon-inline {
@@ -2825,3 +2825,82 @@ input[type="file"] { display: none; }
   text-decoration: line-through;
 }
 .who-pill.taken:active { transform: none; }
+
+/* La hucha dentro del boton de gasto sin ticket */
+.add-btn .ab-pig { width: 21px; height: 21px; }
+
+/* Estado de un ticket sin cerrar. Que YA haya votado todo el mundo es lo que
+   dice "ve y cierralo"; que hayan votado todos pero no cuadre hay que decirlo
+   igual de claro, porque es el momento de revisar. */
+.item-tag.ok  { background: rgba(22,163,74,.14);  color: var(--green); }
+.item-tag.bad { background: rgba(220,38,38,.14);  color: var(--red); }
+.item-row.listo     { border-left: 3px solid var(--green); padding-left: 8px; }
+.item-row.descuadra { border-left: 3px solid var(--red);   padding-left: 8px; }
+
+/* Tus grupos, en la portada. Sin cuentas de usuario, esto es lo que evita que
+   un grupo se pierda al cerrar la pestana. */
+.my-groups { margin-top: 22px; }
+.mg-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 11px 13px;
+  margin-bottom: 7px;
+  border: 1.5px dashed var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  text-decoration: none;
+  transition: border-color .16s, transform .1s;
+}
+.mg-row:active { transform: scale(0.985); border-color: var(--accent); }
+.mg-name {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--black);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mg-total {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--gray-400);
+  flex-shrink: 0;
+}
+
+/* --- Escanear desde dentro de un grupo -----------------------------------
+   Quien ya esta en un grupo no necesita que le presenten la aplicacion otra
+   vez: se esconde todo lo que sobra y quedan los dos botones de camara y
+   galeria, que es a lo unico que ha venido. */
+body.en-grupo .tutorial,
+body.en-grupo .via-sep,
+body.en-grupo #viaGrupoLabel,
+body.en-grupo #groupCta,
+body.en-grupo #groupCtaSub,
+body.en-grupo #misGrupos,
+body.en-grupo .brand-logo,
+body.en-grupo #viaSueltaLabel { display: none !important; }
+
+body.en-grupo .grupo-banner.hidden { display: flex !important; }
+body.en-grupo .upload-area { padding-top: 6px; }
+
+.grupo-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0 0 18px;
+  padding: 10px 12px;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  background: rgba(255,107,53,.06);
+  text-decoration: none;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--gray-500);
+}
+.grupo-banner svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--accent); }
+.grupo-banner strong { color: var(--black); }

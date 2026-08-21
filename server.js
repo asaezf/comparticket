@@ -299,6 +299,23 @@ app.post('/api/tickets/:id/payer', ruta(async (req, res) => {
 // Set expected participants count
 app.post('/api/tickets/:id/participants', ruta(async (req, res) => {
   const { expectedParticipants } = req.body || {};
+
+  // Si el ticket va dentro de un grupo, no puede haber mas participantes que
+  // gente en el grupo: el reparto no cuadraria nunca y nadie entenderia por
+  // que. La pantalla ya lo impide, pero la API tambien tiene que hacerlo.
+  const actual = await db.getTicket(req.params.id);
+  if (actual && actual.groupId) {
+    const g = await db.getGroup(actual.groupId);
+    const tope = g && Array.isArray(g.members) ? g.members.length : 0;
+    const n = parseInt(expectedParticipants);
+    if (tope && Number.isFinite(n) && n > tope) {
+      return res.status(400).json({
+        error: 'El grupo es de ' + tope + ' personas, no puede haber más',
+        code: 'MAS_QUE_EL_GRUPO'
+      });
+    }
+  }
+
   const ticket = await db.setTicketParticipants(req.params.id, expectedParticipants);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
   res.json(ticket);
@@ -485,8 +502,13 @@ app.get('/t/:id', ruta(async (req, res) => {
     // Si la vista previa falla por lo que sea, se sirve la página igual sin
     // ella. Un enlace que abre sin tarjeta bonita es un problema menor; un
     // enlace que devuelve error a todo el grupo es un problema grave.
+    // Si el ticket va dentro de un grupo, la vista previa lo dice.
+    let grupo = null;
+    if (ticket.groupId) {
+      try { grupo = await db.getPublicGroup(ticket.groupId); } catch (_) {}
+    }
     let meta = null;
-    try { meta = shareMeta(ticket, claims); }
+    try { meta = shareMeta(ticket, claims, grupo); }
     catch (e) { console.error('shareMeta falló:', e && e.message); }
     if (meta) html = html
       .replace(/<meta property="og:title" content="[^"]*">/,
@@ -511,7 +533,7 @@ function escAttr(s) {
  * empuja a tocar el enlace no es lo mismo cuando aún no ha marcado nadie que
  * cuando faltas tú y los demás ya han terminado.
  */
-function shareMeta(ticket, claims) {
+function shareMeta(ticket, claims, grupo) {
   const eur = money.formatEUR(ticket.total, 'es');
   const sitio = ticket.restaurant || 'La cuenta';
   const quien = (ticket.payerName || '').trim();
@@ -534,7 +556,12 @@ function shareMeta(ticket, claims) {
     description = `${eur} sobre la mesa. Marca lo que has tomado para saber cuánto le debes. 💸`;
   }
 
-  return { title: `${sitio} · ${eur}`, description };
+  // Si el ticket pertenece a un grupo, se dice en el titulo: al pegarlo en el
+  // chat del viaje, lo primero que hay que saber es de que grupo viene.
+  const titulo = grupo && grupo.name
+    ? `${grupo.name} · ${sitio} · ${eur}`
+    : `${sitio} · ${eur}`;
+  return { title: titulo, description };
 }
 
 
@@ -592,6 +619,9 @@ async function groupSummary(groupId, req_token) {
       total: t.total,
       payerName: t.payerName,
       status: t.status,
+      // Hace falta para saber si YA ha marcado todo el mundo, que es lo que
+      // dice "ve y cierralo".
+      expectedParticipants: t.expectedParticipants || null,
       receiptDate: t.receiptDate,
       createdAt: t.createdAt,
       lineas: (t.items || []).length,

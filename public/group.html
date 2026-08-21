@@ -113,7 +113,7 @@
               <span>Escanear un ticket</span>
             </button>
             <button class="add-btn" id="addExpenseBtn" type="button">
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.83 7.5l-2.27-2.27c.07-.42.18-.81.32-1.15.15-.37.35-.7.6-.99l-.71-.71c-.4.29-.75.65-1.03 1.06-.28.41-.5.87-.65 1.36-.5-.14-1.03-.22-1.59-.22H9c-2.76 0-5 2.24-5 5 0 1.53.69 2.9 1.77 3.82L5 15.5V20c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-1h4v1c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.5c.32-.24.62-.51.88-.81l1.9-.63c.42-.14.72-.54.72-.99V8.5c0-.55-.45-1-1-1zM11 9H8V7h3v2zm4 1c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>
+              <svg class="ab-pig" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><ellipse cx="13" cy="12.6" rx="7.4" ry="5.4"/><path d="M9.4 7.6 11.9 4.9 13.1 8.4Z"/><ellipse cx="5.1" cy="13" rx="2.7" ry="2.3"/><rect x="8.4" y="17.2" width="2.3" height="2.8" rx="1.1"/><rect x="14.6" y="17.2" width="2.3" height="2.8" rx="1.1"/><rect x="11.2" y="8" width="5.2" height="1.5" rx=".75" fill="#FFFEF8"/><circle cx="9.1" cy="11.4" r=".95" fill="#FFFEF8"/></svg>
               <span>Gasto sin ticket</span>
             </button>
           </div>
@@ -121,7 +121,7 @@
           <!-- Formulario de gasto suelto, plegado hasta que hace falta -->
           <div class="expense-form hidden" id="expenseForm">
             <div class="ef-row">
-              <input type="text" id="expDesc" placeholder="Escribe aquí el gasto" maxlength="60">
+              <input type="text" id="expDesc" placeholder="Nombre del gasto" maxlength="60">
               <input type="number" id="expAmount" placeholder="0,00" step="0.01" min="0.01" inputmode="decimal">
             </div>
             <div class="ef-label">¿QUIÉN LO PAGÓ?</div>
@@ -144,20 +144,26 @@
 
           <hr class="dash-sep">
 
-          <!-- Tickets que ya estan cerrados: se puede entrar a cada uno y ver
-               su reparto, su descargable y (proximamente) su foto. -->
+          <!-- Los que siguen a medias: son los que hay que terminar para que
+               el reparto sea definitivo, asi que van primero. -->
           <div class="sec-title">
-            <span class="sec-pair">HISTORIAL DE TICKETS <span class="sec-pair-b" id="closedCount"></span></span>
+            <span class="sec-pair">HISTORIAL DE TICKETS <span class="sec-pair-b">sin cerrar</span></span>
+            <button class="fold-btn" id="foldOpen" type="button"></button>
+          </div>
+          <div id="openList"></div>
+
+          <hr class="dash-sep">
+
+          <!-- Los cerrados: se puede entrar a cada uno y ver su reparto. -->
+          <div class="sec-title">
+            <span class="sec-pair">HISTORIAL DE TICKETS <span class="sec-pair-b">cerrados</span></span>
             <button class="fold-btn" id="foldClosed" type="button"></button>
           </div>
           <div id="closedList"></div>
 
-          <!-- Los que siguen a medias. Van aparte a proposito: son los que
-               hay que terminar para que el reparto sea definitivo. -->
-          <div class="sec-title sec-sub" id="openTitle">
-            <span class="sec-pair">TICKETS SIN CERRAR <span class="sec-pair-b" id="openCount"></span></span>
+          <div class="soon-inline" id="fotosProximamente">
+            📷 Pronto podrás ver aquí la foto original de cada ticket
           </div>
-          <div id="openList"></div>
 
         </div>
         <div class="ticket-zigzag"></div>

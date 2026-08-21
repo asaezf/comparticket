@@ -53,6 +53,7 @@ async function loadData() {
 
   renderUnassigned();
   renderPeople();
+  montarGrupo();
 
   if (ticketData.status === 'closed') {
     showClosed();
@@ -307,6 +308,36 @@ function renderClaimedSum(check) {
   row.classList.toggle('is-final', todosHanMarcado);
   row.classList.toggle('is-ok', todosHanMarcado && coincideExacto);
   row.classList.toggle('is-off', todosHanMarcado && !coincideExacto);
+}
+
+/**
+ * Si el ticket pertenece a un grupo, se ensena de cual y se ofrece la vuelta.
+ *
+ * El boton de volver aparece SIEMPRE que el ticket este dentro de un grupo,
+ * este cerrado o no: al confirmar tu seleccion te quedabas encerrado aqui sin
+ * ninguna salida, y la unica forma de volver era el boton del navegador.
+ */
+async function montarGrupo() {
+  if (!ticketData || !ticketData.groupId) return;
+
+  const destino = '/g/' + encodeURIComponent(ticketData.groupId);
+  const banner = document.getElementById('grupoBanner');
+  const area = document.getElementById('backToGroupArea');
+  const btn = document.getElementById('backToGroupBtn');
+  if (btn) btn.href = destino;
+  if (area) area.classList.remove('hidden');
+  if (banner) {
+    banner.classList.remove('hidden');
+    banner.href = destino;
+  }
+
+  try {
+    const r = await fetch('/api/groups/' + encodeURIComponent(ticketData.groupId));
+    if (!r.ok) return;
+    const g = await r.json();
+    const n = document.getElementById('grupoBannerNombre');
+    if (n && g && g.name) n.textContent = g.name;
+  } catch (_) {}
 }
 
 function renderProgress() {

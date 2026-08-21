@@ -55,9 +55,45 @@ async function loadTicket() {
 
   renderItems();
   updateTotal();
+  montarGrupo();
 
   if (ticketData.status === 'shared' || ticketData.status === 'closed') {
     showShare();
+  }
+}
+
+// Cuantas personas hay en el grupo, si este ticket pertenece a uno. Es el
+// tope de participantes que se puede poner.
+let topeParticipantes = 0;
+let grupoDelTicket = null;
+
+/**
+ * Si el ticket va dentro de un grupo, se ensena de cual y se limita el numero
+ * de participantes a la gente que hay en el.
+ */
+async function montarGrupo() {
+  if (!ticketData || !ticketData.groupId) return;
+  try {
+    const r = await fetch('/api/groups/' + encodeURIComponent(ticketData.groupId));
+    if (!r.ok) return;
+    grupoDelTicket = await r.json();
+  } catch (_) { return; }
+  if (!grupoDelTicket || !Array.isArray(grupoDelTicket.members)) return;
+
+  topeParticipantes = grupoDelTicket.members.length;
+
+  const pInput = document.getElementById('participantsInput');
+  if (pInput) {
+    pInput.max = String(topeParticipantes);
+    if (!pInput.value) pInput.value = String(topeParticipantes);
+  }
+
+  const banner = document.getElementById('grupoBanner');
+  if (banner) {
+    banner.classList.remove('hidden');
+    banner.href = '/g/' + encodeURIComponent(ticketData.groupId);
+    const n = document.getElementById('grupoBannerNombre');
+    if (n) n.textContent = grupoDelTicket.name;
   }
 }
 
@@ -212,6 +248,14 @@ document.getElementById('shareBtn').addEventListener('click', async () => {
   const pVal = pInput ? parseInt(pInput.value, 10) : NaN;
   if (!Number.isFinite(pVal) || pVal < 1) return reclamarCampo(pInput, t.needParticipants);
 
+  // En un grupo no puede haber mas participantes en un ticket que gente en el
+  // grupo: si el grupo es de cuatro y el ticket dice cinco, el reparto no
+  // cuadra nunca y nadie entiende por que.
+  if (topeParticipantes && pVal > topeParticipantes) {
+    return reclamarCampo(pInput,
+      'El grupo es de ' + topeParticipantes + ' personas, no puede haber más');
+  }
+
   // Segundo cinturón: la pantalla ya bloquea el botón, pero si el descuadre
   // llegara hasta aquí el servidor lo rechaza igualmente.
   const check = Money.reconcileTicket(ticketData.items, ticketData.total);
@@ -290,11 +334,12 @@ function showShare() {
 
   const nb = document.getElementById('nativeBtn');
   nb.onclick = () => {
+    const texto = textoTicketWhatsApp();
     if (navigator.share) {
-      navigator.share({ title: 'comparTICKET', text: t.shareHint, url }).catch(() => {});
+      navigator.share({ title: 'comparTICKET', text: texto, url }).catch(() => {});
     } else {
-      // Fallback: copy to clipboard
-      navigator.clipboard.writeText(url).then(() => toast(t.copied));
+      // Se copia el mensaje entero, no solo el enlace pelado.
+      navigator.clipboard.writeText(texto + '\n' + url).then(() => toast(t.copied));
     }
   };
 }
@@ -321,3 +366,28 @@ function toast(msg) {
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 loadTicket();
+
+/**
+ * Mensaje para pegar en el chat al compartir un ticket.
+ *
+ * Si el ticket pertenece a un grupo se dice, porque al pegarlo en el chat del
+ * viaje lo primero que hay que saber es de que grupo viene y quien adelanto
+ * el dinero. El dedo apunta al enlace, asi que el enlace va debajo y no
+ * pegado a su derecha.
+ */
+function textoTicketWhatsApp() {
+  const sitio = (ticketData && ticketData.restaurant) || 'la cuenta';
+  const total = ticketData ? Money.formatEUR(ticketData.total, lang) : '';
+  const quien = (ticketData && ticketData.payerName) || '';
+
+  if (grupoDelTicket && grupoDelTicket.name) {
+    return '\uD83D\uDC65 *' + grupoDelTicket.name + '* — ' + sitio + '\n' +
+      (quien ? quien + ' ha pagado ' + total + '.' : total + ' sobre la mesa.') + '\n' +
+      'Marca lo que has tomado para saber cuánto le debes.\n' +
+      '\uD83D\uDC47';
+  }
+  return '\uD83E\uDDFE *' + sitio + '* — ' + total + '\n' +
+    (quien ? quien + ' ha pagado. ' : '') +
+    'Marca lo que has tomado para saber cuánto le debes.\n' +
+    '\uD83D\uDC47';
+}
