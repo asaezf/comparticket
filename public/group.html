@@ -96,8 +96,24 @@
 
           <!-- El cuadre: quien le paga a quien, con el minimo de pagos -->
           <div class="sec-title">
-            REPARTO
+            <span id="repartoTitulo">REPARTO</span>
             <span class="sec-note" id="settleNote"></span>
+          </div>
+
+          <!-- Easter egg: tres toques en REPARTO. Se guarda en el grupo y no
+               en el movil para que la vea todo el mundo; si cada uno tuviera
+               la suya, el mismo grupo mandaria mensajes distintos. -->
+          <div class="tpl-panel hidden" id="tplPanel">
+            <div class="tpl-head">Mensaje de recordatorio</div>
+            <textarea id="tplText" rows="4" maxlength="400"></textarea>
+            <div class="tpl-keys">
+              Usa <code>{nombre}</code> <code>{importe}</code> <code>{a}</code> <code>{grupo}</code>
+            </div>
+            <div class="tpl-preview" id="tplPreview"></div>
+            <div class="ef-actions">
+              <button class="btn btn-ghost btn-half" id="tplReset">Por defecto</button>
+              <button class="btn btn-dark btn-half" id="tplSave">Guardar</button>
+            </div>
           </div>
           <div id="transfersList"></div>
 
@@ -160,6 +176,17 @@
             <button class="fold-btn" id="foldClosed" type="button"></button>
           </div>
           <div id="closedList"></div>
+
+          <hr class="dash-sep">
+
+          <!-- Estadisticas del grupo -->
+          <div class="sec-title">
+            <span class="sec-pair">RESUMEN <span class="sec-pair-b">del grupo</span></span>
+            <button class="fold-btn" id="foldStats" type="button"></button>
+          </div>
+          <div id="statsBlock"></div>
+
+          <hr class="dash-sep">
 
           <div class="soon-inline" id="fotosProximamente">
             📷 Pronto podrás ver aquí la foto original de cada ticket

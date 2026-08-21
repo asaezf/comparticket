@@ -118,6 +118,7 @@ function pintar() {
   pintarTransferencias();
   pintarTickets();
   pintarGastos();
+  pintarStats();
 
   // El ticket acaba de cambiar de alto: hay que remedir para que la animación
   // de impresión no lo recorte, igual que en las demás pantallas.
@@ -311,6 +312,7 @@ function pintarTransferencias() {
         '<span class="tr-from">' + esc(t.de) + '</span>' +
         '<span class="tr-arrow">→</span>' +
         '<span class="tr-to">' + esc(t.a) + '</span>' +
+        etiquetaDias() +
         '<span class="tr-amount">' + eur(t.importe) + '</span>' +
       '</div>' +
       '<div class="tr-actions">' +
@@ -343,10 +345,147 @@ function pintarTransferencias() {
   });
 }
 
+/**
+ * Cuanto lleva el grupo sin moverse, en formato de etiqueta.
+ *
+ * Mientras siguen entrando gastos la deuda todavia esta cambiando y no tiene
+ * sentido reclamar nada; en cuanto el grupo se queda quieto, los dias
+ * empiezan a contar de verdad. El color sube con ellos, pero sin insultar a
+ * nadie: es una cuenta entre amigos, no una agencia de cobros.
+ */
+function etiquetaDias() {
+  const d = +datos.diasQuieto || 0;
+  if (d < 2) return '';
+  const nivel = d >= 30 ? 'd3' : d >= 14 ? 'd2' : d >= 7 ? 'd1' : 'd0';
+  return '<span class="tr-days ' + nivel + '">' + d + ' días</span>';
+}
+
+/** Resumen del viaje: lo que la gente quiere contar despues. */
+function pintarStats() {
+  const cont = document.getElementById('statsBlock');
+  if (!cont) return;
+  cont.innerHTML = '';
+
+  if (!datos.stats.apuntes) {
+    cont.innerHTML = '<div class="empty-line">Cuando haya gastos, aquí saldrá el resumen</div>';
+    pintarFold('foldStats', 'stats', 0);
+    return;
+  }
+  if (!desplegado.stats) { pintarFold('foldStats', 'stats', 1); return; }
+
+  const gente = datos.group.members.length;
+  const cerrados = datos.tickets.filter(t => t.status === 'closed').length;
+  const puesto = datos.stats.puestoPor || {};
+  const masPuso = Object.keys(puesto).sort((a, b) => puesto[b] - puesto[a])[0];
+
+  // El gasto mas caro, mirando tickets y gastos sueltos por igual.
+  let caro = null;
+  datos.tickets.forEach(t => {
+    if (!caro || t.total > caro.importe) caro = { nombre: t.restaurant || 'Ticket', importe: t.total };
+  });
+  datos.expenses.forEach(e => {
+    if (!caro || e.amount > caro.importe) caro = { nombre: e.description, importe: e.amount };
+  });
+
+  const filas = [
+    ['Gasto total', eur(datos.stats.total)],
+    ['Por persona', eur(datos.stats.total / Math.max(1, gente))],
+    // Solo los tickets CERRADOS entran en el reparto, asi que la cuenta tiene
+    // que cuadrar a la vista: si dijera '3 (2 tickets, 2 sueltos)' nadie se
+    // creeria el resto de las cifras.
+    ['En el reparto', datos.stats.apuntes + ' (' + cerrados + ' cerrados, ' + datos.expenses.length + ' sueltos)'],
+    ['Sin cerrar todavía', datos.ticketsAbiertos
+      ? datos.ticketsAbiertos + ' · ' + eur(datos.pendienteDeCerrar || 0) + ' fuera'
+      : 'ninguno'],
+    ['Quien más ha adelantado', masPuso ? esc(masPuso) + ' · ' + eur(puesto[masPuso]) : '—'],
+    ['El gasto más caro', caro ? esc(caro.nombre) + ' · ' + eur(caro.importe) : '—'],
+    ['Pagos ya hechos', datos.payments.length + ' de ' + (datos.payments.length + datos.transfers.length)]
+  ];
+
+  filas.forEach(([k, v]) => {
+    const r = document.createElement('div');
+    r.className = 'stat-row';
+    r.innerHTML = '<span class="stat-k">' + k + '</span><span class="stat-v">' + v + '</span>';
+    cont.appendChild(r);
+  });
+  pintarFold('foldStats', 'stats', 1);
+}
+
+// --- El easter egg: plantilla de los recordatorios ------------------------
+
+const PLANTILLA_POR_DEFECTO =
+  '{nombre}, te toca pasarle {importe} a {a} de «{grupo}» 💸';
+
+/** Rellena la plantilla con los datos de una transferencia concreta. */
+function aplicarPlantilla(plantilla, t) {
+  return String(plantilla || PLANTILLA_POR_DEFECTO)
+    .split('{nombre}').join(t.de)
+    .split('{importe}').join(eur(t.importe))
+    .split('{a}').join(t.a)
+    .split('{grupo}').join(datos.group.name);
+}
+
+let toquesEgg = 0, tiempoEgg = 0;
+
+function tocarTituloReparto() {
+  const ahora = Date.now();
+  // Los toques tienen que ser seguidos: si no, cualquiera lo abriria sin
+  // querer al desplazarse por la pantalla.
+  toquesEgg = (ahora - tiempoEgg < 900) ? toquesEgg + 1 : 1;
+  tiempoEgg = ahora;
+  if (toquesEgg < 3) return;
+  toquesEgg = 0;
+
+  const titulo = document.getElementById('repartoTitulo');
+  titulo.classList.remove('egg-hit');
+  void titulo.offsetWidth;          // reinicia la animacion
+  titulo.classList.add('egg-hit');
+
+  const panel = document.getElementById('tplPanel');
+  const abierto = !panel.classList.contains('hidden');
+  panel.classList.toggle('hidden', abierto);
+  if (!abierto) {
+    document.getElementById('tplText').value = datos.plantilla || PLANTILLA_POR_DEFECTO;
+    refrescarPreview();
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }
+  fitTicket();
+}
+
+function refrescarPreview() {
+  const txt = document.getElementById('tplText').value;
+  const ejemplo = datos.transfers[0] ||
+    { de: datos.group.members[0].name, a: datos.group.members[1].name, importe: 12.5 };
+  document.getElementById('tplPreview').textContent = aplicarPlantilla(txt, ejemplo);
+}
+
+async function guardarPlantilla() {
+  const txt = document.getElementById('tplText').value.trim();
+  const btn = document.getElementById('tplSave');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/groups/' + groupId + '/template', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ template: txt || null })
+    });
+    if (!r.ok) throw new Error('No se ha podido guardar');
+    document.getElementById('tplPanel').classList.add('hidden');
+    toast('Mensaje personalizado guardado');
+    await cargar();
+  } catch (e) {
+    toast(e instanceof TypeError ? 'Sin conexión' : e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
 /** Mensaje ya escrito para WhatsApp. La app no cobra: solo recuerda. */
 function recordar(t) {
-  const texto = t.de + ', te toca pasarle ' + eur(t.importe) + ' a ' + t.a +
-    ' de «' + datos.group.name + '» 💸\n' + location.origin + '/g/' + groupId;
+  // Si el grupo tiene mensaje propio se usa ese. El enlace va en su linea,
+  // debajo, para que el dedo apunte a el.
+  const cuerpo = aplicarPlantilla(datos.plantilla, t);
+  const texto = cuerpo + '\n\uD83D\uDC47\n' + location.origin + '/g/' + groupId;
   const url = 'https://wa.me/?text=' + encodeURIComponent(texto);
   window.open(url, '_blank', 'noopener');
 }
@@ -381,7 +520,7 @@ async function deshacerPago(p) {
 // Que listas estan desplegadas. Abiertas de entrada: lo normal es querer ver
 // lo que hay. Se pueden compactar porque en un piso compartido, a los dos
 // meses, la lista se hace interminable.
-const desplegado = { gastos: true, cerrados: true, abiertos: true };
+const desplegado = { gastos: true, cerrados: true, abiertos: true, stats: true };
 
 /**
  * Boton de mostrar mas / mostrar menos.
@@ -659,6 +798,51 @@ function compartirGrupo() {
 
 // ---------------------------------------------------------------- arranque
 
+// --- El reparto se mantiene al dia solo ----------------------------------
+//
+// El latido pide UN documento —no el resumen entero— y solo si el contador ha
+// cambiado se recarga todo. Con un viaje de treinta tickets la diferencia es
+// entre una lectura y treinta cada pocos segundos.
+let ultimaVersion = -1;
+let latido = null;
+
+async function comprobarNovedades() {
+  if (document.hidden) return;          // en segundo plano no se gasta cuota
+  try {
+    const r = await fetch('/api/groups/' + groupId + '/pulse');
+    if (!r.ok) return;
+    const { v } = await r.json();
+    if (ultimaVersion === -1) { ultimaVersion = v; return; }
+    if (v !== ultimaVersion) {
+      ultimaVersion = v;
+      // No se recarga mientras alguien esta escribiendo un gasto: le borraria
+      // lo que lleva puesto.
+      if (document.getElementById('expenseForm').classList.contains('hidden') &&
+          document.getElementById('tplPanel').classList.contains('hidden')) {
+        await cargar();
+      }
+    }
+  } catch (_) { /* sin conexion: se reintenta en el siguiente latido */ }
+}
+
+function arrancarLatido() {
+  if (latido) return;
+  latido = setInterval(comprobarNovedades, 6000);
+  // Al volver de otra aplicacion hay que refrescar ya: mientras estabas fuera
+  // no se ha comprobado nada.
+  document.addEventListener('visibilitychange', () => {
+    if (!document.hidden) comprobarNovedades();
+  });
+}
+
+document.getElementById('repartoTitulo').addEventListener('click', tocarTituloReparto);
+document.getElementById('tplText').addEventListener('input', refrescarPreview);
+document.getElementById('tplSave').addEventListener('click', guardarPlantilla);
+document.getElementById('tplReset').addEventListener('click', () => {
+  document.getElementById('tplText').value = PLANTILLA_POR_DEFECTO;
+  refrescarPreview();
+});
+
 document.getElementById('addExpenseBtn').addEventListener('click', abrirFormulario);
 document.getElementById('expCancel').addEventListener('click', cerrarFormulario);
 document.getElementById('expSave').addEventListener('click', guardarGasto);
@@ -671,4 +855,4 @@ document.getElementById('addTicketBtn').addEventListener('click', () => {
   window.location.href = '/?grupo=' + encodeURIComponent(groupId);
 });
 
-cargar();
+cargar().then(arrancarLatido);

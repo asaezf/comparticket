@@ -372,6 +372,7 @@ async function addGroupExpense(groupId, expense) {
     createdAt: new Date().toISOString()
   };
   await expensesRef(groupId).doc(id).set(doc);
+  await bumpGroupVersion(groupId);
   return doc;
 }
 
@@ -382,6 +383,7 @@ async function getGroupExpenses(groupId) {
 
 async function removeGroupExpense(groupId, expenseId) {
   await expensesRef(groupId).doc(expenseId).delete();
+  await bumpGroupVersion(groupId);
   return true;
 }
 
@@ -400,6 +402,7 @@ async function addGroupPayment(groupId, payment) {
     createdAt: new Date().toISOString()
   };
   await paymentsRef(groupId).doc(doc.id).set(doc);
+  await bumpGroupVersion(groupId);
   return doc;
 }
 
@@ -410,6 +413,7 @@ async function getGroupPayments(groupId) {
 
 async function removeGroupPayment(groupId, paymentId) {
   await paymentsRef(groupId).doc(paymentId).delete();
+  await bumpGroupVersion(groupId);
   return true;
 }
 
@@ -433,6 +437,7 @@ async function setTicketGroup(ticketId, groupId) {
   const ref = ticketRef(ticketId);
   if (!(await ref.get()).exists) return null;
   await ref.update({ groupId: groupId || null });
+  if (groupId) await bumpGroupVersion(groupId);
   return (await ref.get()).data();
 }
 
@@ -498,6 +503,41 @@ async function releaseGroupMember(groupId, memberId, token) {
   });
 }
 
+
+/**
+ * Sube el contador de cambios del grupo.
+ *
+ * Sirve para que las pantallas abiertas se enteren de que hay algo nuevo sin
+ * tener que releer todo el grupo cada pocos segundos: el latido lee UN
+ * documento, y solo si el numero ha cambiado se pide el resumen entero. Con
+ * un viaje de treinta tickets, la diferencia es entre una lectura y treinta.
+ */
+async function bumpGroupVersion(groupId) {
+  try {
+    await groupRef(groupId).update({
+      version: admin.firestore.FieldValue.increment(1),
+      updatedAt: new Date().toISOString()
+    });
+  } catch (_) { /* el grupo puede no existir; no es critico */ }
+}
+
+/** Latido: lo minimo para saber si hay novedades, en una sola lectura. */
+async function getGroupPulse(groupId) {
+  const snap = await groupRef(groupId).get();
+  if (!snap.exists) return null;
+  const d = snap.data();
+  return { v: d.version || 0, status: d.status || 'open' };
+}
+
+/** Plantilla de los recordatorios de este grupo (el easter egg). */
+async function setGroupTemplate(groupId, template) {
+  const ref = groupRef(groupId);
+  if (!(await ref.get()).exists) return null;
+  await ref.update({ reminderTemplate: template || null });
+  await bumpGroupVersion(groupId);
+  return (await ref.get()).data();
+}
+
 module.exports = {
   createTicket,
   getTicket,
@@ -527,5 +567,8 @@ module.exports = {
   getGroupTickets,
   setTicketGroup,
   claimGroupMember,
-  releaseGroupMember
+  releaseGroupMember,
+  bumpGroupVersion,
+  getGroupPulse,
+  setGroupTemplate
 };

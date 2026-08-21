@@ -2904,3 +2904,113 @@ body.en-grupo .upload-area { padding-top: 6px; }
 }
 .grupo-banner svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--accent); }
 .grupo-banner strong { color: var(--black); }
+
+/* --- Dias sin pagar ------------------------------------------------------
+   Mientras siguen entrando gastos la deuda todavia cambia; en cuanto el grupo
+   se queda quieto, los dias empiezan a contar. El color sube con ellos. */
+.tr-days {
+  font-family: var(--mono);
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.tr-days.d0 { background: var(--gray-100, #F4F4F5); color: var(--gray-400); }
+.tr-days.d1 { background: rgba(255,107,53,.14); color: var(--accent); }
+.tr-days.d2 { background: rgba(220,38,38,.14);  color: var(--red); }
+.tr-days.d3 { background: var(--red); color: #fff; }
+
+/* --- Resumen del grupo --------------------------------------------------- */
+.stat-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 2px;
+  border-bottom: 1px solid #EDEDF0;
+}
+.stat-row:last-child { border-bottom: none; }
+.stat-k {
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  color: var(--gray-500);
+}
+.stat-v {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--black);
+  text-align: right;
+}
+
+/* --- El easter egg: plantilla de los recordatorios ----------------------- */
+#repartoTitulo { cursor: default; -webkit-tap-highlight-color: transparent; }
+#repartoTitulo.egg-hit { animation: eggShake .5s ease-out; }
+@keyframes eggShake {
+  0%   { transform: translateX(0); }
+  20%  { transform: translateX(-3px) rotate(-1.5deg); color: var(--accent); }
+  45%  { transform: translateX(3px)  rotate(1.5deg);  color: var(--accent); }
+  70%  { transform: translateX(-2px) rotate(-1deg);   color: var(--accent); }
+  100% { transform: translateX(0); }
+}
+
+.tpl-panel {
+  margin: 10px 0 4px;
+  padding: 12px;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  background: rgba(255,107,53,.05);
+  animation: balanceIn .3s ease-out;
+}
+.tpl-head {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+.tpl-panel textarea {
+  width: 100%;
+  box-sizing: border-box;
+  appearance: none;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  line-height: 1.45;
+  background: #fff;
+  color: var(--black);
+  resize: vertical;
+}
+.tpl-panel textarea:focus { outline: none; border-color: var(--accent); }
+.tpl-keys {
+  font-family: var(--sans);
+  font-size: 0.6rem;
+  color: var(--gray-400);
+  margin: 7px 0;
+}
+.tpl-keys code {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  background: #fff;
+  border: 1px solid var(--gray-300);
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin-right: 3px;
+}
+.tpl-preview {
+  font-family: var(--sans);
+  font-size: 0.66rem;
+  line-height: 1.45;
+  color: var(--gray-500);
+  background: #fff;
+  border-radius: 8px;
+  padding: 8px 10px;
+  white-space: pre-line;
+  margin-bottom: 4px;
+}

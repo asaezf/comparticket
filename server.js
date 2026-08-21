@@ -408,6 +408,9 @@ app.post('/api/tickets/:id/close', ruta(async (req, res) => {
   }
 
   const updated = await db.setTicketStatus(req.params.id, 'closed');
+  // Cerrar un ticket cambia el reparto de todo el grupo: las pantallas que
+  // esten abiertas tienen que enterarse.
+  if (ticket.groupId) await db.bumpGroupVersion(ticket.groupId);
   const { creatorKey: _k, ...safe } = updated;
   res.json(safe);
 }));
@@ -648,6 +651,21 @@ async function groupSummary(groupId, req_token) {
   }));
   const libres = group.members.filter(m => !m.taken).length;
 
+  // Cuanto lleva el grupo sin moverse. Mientras siguen entrando gastos, la
+  // deuda todavia esta cambiando y no tiene sentido reclamar nada; en cuanto
+  // el grupo se queda quieto, los dias empiezan a contar de verdad.
+  const fechas = []
+    .concat(expenses.map(e => e.createdAt))
+    .concat(detalleTickets.map(t => t.createdAt))
+    .concat(payments.map(p => p.createdAt))
+    .filter(Boolean)
+    .map(f => new Date(f).getTime())
+    .filter(n => !isNaN(n));
+  const ultimo = fechas.length ? Math.max.apply(null, fechas) : null;
+  const diasQuieto = ultimo
+    ? Math.max(0, Math.floor((Date.now() - ultimo) / 86400000))
+    : 0;
+
   const pagos = payments.map(p => ({ de: p.from, a: p.to, importe: p.amount }));
   const balances = settle.computeBalances(apuntes, pagos, group.members);
   const transfers = settle.minimalTransfers(balances);
@@ -670,6 +688,12 @@ async function groupSummary(groupId, req_token) {
     // admite a nadie mas.
     plazasLibres: libres,
     completo: libres === 0,
+    // Dias desde el ultimo movimiento del grupo. Es lo que convierte "Nerea
+    // debe 40 EUR" en "Nerea lleva 12 dias sin pagar 40 EUR".
+    diasQuieto,
+    ultimoMovimiento: ultimo ? new Date(ultimo).toISOString() : null,
+    // El easter egg: plantilla propia de este grupo para los recordatorios.
+    plantilla: group.reminderTemplate || null,
     settled: settle.isSettled(balances)
   };
 }
@@ -849,6 +873,30 @@ app.post('/api/groups/:id/release-member', ruta(async (req, res) => {
       .json({ error: 'No se puede soltar ese nombre', code: r.code });
   }
   res.json({ ok: true });
+}));
+
+
+/** Latido del grupo: una lectura para saber si hay novedades. */
+app.get('/api/groups/:id/pulse', ruta(async (req, res) => {
+  const p = await db.getGroupPulse(req.params.id);
+  if (!p) return res.status(404).json({ error: 'Grupo no encontrado' });
+  res.json(p);
+}));
+
+/**
+ * Plantilla de los recordatorios de este grupo.
+ * Se guarda en el grupo y no en el movil para que la vea todo el mundo: si
+ * cada uno tuviera la suya, el mismo grupo mandaria mensajes distintos.
+ */
+app.post('/api/groups/:id/template', ruta(async (req, res) => {
+  const bruto = (req.body || {}).template;
+  const plantilla = (bruto === null || bruto === '') ? null : asText(bruto, 400);
+  if (bruto !== null && bruto !== '' && !plantilla) {
+    return res.status(400).json({ error: 'Plantilla no válida', code: 'BAD_TEMPLATE' });
+  }
+  const g = await db.setGroupTemplate(req.params.id, plantilla);
+  if (!g) return res.status(404).json({ error: 'Grupo no encontrado' });
+  res.json({ ok: true, template: plantilla });
 }));
 
 /** Texto de la vista previa del grupo al pegarlo en WhatsApp. */
