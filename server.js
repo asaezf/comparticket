@@ -110,7 +110,10 @@ function asItemUnits(v) {
  * cuadraría mal sin que nadie lo notase.
  */
 function asMembers(v) {
-  if (!Array.isArray(v) || v.length === 0 || v.length > 50) return null;
+  // Minimo dos: un grupo de una sola persona no reparte nada con nadie. La
+  // pantalla ya lo impide, pero la API tambien tiene que hacerlo — si no, se
+  // pueden crear grupos inutiles llamando directamente.
+  if (!Array.isArray(v) || v.length < 2 || v.length > 50) return null;
   const out = [];
   const vistos = new Set();
   for (const m of v) {

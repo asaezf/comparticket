@@ -201,6 +201,27 @@ function pedir(metodo, ruta, cuerpo) {
     check('  y en el precio', /\(\+item\.unitPrice \|\| 0\)\.toFixed\(2\)/.test(src), true);
   }
 
+
+  console.log('\n6. Grupos: la lista de miembros');
+  {
+    // La pantalla ya impide crear un grupo mal, pero la API tiene que
+    // hacerlo tambien: si no, se pueden crear grupos inutiles llamandola
+    // directamente. Y un grupo de una sola persona no reparte con nadie.
+    const NO_VALE = [
+      ['sin miembros',          { name: 'Viaje' }],
+      ['lista vacia',           { name: 'Viaje', members: [] }],
+      ['un solo miembro',       { name: 'Viaje', members: ['Ana'] }],
+      ['nombres repetidos',     { name: 'Viaje', members: ['Ana', 'ana'] }],
+      ['miembro que es objeto', { name: 'Viaje', members: [{ a: 1 }] }],
+      ['miembro que es numero', { name: 'Viaje', members: ['Ana', 123] }],
+      ['sin nombre de grupo',   { members: ['Ana', 'Beto'] }]
+    ];
+    for (const [etiqueta, cuerpo] of NO_VALE) {
+      const r = await pedir('POST', '/api/groups', cuerpo);
+      check(etiqueta + ' se rechaza', r.status === 400, 'devolvio ' + r.status);
+    }
+  }
+
   console.log(`\n${pass} ok, ${fail} fallos\n`);
   process.exit(fail ? 1 : 0);
 })();
