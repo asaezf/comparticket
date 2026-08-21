@@ -840,8 +840,16 @@ app.get('/summary.html', (req, res) => res.sendFile(path.join(__dirname, 'public
  * detalles de la base de datos.
  */
 app.use((err, req, res, next) => {
-  console.error('Error no controlado:', req.method, req.path, err && (err.stack || err.message || err));
   if (res.headersSent) return next(err);
+
+  // Un cuerpo que no es JSON valido es culpa de quien llama, no nuestra.
+  // Devolvia 500, lo que al depurar hacia buscar el fallo en el sitio
+  // equivocado: parecia que se habia caido el servidor.
+  if (err && (err.type === 'entity.parse.failed' || err instanceof SyntaxError) && err.status === 400) {
+    return res.status(400).json({ error: 'Peticion mal formada', code: 'BAD_JSON' });
+  }
+
+  console.error('Error no controlado:', req.method, req.path, err && (err.stack || err.message || err));
   res.status(500).json({
     error: 'Algo ha fallado por nuestra parte. Inténtalo de nuevo en unos segundos.',
     code: 'SERVER_ERROR'
