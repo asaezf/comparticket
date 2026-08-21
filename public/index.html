@@ -45,6 +45,7 @@
 
     <!-- Upload area -->
     <div class="upload-area" id="uploadArea">
+      <div class="via-label" id="viaSueltaLabel">DIVIDE UNA CUENTA</div>
       <div class="upload-btns-row">
         <button class="upload-option" id="cameraBtn" type="button">
           <div class="upload-option-icon">
@@ -69,12 +70,21 @@
         <div class="tut-row"><div class="tut-step-num">3</div><div class="tut-text" id="tutText3"></div></div>
       </div>
 
-      <!-- Segunda via: en vez de un ticket suelto, un grupo que acumula
-           gastos durante todo un viaje y al final dice quien paga a quien. -->
+      <!-- Segunda via, con el mismo peso visual que la primera: un grupo que
+           acumula gastos durante todo un viaje y al final dice quien paga a
+           quien. Antes era un enlace pequeno que no se distinguia de un texto
+           mas, y nadie lo encontraba. -->
+      <hr class="dash-sep via-sep">
+
+      <div class="via-label" id="viaGrupoLabel">O LLEVA LAS CUENTAS DE UN GRUPO</div>
+
       <button class="group-cta" id="groupCta" type="button">
-        <svg viewBox="0 0 24 24" width="15" height="15" fill="currentColor"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-        <span id="groupCtaText">Un viaje o piso compartido</span>
+        <svg class="gc-people" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        <span id="groupCtaText">Crear un grupo</span>
+        <svg class="gc-pig" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.83 7.5l-2.27-2.27c.07-.42.18-.81.32-1.15.15-.37.35-.7.6-.99l-.71-.71c-.4.29-.75.65-1.03 1.06-.28.41-.5.87-.65 1.36-.5-.14-1.03-.22-1.59-.22H9c-2.76 0-5 2.24-5 5 0 1.53.69 2.9 1.77 3.82L5 15.5V20c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-1h4v1c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.5c.32-.24.62-.51.88-.81l1.9-.63c.42-.14.72-.54.72-.99V8.5c0-.55-.45-1-1-1zM11 9H8V7h3v2zm4 1c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>
       </button>
+
+      <div class="group-cta-sub" id="groupCtaSub">Para un viaje o un piso compartido…</div>
     </div>
 
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">

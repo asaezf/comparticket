@@ -2614,27 +2614,68 @@ input[type="file"] { display: none; }
   line-height: 1.4;
 }
 
-/* --- Crear grupo desde la portada ---------------------------------------- */
+/* --- Las dos vias de la portada ------------------------------------------
+   Una cuenta suelta ahora mismo, o un grupo que acumula gastos durante
+   semanas. Antes la segunda era un enlace pequeno que no se distinguia de
+   un texto mas, y nadie lo encontraba. Ahora pesan lo mismo. */
+
+.via-label {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--gray-400);
+  text-align: center;
+  margin-bottom: 12px;
+}
+
+.dash-sep.via-sep { margin: 22px 0 16px; }
+
 .group-cta {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
+  gap: 10px;
   width: 100%;
-  margin-top: 14px;
-  padding: 11px;
+  padding: 16px 14px;
   appearance: none;
-  border: 1.5px dashed var(--gray-300);
+  border: 2px dashed var(--gray-300);
   border-radius: var(--radius-sm);
-  background: transparent;
-  font-family: var(--mono);
-  font-size: 0.68rem;
+  background: #fff;
+  font-family: var(--sans);
+  font-size: 0.95rem;
   font-weight: 700;
-  color: var(--gray-500);
+  color: var(--black);
   cursor: pointer;
-  transition: border-color .16s, color .16s;
+  transition: border-color .18s, background .18s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
 }
-.group-cta:active { border-color: var(--accent); color: var(--accent); }
+.group-cta:active {
+  transform: scale(0.985);
+  border-color: var(--accent);
+  background: rgba(255,107,53,.05);
+}
+.group-cta .gc-people {
+  width: 22px; height: 22px;
+  flex-shrink: 0;
+  color: var(--black);
+}
+/* La hucha va mas apagada y pequena: acompana, no compite con el texto. */
+.group-cta .gc-pig {
+  width: 17px; height: 17px;
+  flex-shrink: 0;
+  color: var(--accent);
+  opacity: .8;
+}
+.group-cta:active .gc-people { color: var(--accent); }
+
+.group-cta-sub {
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  color: var(--gray-400);
+  text-align: center;
+  margin-top: 7px;
+}
 
 .member-input-row { display: flex; gap: 8px; margin-bottom: 8px; }
 .member-input-row input {
@@ -2680,3 +2721,107 @@ input[type="file"] { display: none; }
    con los miembros. Menos fricción, y hace imposible el descuadre por nombres
    escritos de tres formas distintas. */
 .group-picker { padding: 2px 0 6px; }
+
+/* Subtitulo de la pantalla de crear grupo: explica para que sirve, asi que
+   necesita mas aire que una fecha suelta. */
+.ticket-date.group-purpose {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  line-height: 1.45;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--gray-500);
+  padding: 0 6px;
+}
+
+/* --- Grupo: apartado de GASTOS -------------------------------------------
+   Las dos formas de meter dinero al grupo, una al lado de la otra y con el
+   mismo peso. Antes iban en apartados distintos y una parecia secundaria. */
+.add-row {
+  display: flex;
+  gap: 8px;
+  margin: 2px 0 4px;
+}
+.add-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 12px 8px;
+  appearance: none;
+  border: 1.5px dashed var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  font-family: var(--mono);
+  font-size: 0.63rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: border-color .16s, color .16s, background .16s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.add-btn svg { width: 19px; height: 19px; flex-shrink: 0; }
+.add-btn:active {
+  transform: scale(0.97);
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(255,107,53,.05);
+}
+
+/* Subtitulo dentro de un apartado (OTROS GASTOS, TICKETS SIN CERRAR) */
+.sec-title.sec-sub { margin-top: 14px; }
+
+/* Dos palabras pegadas con el mismo estilo: "OTROS GASTOS sin ticket".
+   La segunda es una aclaracion, no una cifra, asi que va justo detras y no
+   al otro extremo de la linea. */
+.sec-pair { display: inline; }
+.sec-pair-b {
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--gray-400);
+  margin-left: 5px;
+}
+
+/* Expandir / compactar una lista larga */
+.fold-btn {
+  flex-shrink: 0;
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 2px 0 2px 8px;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--accent);
+  text-decoration: underline;
+  cursor: pointer;
+  text-transform: none;
+}
+.fold-btn:active { opacity: .6; }
+
+/* Aviso discreto dentro del historial, donde se buscarian las fotos */
+.soon-inline {
+  font-family: var(--sans);
+  font-size: 0.6rem;
+  font-style: italic;
+  color: var(--gray-400);
+  padding: 8px 2px 2px;
+  text-align: center;
+}
+
+/* Nombre ya cogido por otro movil. Se ve —para saber quien esta dentro— pero
+   no se puede tocar: es lo que impide suplantar a alguien y quedarse con sus
+   gastos. */
+.who-pill.taken {
+  opacity: .42;
+  border-style: solid;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+.who-pill.taken:active { transform: none; }

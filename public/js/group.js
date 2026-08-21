@@ -17,6 +17,29 @@ if (!groupId) window.location.href = '/';
 // el mismo móvil puede pasar de mano en mano, y en un grupo distinto eres otro.
 const YO_KEY = 'ct_yo_' + groupId;
 
+// Testigo de ESTE móvil para ESTE grupo.
+//
+// Sin cuentas de usuario, lo único que identifica a alguien es su dispositivo.
+// Al coger un nombre se reserva con este testigo, y a partir de ahí ese nombre
+// es suyo: nadie más puede cogerlo ni cambiarlo. Sin esto, cualquiera con el
+// enlace podía hacerse pasar por otro y quedarse con sus gastos.
+const TOK_KEY = 'ct_tok_' + groupId;
+
+function miTestigo() {
+  try {
+    let t = localStorage.getItem(TOK_KEY);
+    if (!t) {
+      t = (crypto.randomUUID && crypto.randomUUID()) ||
+          (Date.now().toString(36) + Math.random().toString(36).slice(2, 14));
+      localStorage.setItem(TOK_KEY, t);
+    }
+    return t;
+  } catch (_) {
+    // Sin almacenamiento no hay identidad estable; se sigue en modo lectura.
+    return '';
+  }
+}
+
 let datos = null;      // lo último que devolvió /summary
 let yo = leerYo();
 
@@ -45,7 +68,7 @@ function toast(msg) {
 async function cargar() {
   let res;
   try {
-    res = await fetch('/api/groups/' + groupId + '/summary');
+    res = await fetch('/api/groups/' + groupId + '/summary?tok=' + encodeURIComponent(miTestigo()));
   } catch (_) {
     return toast('Sin conexión. Inténtalo de nuevo.');
   }
@@ -108,22 +131,66 @@ function pintarQuienEres() {
   cont.innerHTML = '';
 
   datos.group.members.forEach(m => {
+    // Cogido por OTRO móvil: se ve, pero no se puede tocar. Es lo que impide
+    // que alguien se haga pasar por otro y se quede con sus gastos.
+    const deOtro = m.taken && !m.mine;
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'who-pill' + (m.name === yo ? ' active' : '');
+    b.className = 'who-pill' + (m.name === yo ? ' active' : '') + (deOtro ? ' taken' : '');
+    b.disabled = deOtro;
     b.textContent = m.name;
-    b.addEventListener('click', () => {
-      // Volver a tocar tu propio nombre lo deselecciona: útil si el móvil
-      // cambia de manos a mitad del viaje.
-      guardarYo(m.name === yo ? '' : m.name);
-      pintar();
-    });
+    if (deOtro) b.title = 'Ya lo está usando otra persona';
+
+    b.addEventListener('click', () => elegirse(m));
     cont.appendChild(b);
   });
 
   // Elegido ya quién eres, el selector estorba: se encoge a una línea.
   bloque.classList.toggle('picked', !!yo);
   document.getElementById('whoLabel').textContent = yo ? 'ERES' : '¿QUIÉN ERES?';
+
+  // Grupo completo: todos los nombres cogidos. Se dice, para que quien llegue
+  // tarde entienda por qué no puede entrar en vez de pensar que va roto.
+  if (!yo && datos.completo) {
+    document.getElementById('whoLabel').textContent = 'GRUPO COMPLETO';
+  }
+}
+
+/** Coge (o suelta) una identidad del grupo para este móvil. */
+async function elegirse(m) {
+  const testigo = miTestigo();
+  if (!testigo) return toast('Tu navegador no permite guardar la sesión');
+
+  // Volver a tocar tu propio nombre lo suelta: útil si el móvil cambia de
+  // manos a mitad del viaje.
+  if (m.name === yo) {
+    if (!confirm('¿Dejar de ser ' + m.name + ' en este grupo?')) return;
+    try {
+      await fetch('/api/groups/' + groupId + '/release-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ memberId: m.id, token: testigo })
+      });
+    } catch (_) {}
+    guardarYo('');
+    return cargar();
+  }
+
+  try {
+    const r = await fetch('/api/groups/' + groupId + '/claim-member', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId: m.id, token: testigo })
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      return toast(err.error || 'No se ha podido elegir ese nombre');
+    }
+    guardarYo(m.name);
+    await cargar();
+  } catch (_) {
+    toast('Sin conexión. Inténtalo de nuevo.');
+  }
 }
 
 function pintarMiSaldo() {
@@ -287,33 +354,75 @@ async function deshacerPago(p) {
 
 // ---------------------------------------------------------------- tickets
 
+// Que listas estan desplegadas. En un piso compartido, a los dos meses el
+// historial se hace interminable: por defecto se muestra un resumen y se
+// despliega solo si se quiere.
+const desplegado = { gastos: false, cerrados: false };
+const TOPE_PLEGADO = 3;   // cuantos se ven sin desplegar
+
+/** Boton de expandir/compactar, con el numero de los que quedan ocultos. */
+function pintarFold(btnId, clave, total) {
+  const b = document.getElementById(btnId);
+  if (!b) return;
+  if (total <= TOPE_PLEGADO) { b.classList.add('hidden'); return; }
+  b.classList.remove('hidden');
+  b.textContent = desplegado[clave]
+    ? 'compactar'
+    : 'ver los ' + total;
+  b.onclick = () => { desplegado[clave] = !desplegado[clave]; pintar(); };
+}
+
+/** Una fila de ticket, clicable para entrar a su reparto. */
+function filaTicket(t) {
+  const abierto = t.status !== 'closed';
+  const fila = document.createElement('a');
+  fila.className = 'item-row' + (abierto ? ' is-open' : '');
+  fila.href = '/summary.html?id=' + encodeURIComponent(t.id);
+  const d = new Date(t.receiptDate || t.createdAt);
+  const fecha = isNaN(d) ? '' : fmtFecha(d) + ' · ';
+  fila.innerHTML =
+    '<div class="item-main">' +
+      '<span class="item-name">' + esc(t.restaurant || 'Ticket') + '</span>' +
+      '<span class="item-amount">' + eur(t.total) + '</span>' +
+    '</div>' +
+    '<div class="item-sub">' +
+      fecha + esc(t.payerName || 'sin pagador') + ' · ' + t.lineas + ' líneas' +
+      (abierto ? '<span class="item-tag warn">sin cerrar</span>' : '') +
+    '</div>';
+  return fila;
+}
+
 function pintarTickets() {
-  const cont = document.getElementById('ticketsList');
-  const nota = document.getElementById('ticketsNote');
+  const cerrados = datos.tickets.filter(t => t.status === 'closed');
+  const abiertos = datos.tickets.filter(t => t.status !== 'closed');
+
+  // --- Historial: los que ya estan cerrados ---
+  const cont = document.getElementById('closedList');
   cont.innerHTML = '';
-  nota.textContent = datos.tickets.length ? String(datos.tickets.length) : '';
+  document.getElementById('closedCount').textContent = cerrados.length ? String(cerrados.length) : '';
 
-  if (!datos.tickets.length) {
-    cont.innerHTML = '<div class="empty-line">Ningún ticket escaneado todavía</div>';
-    return;
+  if (!cerrados.length) {
+    cont.innerHTML = '<div class="empty-line">Aún no hay ningún ticket cerrado</div>';
+  } else {
+    const visibles = desplegado.cerrados ? cerrados : cerrados.slice(0, TOPE_PLEGADO);
+    visibles.forEach(t => cont.appendChild(filaTicket(t)));
+    // Las fotos todavia no se guardan; se avisa aqui, que es donde se
+    // buscarian, en vez de en un apartado suelto que no dice nada.
+    const nota = document.createElement('div');
+    nota.className = 'soon-inline';
+    nota.textContent = 'Pronto podrás ver aquí la foto original de cada ticket';
+    cont.appendChild(nota);
   }
+  pintarFold('foldClosed', 'cerrados', cerrados.length);
 
-  datos.tickets.forEach(t => {
-    const abierto = t.status !== 'closed';
-    const fila = document.createElement('a');
-    fila.className = 'item-row' + (abierto ? ' is-open' : '');
-    fila.href = '/summary.html?id=' + encodeURIComponent(t.id);
-    fila.innerHTML =
-      '<div class="item-main">' +
-        '<span class="item-name">' + esc(t.restaurant || 'Ticket') + '</span>' +
-        '<span class="item-amount">' + eur(t.total) + '</span>' +
-      '</div>' +
-      '<div class="item-sub">' +
-        esc(t.payerName || 'sin pagador') + ' · ' + t.lineas + ' líneas' +
-        (abierto ? '<span class="item-tag warn">sin cerrar</span>' : '') +
-      '</div>';
-    cont.appendChild(fila);
-  });
+  // --- Los que siguen a medias ---
+  const contA = document.getElementById('openList');
+  const tituloA = document.getElementById('openTitle');
+  contA.innerHTML = '';
+  tituloA.classList.toggle('hidden', !abiertos.length);
+  document.getElementById('openCount').textContent =
+    abiertos.length ? eur(datos.pendienteDeCerrar || 0) + ' sin contar' : '';
+  abiertos.forEach(t => contA.appendChild(filaTicket(t)));
 }
 
 // ---------------------------------------------------------------- gastos sueltos
@@ -324,27 +433,39 @@ function pintarGastos() {
 
   if (!datos.expenses.length) {
     cont.innerHTML = '<div class="empty-line">El taxi, las entradas, la gasolina…</div>';
+    pintarFold('foldExpenses', 'gastos', 0);
     return;
   }
 
-  datos.expenses.forEach(e => {
+  const todos = datos.group.members.length;
+  const visibles = desplegado.gastos
+    ? datos.expenses
+    : datos.expenses.slice(-TOPE_PLEGADO);   // los mas recientes
+
+  visibles.forEach(e => {
+    const entre = (e.splitBetween || []);
+    // Con quien se comparte, POR NOMBRE. "entre 3" obliga a ir a mirar quienes
+    // son; los nombres se leen de un vistazo. Solo se resume cuando son todos.
+    const conQuien = entre.length >= todos
+      ? 'entre todos'
+      : 'entre ' + entre.map(esc).join(', ');
+
     const fila = document.createElement('div');
     fila.className = 'item-row';
-    const entre = (e.splitBetween || []).length === datos.group.members.length
-      ? 'entre todos'
-      : 'entre ' + (e.splitBetween || []).length;
     fila.innerHTML =
       '<div class="item-main">' +
         '<span class="item-name">' + esc(e.description) + '</span>' +
         '<span class="item-amount">' + eur(e.amount) + '</span>' +
       '</div>' +
       '<div class="item-sub">' +
-        'pagó ' + esc(e.paidBy) + ' · ' + entre +
+        'pagó ' + esc(e.paidBy) + ' · ' + conQuien +
         '<button class="item-del" type="button" title="Borrar">&times;</button>' +
       '</div>';
     fila.querySelector('.item-del').addEventListener('click', () => borrarGasto(e));
     cont.appendChild(fila);
   });
+
+  pintarFold('foldExpenses', 'gastos', datos.expenses.length);
 }
 
 async function borrarGasto(e) {
@@ -442,13 +563,50 @@ async function guardarGasto() {
 
 // ---------------------------------------------------------------- compartir
 
+/**
+ * Mensaje para pegar en el grupo de WhatsApp.
+ *
+ * Un enlace pelado no invita a nadie a tocarlo. Este dice de que va, cuanto
+ * lleva el grupo y que hay que hacer, y cambia segun el momento: no es lo
+ * mismo estrenar el grupo que recordar que quedan pagos por hacer.
+ */
+function textoParaCompartir() {
+  const nombre = datos.group.name;
+  const gente = datos.group.members.length;
+  const total = datos.stats.total;
+
+  if (!datos.stats.apuntes) {
+    return '💸 *' + nombre + '*\n' +
+      'He abierto un bote para llevar las cuentas entre los ' + gente + '.\n' +
+      'Entra y apunta lo que vayas pagando 👇';
+  }
+  if (datos.settled) {
+    return '✅ *' + nombre + '* — todo saldado\n' +
+      eur(total) + ' en ' + datos.stats.apuntes + ' gastos. Nadie debe nada 🎉\n' +
+      'Mira el resumen 👇';
+  }
+  if (datos.transfers.length) {
+    const pagos = datos.transfers.length;
+    return '💸 *' + nombre + '*\n' +
+      'Llevamos ' + eur(total) + ' en ' + datos.stats.apuntes + ' gastos.\n' +
+      'Quedan ' + pagos + (pagos === 1 ? ' pago' : ' pagos') + ' por hacer — ' +
+      'mira cuánto te toca 👇';
+  }
+  return '💸 *' + nombre + '*\n' +
+    eur(total) + ' en ' + datos.stats.apuntes + ' gastos entre los ' + gente + '.\n' +
+    'Apunta aquí lo que pagues 👇';
+}
+
 function compartirGrupo() {
   const url = location.origin + '/g/' + groupId;
-  const texto = '«' + datos.group.name + '» en comparTICKET — apunta aquí los gastos del grupo';
+  const texto = textoParaCompartir();
   if (navigator.share) {
     navigator.share({ title: datos.group.name, text: texto, url }).catch(() => {});
   } else {
-    navigator.clipboard.writeText(url).then(() => toast('¡Enlace copiado!'));
+    // Sin compartir nativo se copia el mensaje entero, no solo el enlace.
+    navigator.clipboard.writeText(texto + '\n' + url)
+      .then(() => toast('¡Mensaje copiado!'))
+      .catch(() => toast(url));
   }
 }
 

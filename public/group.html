@@ -94,31 +94,34 @@
 
           <hr class="dash-sep">
 
-          <!-- El cuadre: quién le paga a quién -->
+          <!-- El cuadre: quien le paga a quien, con el minimo de pagos -->
           <div class="sec-title">
-            QUIÉN PAGA A QUIÉN
+            REPARTO
             <span class="sec-note" id="settleNote"></span>
           </div>
           <div id="transfersList"></div>
 
           <hr class="dash-sep">
 
-          <!-- Tickets escaneados -->
-          <div class="sec-title">TICKETS <span class="sec-note" id="ticketsNote"></span></div>
-          <div id="ticketsList"></div>
-          <button class="btn btn-outline btn-full mt-8 add-line-btn" id="addTicketBtn">+ Escanear un ticket</button>
-
-          <hr class="dash-sep">
-
-          <!-- Gastos sin ticket: el taxi, las entradas, la gasolina -->
-          <div class="sec-title">OTROS GASTOS <span class="sec-note">sin ticket</span></div>
-          <div id="expensesList"></div>
-          <button class="btn btn-outline btn-full mt-8 add-line-btn" id="addExpenseBtn">+ Añadir gasto</button>
+          <!-- GASTOS: las dos formas de meter dinero al grupo, juntas y al
+               mismo nivel. Antes estaban en dos apartados distintos y el de
+               abajo parecia secundario. -->
+          <div class="sec-title">GASTOS</div>
+          <div class="add-row">
+            <button class="add-btn" id="addTicketBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+              <span>Escanear un ticket</span>
+            </button>
+            <button class="add-btn" id="addExpenseBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.83 7.5l-2.27-2.27c.07-.42.18-.81.32-1.15.15-.37.35-.7.6-.99l-.71-.71c-.4.29-.75.65-1.03 1.06-.28.41-.5.87-.65 1.36-.5-.14-1.03-.22-1.59-.22H9c-2.76 0-5 2.24-5 5 0 1.53.69 2.9 1.77 3.82L5 15.5V20c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-1h4v1c0 .55.45 1 1 1h2c.55 0 1-.45 1-1v-2.5c.32-.24.62-.51.88-.81l1.9-.63c.42-.14.72-.54.72-.99V8.5c0-.55-.45-1-1-1zM11 9H8V7h3v2zm4 1c-.55 0-1-.45-1-1s.45-1 1-1 1 .45 1 1-.45 1-1 1z"/></svg>
+              <span>Gasto sin ticket</span>
+            </button>
+          </div>
 
           <!-- Formulario de gasto suelto, plegado hasta que hace falta -->
           <div class="expense-form hidden" id="expenseForm">
             <div class="ef-row">
-              <input type="text" id="expDesc" placeholder="Taxi al aeropuerto" maxlength="60">
+              <input type="text" id="expDesc" placeholder="Escribe aquí el gasto" maxlength="60">
               <input type="number" id="expAmount" placeholder="0,00" step="0.01" min="0.01" inputmode="decimal">
             </div>
             <div class="ef-label">¿QUIÉN LO PAGÓ?</div>
@@ -131,14 +134,30 @@
             </div>
           </div>
 
+          <!-- Gastos sin ticket. Plegable: en un piso compartido esta lista
+               se hace interminable a los dos meses. -->
+          <div class="sec-title sec-sub">
+            <span class="sec-pair">OTROS GASTOS <span class="sec-pair-b">sin ticket</span></span>
+            <button class="fold-btn" id="foldExpenses" type="button"></button>
+          </div>
+          <div id="expensesList"></div>
+
           <hr class="dash-sep">
 
-          <!-- Las fotos aún no se guardan: se avisa en vez de dejar el hueco
-               mudo, para que se sepa que viene. -->
-          <div class="soon-block">
-            <div class="soon-title">📸 Fotos de los tickets</div>
-            <div class="soon-text">Próximamente — podrás ver la foto original de cada ticket aquí.</div>
+          <!-- Tickets que ya estan cerrados: se puede entrar a cada uno y ver
+               su reparto, su descargable y (proximamente) su foto. -->
+          <div class="sec-title">
+            <span class="sec-pair">HISTORIAL DE TICKETS <span class="sec-pair-b" id="closedCount"></span></span>
+            <button class="fold-btn" id="foldClosed" type="button"></button>
           </div>
+          <div id="closedList"></div>
+
+          <!-- Los que siguen a medias. Van aparte a proposito: son los que
+               hay que terminar para que el reparto sea definitivo. -->
+          <div class="sec-title sec-sub" id="openTitle">
+            <span class="sec-pair">TICKETS SIN CERRAR <span class="sec-pair-b" id="openCount"></span></span>
+          </div>
+          <div id="openList"></div>
 
         </div>
         <div class="ticket-zigzag"></div>

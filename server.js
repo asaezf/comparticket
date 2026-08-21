@@ -549,7 +549,7 @@ function shareMeta(ticket, claims) {
  * lo repite para pintar sin esperar, pero la cifra buena es esta: si alguien
  * manipulara el JavaScript de su móvil no podría cambiar lo que debe.
  */
-async function groupSummary(groupId) {
+async function groupSummary(groupId, req_token) {
   const group = await db.getPublicGroup(groupId);
   if (!group) return null;
 
@@ -607,6 +607,17 @@ async function groupSummary(groupId) {
     });
   }
 
+  // Se dice quien esta cogido, pero NUNCA el testigo: publicarlo permitiria
+  // a cualquiera hacerse pasar por otro.
+  const miTestigo = asText(req_token, 80);
+  group.members = (group.members || []).map(m => ({
+    id: m.id,
+    name: m.name,
+    taken: !!m.claimedBy,
+    mine: !!(m.claimedBy && miTestigo && m.claimedBy === miTestigo)
+  }));
+  const libres = group.members.filter(m => !m.taken).length;
+
   const pagos = payments.map(p => ({ de: p.from, a: p.to, importe: p.amount }));
   const balances = settle.computeBalances(apuntes, pagos, group.members);
   const transfers = settle.minimalTransfers(balances);
@@ -625,6 +636,10 @@ async function groupSummary(groupId) {
     // reparto todavía no está completo y qué falta por hacer.
     ticketsAbiertos: abiertos,
     pendienteDeCerrar: +pendiente.toFixed(2),
+    // Cuando no queda ninguna identidad libre, el grupo esta completo y no
+    // admite a nadie mas.
+    plazasLibres: libres,
+    completo: libres === 0,
     settled: settle.isSettled(balances)
   };
 }
@@ -656,7 +671,7 @@ app.get('/api/groups/:id', ruta(async (req, res) => {
 }));
 
 app.get('/api/groups/:id/summary', ruta(async (req, res) => {
-  const s = await groupSummary(req.params.id);
+  const s = await groupSummary(req.params.id, (req.query || {}).tok);
   if (!s) return res.status(404).json({ error: 'Grupo no encontrado' });
   res.json(s);
 }));
@@ -764,6 +779,46 @@ app.post('/api/tickets/:id/group', ruta(async (req, res) => {
   const safe = Object.assign({}, ticket);
   delete safe.creatorKey;
   res.json(safe);
+}));
+
+
+// --- Reserva de identidades ----------------------------------------------
+//  Sin cuentas de usuario, lo unico que identifica a alguien es su movil. Al
+//  elegir su nombre en el grupo se guarda un testigo, y a partir de ahi ese
+//  nombre es suyo. Sin esto, cualquiera con el enlace podia hacerse pasar por
+//  otro y quedarse con sus gastos.
+
+app.post('/api/groups/:id/claim-member', ruta(async (req, res) => {
+  const memberId = asText((req.body || {}).memberId, 40);
+  const token = asText((req.body || {}).token, 80);
+  if (!memberId || !token) {
+    return res.status(400).json({ error: 'Faltan datos', code: 'BAD_CLAIM' });
+  }
+  const r = await db.claimGroupMember(req.params.id, memberId, token);
+  if (!r.ok) {
+    if (r.code === 'TAKEN') {
+      return res.status(409).json({
+        error: 'Ese nombre ya lo está usando otra persona',
+        code: 'TAKEN'
+      });
+    }
+    return res.status(404).json({ error: 'No encontrado', code: r.code });
+  }
+  res.json({ ok: true, name: r.name });
+}));
+
+app.post('/api/groups/:id/release-member', ruta(async (req, res) => {
+  const memberId = asText((req.body || {}).memberId, 40);
+  const token = asText((req.body || {}).token, 80);
+  if (!memberId || !token) {
+    return res.status(400).json({ error: 'Faltan datos', code: 'BAD_CLAIM' });
+  }
+  const r = await db.releaseGroupMember(req.params.id, memberId, token);
+  if (!r.ok) {
+    return res.status(r.code === 'NOT_YOURS' ? 403 : 404)
+      .json({ error: 'No se puede soltar ese nombre', code: r.code });
+  }
+  res.json({ ok: true });
 }));
 
 /** Texto de la vista previa del grupo al pegarlo en WhatsApp. */

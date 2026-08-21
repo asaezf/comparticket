@@ -80,6 +80,10 @@ const translations = {
     ctut2: 'Toca las píldoras de cada artículo según las unidades que has consumido.',
     ctut3: 'Si una unidad ya tiene el nombre de otra persona, al tocarla se compartirá automáticamente entre vosotros.',
     onlyCreatorCanClose: 'Solo quien creó el ticket puede cerrarlo',
+    viaSuelta: 'DIVIDE UNA CUENTA',
+    viaGrupo: 'O LLEVA LAS CUENTAS DE UN GRUPO',
+    createGroup: 'Crear un grupo',
+    createGroupSub: 'Para un viaje o un piso compartido…',
     cameraLabel: 'Cámara',
     galleryLabel: 'Galería',
     // Cuadre de la cuenta
@@ -194,6 +198,10 @@ const translations = {
     ctut2: 'Tap the pills of each item for the units you consumed.',
     ctut3: 'If a unit already has someone else\u2019s name, tapping it shares that unit between you both.',
     onlyCreatorCanClose: 'Only the ticket creator can close it',
+    viaSuelta: 'SPLIT ONE BILL',
+    viaGrupo: 'OR TRACK A GROUP',
+    createGroup: 'Create a group',
+    createGroupSub: 'For a trip or a shared flat…',
     cameraLabel: 'Camera',
     galleryLabel: 'Gallery',
     // Bill reconciliation

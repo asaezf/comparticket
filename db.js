@@ -437,6 +437,67 @@ async function setTicketGroup(ticketId, groupId) {
 }
 
 
+
+/**
+ * Reserva una identidad del grupo para un dispositivo.
+ *
+ * Sin cuentas de usuario, lo unico que identifica a alguien es su movil. Al
+ * elegir su nombre se guarda un testigo aleatorio, y a partir de ahi ese
+ * nombre es suyo: nadie mas puede cogerlo ni cambiarlo. Sin esto, cualquiera
+ * con el enlace podia hacerse pasar por otro y quedarse con sus gastos.
+ *
+ * Va en transaccion porque dos personas pueden tocar el mismo nombre a la vez
+ * en la misma mesa. Sin ella, los dos leerian "libre" y los dos lo cogerian.
+ */
+async function claimGroupMember(groupId, memberId, token) {
+  const ref = groupRef(groupId);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { ok: false, code: 'NO_GROUP' };
+
+    const g = snap.data();
+    const miembros = (g.members || []).slice();
+    const i = miembros.findIndex(m => m.id === memberId);
+    if (i < 0) return { ok: false, code: 'NO_MEMBER' };
+
+    const actual = miembros[i].claimedBy;
+    // Volver a entrar desde el mismo movil no es coger nada nuevo.
+    if (actual && actual !== token) return { ok: false, code: 'TAKEN', name: miembros[i].name };
+
+    if (!actual) {
+      miembros[i] = Object.assign({}, miembros[i], {
+        claimedBy: token,
+        claimedAt: new Date().toISOString()
+      });
+      tx.update(ref, { members: miembros });
+    }
+    return { ok: true, name: miembros[i].name };
+  });
+}
+
+/** Suelta una identidad: solo puede hacerlo el movil que la cogio. */
+async function releaseGroupMember(groupId, memberId, token) {
+  const ref = groupRef(groupId);
+  return db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists) return { ok: false, code: 'NO_GROUP' };
+
+    const g = snap.data();
+    const miembros = (g.members || []).slice();
+    const i = miembros.findIndex(m => m.id === memberId);
+    if (i < 0) return { ok: false, code: 'NO_MEMBER' };
+    if (miembros[i].claimedBy && miembros[i].claimedBy !== token) {
+      return { ok: false, code: 'NOT_YOURS' };
+    }
+    const limpio = Object.assign({}, miembros[i]);
+    delete limpio.claimedBy;
+    delete limpio.claimedAt;
+    miembros[i] = limpio;
+    tx.update(ref, { members: miembros });
+    return { ok: true };
+  });
+}
+
 module.exports = {
   createTicket,
   getTicket,
@@ -464,5 +525,7 @@ module.exports = {
   getGroupPayments,
   removeGroupPayment,
   getGroupTickets,
-  setTicketGroup
+  setTicketGroup,
+  claimGroupMember,
+  releaseGroupMember
 };

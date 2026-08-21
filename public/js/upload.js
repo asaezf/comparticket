@@ -231,3 +231,14 @@ if (_groupCta) {
     window.location.href = '/new-group.html';
   });
 }
+
+// Etiquetas de las dos vias, para que se distingan de un vistazo: una cuenta
+// suelta ahora mismo, o un grupo que acumula gastos durante semanas.
+const _pon = (id, texto) => {
+  const el = document.getElementById(id);
+  if (el && texto) el.textContent = texto;
+};
+_pon('viaSueltaLabel', t.viaSuelta);
+_pon('viaGrupoLabel', t.viaGrupo);
+_pon('groupCtaText', t.createGroup);
+_pon('groupCtaSub', t.createGroupSub);
