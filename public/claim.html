@@ -71,6 +71,15 @@
             <input type="text" id="nameInput" autocomplete="given-name" maxlength="30">
           </div>
 
+          <!-- Si el ticket pertenece a un grupo, el nombre no se escribe: se
+               toca de la lista de miembros. Menos friccion, y hace imposible
+               que la misma persona acabe contada dos veces por escribir su
+               nombre de dos formas distintas. -->
+          <div class="group-picker hidden" id="groupPicker">
+            <div class="ef-label" id="groupPickerLabel">¿QUIÉN ERES?</div>
+            <div class="who-pills" id="groupPickerPills"></div>
+          </div>
+
           <!-- Barra informativa: se ha recuperado una selección guardada en
                este móvil. No bloquea; solo deja claro a nombre de quién se
                está marcando, por si el móvil ha cambiado de manos. -->

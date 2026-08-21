@@ -2250,3 +2250,433 @@ input[type="file"] { display: none; }
   padding: 12px 0 18px;
   user-select: none;
 }
+
+/* =============================================
+   GRUPOS — viajes y pisos compartidos
+   =============================================
+   Mismo lenguaje que el resto: papel térmico, monoespaciada para las cifras,
+   naranja solo donde hay que mirar. Un grupo es "la carpeta de tickets", no
+   otra aplicación, así que nada aquí introduce formas nuevas.
+   ============================================= */
+
+/* Título de sección dentro del ticket */
+.sec-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gray-500);
+  margin: 4px 0 8px;
+}
+.sec-note {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--gray-400);
+  text-transform: none;
+}
+.sec-note.warn { color: var(--accent); font-weight: 700; }
+
+.empty-line {
+  font-family: var(--sans);
+  font-size: 0.7rem;
+  color: var(--gray-400);
+  padding: 8px 2px;
+  font-style: italic;
+}
+
+/* --- ¿Quién eres? Pastillas con los miembros del grupo ------------------
+   En un grupo el nombre no se escribe: se toca. Así "Álvaro", "alvaro" y
+   "Alvarito" no pueden ser tres personas distintas al cuadrar el viaje. */
+.who-block { padding: 2px 0 4px; }
+.who-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gray-500);
+  margin-bottom: 7px;
+}
+.who-pills { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.who-pill {
+  appearance: none;
+  border: 1.5px dashed var(--gray-300);
+  background: #fff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: background .16s, color .16s, border-color .16s, transform .1s;
+  -webkit-tap-highlight-color: transparent;
+}
+.who-pill:active { transform: scale(0.95); }
+.who-pill.active {
+  background: var(--black);
+  border-color: var(--black);
+  border-style: solid;
+  color: var(--paper);
+}
+.who-pill.small { font-size: 0.63rem; padding: 5px 10px; }
+
+/* Una vez sabes quién eres, el selector estorba: se queda pequeño y aparte. */
+.who-block.picked .who-pill:not(.active) { display: none; }
+.who-block.picked { display: flex; align-items: center; gap: 10px; }
+.who-block.picked .who-label { margin-bottom: 0; }
+
+/* --- Tu saldo, en grande -------------------------------------------------
+   Es lo primero que quiere ver cualquiera al abrir el grupo: ¿debo o me
+   deben? El resto de la pantalla es el detalle de esa respuesta. */
+.my-balance {
+  margin: 12px 0 4px;
+  padding: 14px 16px;
+  border-radius: var(--radius-sm);
+  border: 1.5px dashed var(--gray-300);
+  text-align: center;
+  animation: balanceIn .34s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+@keyframes balanceIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.my-balance.is-positive { border-color: var(--green); background: var(--green-light, rgba(22,163,74,.07)); }
+.my-balance.is-negative { border-color: var(--red);   background: var(--red-light, rgba(220,38,38,.07)); }
+.my-balance.is-zero     { border-color: var(--gray-300); background: var(--gray-100, #F4F4F5); }
+
+.mb-label {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  color: var(--gray-500);
+}
+.my-balance.is-positive .mb-label { color: var(--green); }
+.my-balance.is-negative .mb-label { color: var(--red); }
+
+.mb-amount {
+  font-family: var(--mono);
+  font-size: 1.7rem;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 4px 0 2px;
+  color: var(--black);
+}
+.my-balance.is-positive .mb-amount { color: var(--green); }
+.my-balance.is-negative .mb-amount { color: var(--red); }
+
+.mb-hint {
+  font-family: var(--sans);
+  font-size: 0.66rem;
+  color: var(--gray-500);
+  line-height: 1.4;
+}
+
+/* --- Saldo de cada uno --------------------------------------------------- */
+.bal-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 2px;
+  border-bottom: 1px solid #EDEDF0;
+}
+.bal-row:last-child { border-bottom: none; }
+
+.bal-name {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--black);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.bal-tag {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: var(--black);
+  color: var(--paper);
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.bal-amount {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--gray-500);
+}
+.bal-row.is-positive .bal-amount { color: var(--green); }
+.bal-row.is-negative .bal-amount { color: var(--red); }
+.bal-row.is-me .bal-name { color: var(--accent); }
+
+/* --- El cuadre: quién le paga a quién ------------------------------------
+   No es "cada uno paga a cada uno": son las transferencias mínimas. Con seis
+   personas eso baja de quince pagos a cinco. */
+.tr-row {
+  padding: 9px 10px;
+  margin-bottom: 6px;
+  border-radius: var(--radius-sm);
+  border: 1.5px dashed var(--gray-300);
+  background: #fff;
+  animation: trIn .3s ease-out both;
+}
+@keyframes trIn {
+  from { opacity: 0; transform: translateX(-4px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+.tr-row.is-mine { border-color: var(--accent); background: rgba(255,107,53,.05); }
+.tr-row.is-done { opacity: .55; border-style: solid; border-color: #E4E4E7; }
+
+.tr-main {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--black);
+}
+.tr-check { color: var(--green); font-weight: 800; }
+.tr-arrow { color: var(--accent); font-weight: 800; }
+.tr-row.is-done .tr-arrow { color: var(--gray-400); }
+.tr-amount { margin-left: auto; font-size: 0.8rem; }
+.tr-from, .tr-to { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 32%; }
+
+.tr-actions { display: flex; gap: 6px; margin-top: 7px; }
+.tr-btn {
+  flex: 1;
+  appearance: none;
+  border: 1.5px solid var(--gray-300);
+  background: #fff;
+  border-radius: 7px;
+  padding: 5px 6px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.tr-btn:active { transform: scale(0.97); }
+.tr-remind { border-color: var(--accent); color: var(--accent); }
+.tr-paid   { border-color: var(--green);  color: var(--green); }
+.tr-paid:active { background: var(--green); color: #fff; }
+
+.all-settled {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--green);
+  text-align: center;
+  padding: 12px 0;
+  letter-spacing: 0.02em;
+}
+
+/* --- Listas de tickets y gastos ------------------------------------------ */
+.item-row {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  padding: 8px 2px;
+  border-bottom: 1px solid #EDEDF0;
+}
+.item-row:last-of-type { border-bottom: none; }
+
+.item-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.item-name {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--black);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.item-amount {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 700;
+  color: var(--black);
+  flex-shrink: 0;
+}
+.item-sub {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--sans);
+  font-size: 0.62rem;
+  color: var(--gray-400);
+  margin-top: 2px;
+}
+.item-tag {
+  font-family: var(--mono);
+  font-size: 0.52rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 5px;
+  border-radius: 4px;
+}
+.item-tag.warn { background: rgba(255,107,53,.14); color: var(--accent); }
+
+.item-del {
+  margin-left: auto;
+  border: none;
+  background: none;
+  color: var(--gray-400);
+  font-size: 1rem;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+}
+.item-del:active { color: var(--red); }
+
+.add-line-btn {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  padding: 8px;
+  border-radius: 8px;
+  border-style: dashed;
+  color: var(--gray-500);
+}
+
+/* --- Formulario de gasto sin ticket --------------------------------------
+   En un viaje la mitad de lo que se paga no lleva ticket: el taxi, las
+   entradas, la gasolina. Sin esto el grupo no cuadra con la realidad. */
+.expense-form {
+  margin-top: 10px;
+  padding: 12px;
+  border-radius: var(--radius-sm);
+  border: 1.5px dashed var(--accent);
+  background: rgba(255,107,53,.05);
+  animation: balanceIn .28s ease-out;
+}
+.ef-row { display: flex; gap: 8px; margin-bottom: 10px; }
+.ef-row input {
+  appearance: none;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  background: #fff;
+  color: var(--black);
+  min-width: 0;
+}
+.ef-row input:first-child { flex: 1; }
+.ef-row input:last-child  { width: 92px; text-align: right; flex-shrink: 0; }
+.ef-row input:focus { outline: none; border-color: var(--accent); }
+
+.ef-label {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: var(--gray-500);
+  margin: 8px 0 5px;
+}
+.ef-pills { display: flex; flex-wrap: wrap; gap: 5px; }
+.ef-actions { display: flex; gap: 8px; margin-top: 12px; }
+
+/* --- Fotos: todavía no, pero se avisa ------------------------------------ */
+.soon-block {
+  text-align: center;
+  padding: 12px 8px 4px;
+  opacity: .7;
+}
+.soon-title {
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--gray-500);
+  margin-bottom: 3px;
+}
+.soon-text {
+  font-family: var(--sans);
+  font-size: 0.62rem;
+  color: var(--gray-400);
+  line-height: 1.4;
+}
+
+/* --- Crear grupo desde la portada ---------------------------------------- */
+.group-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  width: 100%;
+  margin-top: 14px;
+  padding: 11px;
+  appearance: none;
+  border: 1.5px dashed var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 0.68rem;
+  font-weight: 700;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: border-color .16s, color .16s;
+}
+.group-cta:active { border-color: var(--accent); color: var(--accent); }
+
+.member-input-row { display: flex; gap: 8px; margin-bottom: 8px; }
+.member-input-row input {
+  flex: 1;
+  appearance: none;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 8px;
+  padding: 9px 10px;
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  background: #fff;
+  min-width: 0;
+}
+.member-input-row input:focus { outline: none; border-color: var(--accent); }
+
+.member-chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 4px; }
+.member-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--black);
+  color: var(--paper);
+  border-radius: 999px;
+  padding: 5px 8px 5px 11px;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  animation: balanceIn .2s ease-out;
+}
+.member-chip button {
+  border: none;
+  background: none;
+  color: var(--paper);
+  opacity: .6;
+  font-size: .9rem;
+  line-height: 1;
+  padding: 0;
+  cursor: pointer;
+}
+.member-chip button:active { opacity: 1; }
+
+/* En un grupo, la pantalla de marcar cambia el campo de texto por pastillas
+   con los miembros. Menos fricción, y hace imposible el descuadre por nombres
+   escritos de tres formas distintas. */
+.group-picker { padding: 2px 0 6px; }

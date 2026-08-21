@@ -28,9 +28,11 @@ const PAGINAS = {
   'index.html':   'upload.js',
   'ticket.html':  'ticket.js',
   'claim.html':   'claim.js',
-  'summary.html': 'summary.js'
+  'summary.html': 'summary.js',
+  'group.html':   'group.js',
+  'new-group.html': 'newgroup.js'
 };
-const GLOBALES = { 'money.js': 'Money', 'imgprep.js': 'ImgPrep', 'i18n.js': 't' };
+const GLOBALES = { 'money.js': 'Money', 'imgprep.js': 'ImgPrep', 'i18n.js': 't', 'settle.js': 'Settle' };
 
 console.log('\n1. Cada id que usa el JS existe en su HTML');
 for (const [pagina, script] of Object.entries(PAGINAS)) {

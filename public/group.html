@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ECEAE4">
+  <title>Grupo · comparTICKET</title>
+  <meta name="description" content="Todos los gastos del grupo en un sitio, y quién le paga a quién al final.">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
+
+  <!-- Vista previa al compartir. El servidor la rellena con el nombre del
+       grupo y lo que lleváis gastado. -->
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="comparTICKET">
+  <meta property="og:title" content="Grupo · comparTICKET">
+  <meta property="og:description" content="Todos los gastos del grupo en un sitio, y quién le paga a quién al final.">
+  <meta property="og:image" content="/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:wght@500;700;800&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="page">
+
+    <div class="top-bar">
+      <button class="top-bar-btn" onclick="window.location.href='/'">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <div class="top-bar-title" id="barTitle">Grupo</div>
+      <button class="top-bar-btn" id="shareTopBtn" title="Compartir grupo">
+        <svg viewBox="0 0 24 24"><path d="M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83L9.42 6.42 8 5l4-4 4 4zm4 5v11c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .89 2 2z"/></svg>
+      </button>
+    </div>
+
+    <div class="printer-assembly">
+      <div class="printer-body">
+        <div class="printer-brand"><span>compar</span><strong>TICKET</strong></div>
+        <div class="printer-right">
+          <div class="printer-leds">
+            <div class="printer-led on"></div>
+            <div class="printer-led idle"></div>
+          </div>
+        </div>
+        <div class="printer-slot-line"></div>
+      </div>
+
+      <div class="ticket-wrap">
+        <div class="ticket printing" id="ticket">
+
+          <div class="ticket-header">
+            <div class="ticket-store" id="groupName">···</div>
+            <div class="ticket-date" id="groupDates"></div>
+          </div>
+
+          <hr class="dash-sep heavy">
+
+          <!-- Cuánto ha movido el grupo -->
+          <div class="data-row">
+            <span class="data-label" id="lblTotal">Total del grupo</span>
+            <span class="data-value big" id="groupTotal">0,00 €</span>
+          </div>
+          <div class="data-row">
+            <span class="data-label" id="lblCount">Gastos</span>
+            <span class="data-value" id="groupCount">0</span>
+          </div>
+
+          <hr class="dash-sep">
+
+          <!-- Quién eres, para poder decirte TU saldo. Se recuerda por grupo. -->
+          <div class="who-block" id="whoBlock">
+            <div class="who-label" id="whoLabel">¿QUIÉN ERES?</div>
+            <div class="who-pills" id="whoPills"></div>
+          </div>
+
+          <!-- Tu saldo, en grande: es lo primero que quiere ver cualquiera -->
+          <div class="my-balance hidden" id="myBalance">
+            <div class="mb-label" id="myBalanceLabel"></div>
+            <div class="mb-amount" id="myBalanceAmount">0,00 €</div>
+            <div class="mb-hint" id="myBalanceHint"></div>
+          </div>
+
+          <hr class="dash-sep">
+
+          <!-- Saldo de cada uno -->
+          <div class="sec-title">SALDOS</div>
+          <div id="balancesList"></div>
+
+          <hr class="dash-sep">
+
+          <!-- El cuadre: quién le paga a quién -->
+          <div class="sec-title">
+            QUIÉN PAGA A QUIÉN
+            <span class="sec-note" id="settleNote"></span>
+          </div>
+          <div id="transfersList"></div>
+
+          <hr class="dash-sep">
+
+          <!-- Tickets escaneados -->
+          <div class="sec-title">TICKETS <span class="sec-note" id="ticketsNote"></span></div>
+          <div id="ticketsList"></div>
+          <button class="btn btn-outline btn-full mt-8 add-line-btn" id="addTicketBtn">+ Escanear un ticket</button>
+
+          <hr class="dash-sep">
+
+          <!-- Gastos sin ticket: el taxi, las entradas, la gasolina -->
+          <div class="sec-title">OTROS GASTOS <span class="sec-note">sin ticket</span></div>
+          <div id="expensesList"></div>
+          <button class="btn btn-outline btn-full mt-8 add-line-btn" id="addExpenseBtn">+ Añadir gasto</button>
+
+          <!-- Formulario de gasto suelto, plegado hasta que hace falta -->
+          <div class="expense-form hidden" id="expenseForm">
+            <div class="ef-row">
+              <input type="text" id="expDesc" placeholder="Taxi al aeropuerto" maxlength="60">
+              <input type="number" id="expAmount" placeholder="0,00" step="0.01" min="0.01" inputmode="decimal">
+            </div>
+            <div class="ef-label">¿QUIÉN LO PAGÓ?</div>
+            <div class="ef-pills" id="expPaidBy"></div>
+            <div class="ef-label">¿ENTRE QUIÉNES SE REPARTE?</div>
+            <div class="ef-pills" id="expSplit"></div>
+            <div class="ef-actions">
+              <button class="btn btn-ghost btn-half" id="expCancel">Cancelar</button>
+              <button class="btn btn-dark btn-half" id="expSave">Guardar gasto</button>
+            </div>
+          </div>
+
+          <hr class="dash-sep">
+
+          <!-- Las fotos aún no se guardan: se avisa en vez de dejar el hueco
+               mudo, para que se sepa que viene. -->
+          <div class="soon-block">
+            <div class="soon-title">📸 Fotos de los tickets</div>
+            <div class="soon-text">Próximamente — podrás ver la foto original de cada ticket aquí.</div>
+          </div>
+
+        </div>
+        <div class="ticket-zigzag"></div>
+      </div>
+    </div>
+
+    <div class="bottom-sticky" id="bottomArea">
+      <button class="btn btn-dark btn-full" id="shareGroupBtn">Compartir grupo</button>
+    </div>
+
+    <div class="home-indicator"></div>
+    <div class="easter-egg">desarrollado por A.Sáez.F</div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="/js/i18n.js"></script>
+  <script src="/js/money.js"></script>
+  <script src="/js/settle.js"></script>
+  <script src="/js/group.js"></script>
+</body>
+</html>

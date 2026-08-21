@@ -1,3 +1,6 @@
+// A que grupo pertenece lo que se escanee ahora, si se ha llegado desde uno.
+const grupoDestino = new URLSearchParams(location.search).get('grupo') || '';
+
 // comparTICKET — Upload page (multi-image, camera + gallery)
 document.getElementById('uploadTitle').textContent = t.uploadTitle;
 document.getElementById('uploadSub').textContent = t.uploadHint;
@@ -177,6 +180,19 @@ scanBtn.addEventListener('click', async () => {
     if (data.id && data.creatorKey) {
       try { localStorage.setItem('ck_' + data.id, data.creatorKey); } catch (_) {}
     }
+
+    // Si se venia de un grupo ("escanear un ticket" desde su pantalla), el
+    // ticket recien creado se mete dentro. Si esta llamada fallase, el ticket
+    // sigue existiendo suelto y se puede asignar despues: no se pierde nada.
+    if (grupoDestino && data.id) {
+      try {
+        await fetch('/api/tickets/' + data.id + '/group', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ groupId: grupoDestino })
+        });
+      } catch (_) {}
+    }
     if (data.redirect) window.location.href = data.redirect;
   } catch (err) {
     console.error('Upload error:', err);
@@ -205,3 +221,13 @@ document.body.addEventListener('drop', e => {
     previewOverlay.classList.remove('hidden');
   }
 });
+
+// --- Entrada a los grupos -------------------------------------------------
+// Un ticket suelto resuelve una cena. Un grupo resuelve un viaje entero: por
+// eso la portada ofrece las dos vias en vez de esconder esta.
+const _groupCta = document.getElementById('groupCta');
+if (_groupCta) {
+  _groupCta.addEventListener('click', () => {
+    window.location.href = '/new-group.html';
+  });
+}

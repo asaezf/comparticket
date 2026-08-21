@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ECEAE4">
+  <title>Nuevo grupo · comparTICKET</title>
+  <meta name="description" content="Crea un grupo para un viaje o un piso compartido y lleva todos los gastos juntos.">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="comparTICKET">
+  <meta property="og:title" content="Nuevo grupo · comparTICKET">
+  <meta property="og:description" content="Crea un grupo para un viaje o un piso compartido y lleva todos los gastos juntos.">
+  <meta property="og:image" content="/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:wght@500;700;800&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="page">
+
+    <div class="top-bar">
+      <button class="top-bar-btn" onclick="window.location.href='/'">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <div class="top-bar-title" id="barTitle">Nuevo grupo</div>
+      <div style="width:36px;"></div>
+    </div>
+
+    <div class="printer-assembly">
+      <div class="printer-body">
+        <div class="printer-brand"><span>compar</span><strong>TICKET</strong></div>
+        <div class="printer-right">
+          <div class="printer-leds">
+            <div class="printer-led on"></div>
+            <div class="printer-led idle"></div>
+          </div>
+        </div>
+        <div class="printer-slot-line"></div>
+      </div>
+
+      <div class="ticket-wrap">
+        <div class="ticket printing" id="ticket">
+
+          <div class="ticket-header">
+            <div class="ticket-store">NUEVO GRUPO</div>
+            <div class="ticket-date">VIAJE · PISO · PEÑA</div>
+          </div>
+
+          <hr class="dash-sep heavy">
+
+          <div class="ef-label">¿CÓMO SE LLAMA?</div>
+          <div class="member-input-row">
+            <input type="text" id="groupNameInput" placeholder="Portugal 2026" maxlength="60" autocomplete="off">
+          </div>
+
+          <hr class="dash-sep">
+
+          <div class="ef-label">¿QUIÉNES VAIS?</div>
+          <div class="member-input-row">
+            <input type="text" id="memberInput" placeholder="Escribe un nombre y pulsa +" maxlength="40" autocomplete="off">
+            <button class="btn btn-dark" id="addMemberBtn" style="padding:9px 16px;flex-shrink:0;">+</button>
+          </div>
+          <div class="member-chips" id="memberChips"></div>
+          <div class="soon-text" id="membersHint" style="margin-top:6px;">
+            Escribe el nombre de cada uno. Dentro del grupo cada persona tocará
+            su nombre en vez de escribirlo, así las cuentas siempre cuadran.
+          </div>
+
+          <hr class="dash-sep">
+
+          <div class="soon-block" style="text-align:left;opacity:1;">
+            <div class="soon-title">Qué vas a poder hacer</div>
+            <div class="soon-text">
+              · Escanear tickets y que se guarden todos aquí<br>
+              · Apuntar gastos sin ticket: taxis, entradas, gasolina<br>
+              · Ver en todo momento si debes o te deben<br>
+              · Al final, quién le paga a quién con los menos pagos posibles
+            </div>
+          </div>
+
+        </div>
+        <div class="ticket-zigzag"></div>
+      </div>
+    </div>
+
+    <div class="bottom-sticky">
+      <button class="btn btn-dark btn-full" id="createBtn" disabled>Crear grupo</button>
+    </div>
+
+    <div class="home-indicator"></div>
+    <div class="easter-egg">desarrollado por A.Sáez.F</div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="/js/i18n.js"></script>
+  <script src="/js/newgroup.js"></script>
+</body>
+</html>

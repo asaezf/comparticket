@@ -8,6 +8,9 @@
   },
   "rewrites": [
     { "source": "/api/:path*", "destination": "/api/index.js" },
-    { "source": "/t/:id", "destination": "/api/index.js" }
+    { "source": "/t/:id", "destination": "/api/index.js" },
+    { "source": "/g/:id", "destination": "/api/index.js" },
+    { "source": "/js/money.js", "destination": "/api/index.js" },
+    { "source": "/js/settle.js", "destination": "/api/index.js" }
   ]
 }

@@ -7,6 +7,7 @@ const { nanoid } = require('nanoid');
 const db = require('./db');
 const ai = require('./ai');
 const money = require('./money');
+const settle = require('./settle');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -101,6 +102,29 @@ function asItemUnits(v) {
 }
 
 /**
+ * Lista de miembros de un grupo. Se normaliza a [{ id, name }].
+ *
+ * El nombre es la clave de todo el cuadre —money.js reparte por nombre— así
+ * que aquí se garantiza que no haya dos miembros que se llamen igual: si los
+ * hubiera, sus gastos se sumarían como si fueran la misma persona y el viaje
+ * cuadraría mal sin que nadie lo notase.
+ */
+function asMembers(v) {
+  if (!Array.isArray(v) || v.length === 0 || v.length > 50) return null;
+  const out = [];
+  const vistos = new Set();
+  for (const m of v) {
+    const nombre = asText(typeof m === 'string' ? m : (m && m.name), 40);
+    if (!nombre) return null;
+    const k = nombre.toLowerCase();
+    if (vistos.has(k)) return null;   // nombre repetido: no se podría cuadrar
+    vistos.add(k);
+    out.push({ id: (m && m.id) || 'm_' + nanoid(8), name: nombre });
+  }
+  return out;
+}
+
+/**
  * Envuelve una ruta async para que un fallo no tumbe el proceso.
  *
  * Express 4 no recoge los rechazos de un manejador async: se convertían en un
@@ -158,6 +182,13 @@ function rateLimit({ windowMs, max }) {
 // cuadra mientras el servidor opina lo contrario.
 app.get('/js/money.js', (req, res) => {
   res.type('application/javascript').sendFile(path.join(__dirname, 'money.js'));
+});
+
+// Lo mismo con el cuadre de grupos: navegador y servidor comparten el fichero,
+// no una copia. Si divergieran, la pantalla podria decir que Nerea debe 40 y el
+// servidor pensar que debe 45.
+app.get('/js/settle.js', (req, res) => {
+  res.type('application/javascript').sendFile(path.join(__dirname, 'settle.js'));
 });
 
 app.use(express.static(path.join(__dirname, 'public')));
@@ -502,6 +533,295 @@ function shareMeta(ticket, claims) {
 
   return { title: `${sitio} · ${eur}`, description };
 }
+
+
+// =============================================================
+//  GRUPOS  (viajes, pisos compartidos)
+// =============================================================
+
+/**
+ * Todo lo que hay que saber de un grupo, ya calculado.
+ *
+ * El cuadre se hace AQUÍ, en el servidor, y no en el navegador. El navegador
+ * lo repite para pintar sin esperar, pero la cifra buena es esta: si alguien
+ * manipulara el JavaScript de su móvil no podría cambiar lo que debe.
+ */
+async function groupSummary(groupId) {
+  const group = await db.getPublicGroup(groupId);
+  if (!group) return null;
+
+  const [tickets, expenses, payments] = await Promise.all([
+    db.getGroupTickets(groupId),
+    db.getGroupExpenses(groupId),
+    db.getGroupPayments(groupId)
+  ]);
+
+  const apuntes = [];
+  const detalleTickets = [];
+  let abiertos = 0;
+  let pendiente = 0;   // dinero atrapado en tickets sin cerrar
+
+  for (const t of tickets) {
+    // Un borrador todavía no lo ha visto nadie: no cuenta como gasto.
+    if (t.status !== 'shared' && t.status !== 'closed') continue;
+
+    const claims = await db.getClaims(t.id).catch(() => []);
+    // El reparto de cada ticket lo sigue haciendo money.js, intacto.
+    const r = money.splitByUnits(t.items, money.confirmedOnly(claims));
+
+    // SOLO los tickets cerrados entran en el cuadre, y esto es importante.
+    //
+    // En uno a medio marcar, a quien pagó se le acredita el total pero solo
+    // está repartido lo que la gente lleva marcado. Meterlo dejaría los saldos
+    // sin sumar cero —el dinero se crearía de la nada— y el reparto final
+    // saldría mal. Se enseña en la lista con su aviso, pero no cuenta hasta
+    // que se cierre.
+    if (t.status !== 'closed') {
+      abiertos++;
+      pendiente += (+t.total || 0);
+    } else {
+      apuntes.push({ pagador: t.payerName, total: t.total, reparto: r.perPerson });
+    }
+
+    detalleTickets.push({
+      id: t.id,
+      restaurant: t.restaurant,
+      total: t.total,
+      payerName: t.payerName,
+      status: t.status,
+      receiptDate: t.receiptDate,
+      createdAt: t.createdAt,
+      lineas: (t.items || []).length,
+      reparto: r.perPerson
+    });
+  }
+
+  for (const e of expenses) {
+    apuntes.push({
+      pagador: e.paidBy,
+      total: e.amount,
+      reparto: settle.splitEqually(e.amount, e.splitBetween)
+    });
+  }
+
+  const pagos = payments.map(p => ({ de: p.from, a: p.to, importe: p.amount }));
+  const balances = settle.computeBalances(apuntes, pagos, group.members);
+  const transfers = settle.minimalTransfers(balances);
+  const stats = settle.groupStats(apuntes);
+
+  return {
+    group,
+    tickets: detalleTickets,
+    expenses,
+    payments,
+    balances,
+    transfers,
+    stats,
+    // Los tickets sin cerrar NO entran en el cuadre (ver arriba). Se informa
+    // de cuántos son y de cuánto dinero hay dentro, para que se sepa que el
+    // reparto todavía no está completo y qué falta por hacer.
+    ticketsAbiertos: abiertos,
+    pendienteDeCerrar: +pendiente.toFixed(2),
+    settled: settle.isSettled(balances)
+  };
+}
+
+app.post('/api/groups', rateLimit({ windowMs: 60000, max: 10 }), ruta(async (req, res) => {
+  const name = asText((req.body || {}).name, 60);
+  if (!name) return res.status(400).json({ error: 'Nombre de grupo no válido', code: 'BAD_NAME' });
+
+  const members = asMembers((req.body || {}).members);
+  if (!members) {
+    return res.status(400).json({
+      error: 'Hacen falta los nombres de quienes van, sin repetir',
+      code: 'BAD_MEMBERS'
+    });
+  }
+
+  const id = nanoid(8);
+  const creatorKey = nanoid(24);
+  const group = await db.createGroup(id, name, members, creatorKey);
+  const safe = Object.assign({}, group);
+  delete safe.creatorKey;
+  res.json({ group: safe, creatorKey, redirect: '/g/' + id });
+}));
+
+app.get('/api/groups/:id', ruta(async (req, res) => {
+  const group = await db.getPublicGroup(req.params.id);
+  if (!group) return res.status(404).json({ error: 'Grupo no encontrado' });
+  res.json(group);
+}));
+
+app.get('/api/groups/:id/summary', ruta(async (req, res) => {
+  const s = await groupSummary(req.params.id);
+  if (!s) return res.status(404).json({ error: 'Grupo no encontrado' });
+  res.json(s);
+}));
+
+app.post('/api/groups/:id/members', ruta(async (req, res) => {
+  const members = asMembers((req.body || {}).members);
+  if (!members) return res.status(400).json({ error: 'Lista de nombres no válida', code: 'BAD_MEMBERS' });
+  const group = await db.setGroupMembers(req.params.id, members);
+  if (!group) return res.status(404).json({ error: 'Grupo no encontrado' });
+  const safe = Object.assign({}, group);
+  delete safe.creatorKey;
+  res.json(safe);
+}));
+
+// --- Gastos sin ticket ----------------------------------------------------
+//  En un viaje la mitad de lo que se paga no lleva ticket que escanear: el
+//  taxi, las entradas, la gasolina. Sin esto el grupo no cuadra con la
+//  realidad.
+
+app.post('/api/groups/:id/expenses', ruta(async (req, res) => {
+  const group = await db.getGroup(req.params.id);
+  if (!group) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+  const description = asText((req.body || {}).description, 60);
+  const amount = asNumber((req.body || {}).amount, { min: 0.01, max: 100000 });
+  const paidBy = asText((req.body || {}).paidBy, 40);
+  if (!description || amount === null || !paidBy) {
+    return res.status(400).json({ error: 'Faltan datos del gasto', code: 'BAD_EXPENSE' });
+  }
+
+  // Solo se admiten nombres que estén en el grupo: si se colara uno de fuera,
+  // aparecería un participante fantasma en el cuadre final.
+  const nombres = (group.members || []).map(m => m.name);
+  const dentro = n => nombres.some(x => x.toLowerCase() === String(n).trim().toLowerCase());
+  if (!dentro(paidBy)) {
+    return res.status(400).json({ error: 'Quien paga no está en el grupo', code: 'NOT_MEMBER' });
+  }
+
+  const brutoEntre = (req.body || {}).splitBetween;
+  const splitBetween = Array.isArray(brutoEntre) && brutoEntre.length
+    ? brutoEntre.map(n => asText(n, 40)).filter(Boolean).filter(dentro)
+    : nombres;                       // por defecto, entre todos
+  if (!splitBetween.length) {
+    return res.status(400).json({ error: 'Falta entre quién se reparte', code: 'BAD_SPLIT' });
+  }
+
+  const gasto = await db.addGroupExpense(req.params.id, {
+    id: nanoid(10),
+    description,
+    amount: +amount.toFixed(2),
+    paidBy,
+    splitBetween
+  });
+  res.json(gasto);
+}));
+
+app.delete('/api/groups/:id/expenses/:expenseId', ruta(async (req, res) => {
+  await db.removeGroupExpense(req.params.id, req.params.expenseId);
+  res.json({ ok: true });
+}));
+
+// --- Pagos entre personas -------------------------------------------------
+//  Solo se ANOTA que alguien dice haber pagado. El dinero va por Bizum entre
+//  ellos: la app no lo toca nunca. Moverlo convertiría esto en una entidad de
+//  pago, con licencia del Banco de España y todo lo que arrastra.
+
+app.post('/api/groups/:id/payments', ruta(async (req, res) => {
+  const group = await db.getGroup(req.params.id);
+  if (!group) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+  const from = asText((req.body || {}).from, 40);
+  const to = asText((req.body || {}).to, 40);
+  const amount = asNumber((req.body || {}).amount, { min: 0.01, max: 100000 });
+  if (!from || !to || amount === null) {
+    return res.status(400).json({ error: 'Faltan datos del pago', code: 'BAD_PAYMENT' });
+  }
+  if (from.toLowerCase() === to.toLowerCase()) {
+    return res.status(400).json({ error: 'No puedes pagarte a ti mismo', code: 'SELF_PAYMENT' });
+  }
+
+  const pago = await db.addGroupPayment(req.params.id, {
+    id: nanoid(10), from, to, amount: +amount.toFixed(2)
+  });
+  res.json(pago);
+}));
+
+app.delete('/api/groups/:id/payments/:paymentId', ruta(async (req, res) => {
+  await db.removeGroupPayment(req.params.id, req.params.paymentId);
+  res.json({ ok: true });
+}));
+
+// --- Meter un ticket en un grupo ------------------------------------------
+
+app.post('/api/tickets/:id/group', ruta(async (req, res) => {
+  const bruto = (req.body || {}).groupId;
+  const groupId = (bruto === null || bruto === '') ? null : asText(bruto, 40);
+  if (bruto !== null && bruto !== '' && !groupId) {
+    return res.status(400).json({ error: 'Grupo no válido', code: 'BAD_GROUP' });
+  }
+  if (groupId && !(await db.getGroup(groupId))) {
+    return res.status(404).json({ error: 'Grupo no encontrado' });
+  }
+  const ticket = await db.setTicketGroup(req.params.id, groupId);
+  if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
+  const safe = Object.assign({}, ticket);
+  delete safe.creatorKey;
+  res.json(safe);
+}));
+
+/** Texto de la vista previa del grupo al pegarlo en WhatsApp. */
+function groupShareMeta(s) {
+  const eur = n => money.formatEUR(n, 'es');
+  const nombre = s.group.name || 'Nuestro grupo';
+  const gente = (s.group.members || []).length;
+
+  let description;
+  if (s.settled) {
+    description = 'Todo saldado. ' + eur(s.stats.total) + ' entre ' + gente + '.';
+  } else if (s.stats.apuntes === 0) {
+    description = 'Grupo reci\u00e9n creado para ' + gente + '. A\u00f1ade el primer gasto.';
+  } else if (s.transfers.length) {
+    description = eur(s.stats.total) + ' en ' + s.stats.apuntes + ' gastos. Quedan ' +
+      s.transfers.length + ' pagos por hacer.';
+  } else {
+    description = eur(s.stats.total) + ' en ' + s.stats.apuntes + ' gastos entre ' + gente + '.';
+  }
+  return { title: nombre + ' \u00b7 ' + eur(s.stats.total), description };
+}
+
+/**
+ * Enlace corto del grupo: /g/:id
+ *
+ * Mismo planteamiento que /t/:id: solo esta ruta pasa por la función, para que
+ * el resto siga saliendo del CDN, y se cachea unos segundos para que diez
+ * personas abriéndolo a la vez no despierten diez funciones.
+ */
+app.get('/g/:id', ruta(async (req, res) => {
+  const file = path.join(__dirname, 'public', 'group.html');
+  let html;
+  try {
+    html = require('fs').readFileSync(file, 'utf8');
+  } catch (_) {
+    return res.status(500).send('No se ha podido cargar la p\u00e1gina');
+  }
+
+  let s = null;
+  try { s = await groupSummary(req.params.id); } catch (_) {}
+
+  if (s) {
+    // Si la vista previa falla, la página se sirve igual. Un enlace sin
+    // tarjeta bonita es un problema menor; uno que da error a todo el grupo
+    // es grave.
+    try {
+      const meta = groupShareMeta(s);
+      html = html
+        .replace(/<meta property="og:title" content="[^"]*">/,
+          '<meta property="og:title" content="' + escAttr(meta.title) + '">')
+        .replace(/<meta property="og:description" content="[^"]*">/,
+          '<meta property="og:description" content="' + escAttr(meta.description) + '">')
+        .replace(/<title>[^<]*<\/title>/, '<title>' + escAttr(meta.title) + '</title>');
+    } catch (e) {
+      console.error('groupShareMeta fall\u00f3:', e && e.message);
+    }
+  }
+
+  res.set('Cache-Control', 'public, s-maxage=30, stale-while-revalidate=120');
+  res.type('html').send(html);
+}));
 
 // SPA fallback — serve HTML pages
 app.get('/ticket.html', (req, res) => res.sendFile(path.join(__dirname, 'public', 'ticket.html')));

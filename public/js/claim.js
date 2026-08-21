@@ -445,6 +445,68 @@ function setLiveState(state) {
   if (dot) dot.className = 'live-dot ' + state;
 }
 
+/**
+ * Si el ticket pertenece a un grupo, el nombre deja de escribirse y pasa a
+ * tocarse de una lista cerrada.
+ *
+ * Es la pieza que sostiene el cuadre de todo un viaje: con nombres escritos a
+ * mano, "Alvaro", "alvaro" y "Alvarito" serian tres personas distintas al
+ * sumar quince tickets, y el reparto final saldria mal sin que nadie lo viera.
+ *
+ * El campo de texto NO se elimina: se oculta y las pastillas lo rellenan. Asi
+ * toda la logica que ya existe —recuperar tu seleccion, el aviso de identidad,
+ * el guardado automatico— sigue funcionando exactamente igual, sin tocarla.
+ */
+async function montarSelectorDeGrupo() {
+  if (!ticketData || !ticketData.groupId) return;
+
+  let grupo = null;
+  try {
+    const r = await fetch('/api/groups/' + ticketData.groupId);
+    if (r.ok) grupo = await r.json();
+  } catch (_) { /* sin grupo se sigue con el campo de texto de siempre */ }
+  if (!grupo || !Array.isArray(grupo.members) || !grupo.members.length) return;
+
+  const caja = document.getElementById('groupPicker');
+  const pills = document.getElementById('groupPickerPills');
+  const campo = document.querySelector('.name-field');
+  if (!caja || !pills) return;
+
+  campo.classList.add('hidden');
+  caja.classList.remove('hidden');
+  pills.innerHTML = '';
+
+  const input = document.getElementById('nameInput');
+
+  const pintarActivas = () => {
+    const actual = (input.value || '').trim().toLowerCase();
+    pills.querySelectorAll('.who-pill').forEach(p => {
+      p.classList.toggle('active', p.dataset.nombre.toLowerCase() === actual);
+    });
+  };
+
+  grupo.members.forEach(m => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'who-pill';
+    b.dataset.nombre = m.name;
+    b.textContent = m.name;
+    b.addEventListener('click', () => {
+      if (nameLocked) return;   // ya confirmaste: el nombre no se cambia
+      input.value = m.name;
+      // Se dispara el mismo evento que al teclear, para que todo lo demas
+      // reaccione igual que siempre.
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      pintarActivas();
+    });
+    pills.appendChild(b);
+  });
+
+  input.addEventListener('input', pintarActivas);
+  pintarActivas();
+  fitTicket();
+}
+
 async function loadTicket() {
   const [tRes, cRes] = await Promise.all([
     fetch(`/api/tickets/${ticketId}`),
@@ -528,6 +590,7 @@ async function loadTicket() {
   update();
   renderLivePeople();
   startPolling();
+  montarSelectorDeGrupo();
   setLiveState('saved');
   maybeShowTip();
 }

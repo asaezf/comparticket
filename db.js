@@ -278,6 +278,165 @@ async function removeClaim(ticketId, personName) {
   return true;
 }
 
+
+// =============================================================
+//  GRUPOS  (viajes, pisos compartidos)
+// =============================================================
+//  Un grupo junta muchos tickets y gastos a lo largo de dias y, al final,
+//  dice quien le paga a quien con el minimo de transferencias.
+//
+//  Decision de diseno importante: el grupo tiene una LISTA CERRADA de
+//  miembros, y dentro de un grupo la pantalla de marcar ensena botones con
+//  esos nombres en vez de un campo de texto. Asi "Alvaro", "alvaro" y
+//  "Alvarito" no pueden ser tres personas distintas al cuadrar el viaje.
+//  Es menos friccion para el usuario Y mata de raiz los fallos de identidad.
+//
+//  El resto de la app no se entera: un ticket sin groupId funciona
+//  exactamente igual que siempre.
+
+const GROUPS = 'comparticket_groups';
+
+function groupRef(id) { return db.collection(GROUPS).doc(id); }
+function expensesRef(id) { return groupRef(id).collection('expenses'); }
+function paymentsRef(id) { return groupRef(id).collection('payments'); }
+
+async function createGroup(id, name, members, creatorKey) {
+  const group = {
+    id,
+    name,
+    members: members || [],
+    creatorKey: creatorKey || null,
+    status: 'open',
+    createdAt: new Date().toISOString(),
+    settledAt: null
+  };
+  await groupRef(id).set(group);
+  return group;
+}
+
+async function getGroup(id) {
+  const snap = await groupRef(id).get();
+  return snap.exists ? snap.data() : null;
+}
+
+/** Sin la clave del creador: es lo unico que no puede salir al navegador. */
+async function getPublicGroup(id) {
+  const g = await getGroup(id);
+  if (!g) return null;
+  const rest = Object.assign({}, g);
+  delete rest.creatorKey;
+  return rest;
+}
+
+async function verifyGroupKey(id, key) {
+  const g = await getGroup(id);
+  if (!g || !g.creatorKey) return false;
+  if (typeof key !== 'string' || key.length !== g.creatorKey.length) return false;
+  // Comparacion en tiempo constante, igual que en los tickets.
+  let diff = 0;
+  for (let i = 0; i < key.length; i++) {
+    diff |= key.charCodeAt(i) ^ g.creatorKey.charCodeAt(i);
+  }
+  return diff === 0;
+}
+
+async function setGroupMembers(id, members) {
+  const ref = groupRef(id);
+  if (!(await ref.get()).exists) return null;
+  await ref.update({ members: members || [] });
+  return (await ref.get()).data();
+}
+
+async function setGroupStatus(id, status) {
+  const ref = groupRef(id);
+  if (!(await ref.get()).exists) return null;
+  await ref.update({
+    status,
+    settledAt: status === 'settled' ? new Date().toISOString() : null
+  });
+  return (await ref.get()).data();
+}
+
+// --- Gastos sin ticket (el taxi, las entradas, la gasolina) ---------------
+//  En un viaje la mitad de lo que se paga no lleva ticket que escanear. Sin
+//  esto el grupo no cuadra con la realidad.
+
+async function addGroupExpense(groupId, expense) {
+  const id = expense.id;
+  const doc = {
+    id,
+    description: expense.description,
+    amount: expense.amount,
+    paidBy: expense.paidBy,
+    splitBetween: expense.splitBetween || [],
+    createdAt: new Date().toISOString()
+  };
+  await expensesRef(groupId).doc(id).set(doc);
+  return doc;
+}
+
+async function getGroupExpenses(groupId) {
+  const snap = await expensesRef(groupId).orderBy('createdAt', 'asc').get();
+  return snap.docs.map(d => d.data());
+}
+
+async function removeGroupExpense(groupId, expenseId) {
+  await expensesRef(groupId).doc(expenseId).delete();
+  return true;
+}
+
+// --- Pagos entre personas -------------------------------------------------
+//  La app NO mueve dinero: solo anota que alguien dice haber pagado. El
+//  dinero va por Bizum entre ellos, como siempre. Meterse a mover dinero
+//  convertiria esto en una entidad de pago, con licencia y todo lo que eso
+//  arrastra.
+
+async function addGroupPayment(groupId, payment) {
+  const doc = {
+    id: payment.id,
+    from: payment.from,
+    to: payment.to,
+    amount: payment.amount,
+    createdAt: new Date().toISOString()
+  };
+  await paymentsRef(groupId).doc(doc.id).set(doc);
+  return doc;
+}
+
+async function getGroupPayments(groupId) {
+  const snap = await paymentsRef(groupId).orderBy('createdAt', 'asc').get();
+  return snap.docs.map(d => d.data());
+}
+
+async function removeGroupPayment(groupId, paymentId) {
+  await paymentsRef(groupId).doc(paymentId).delete();
+  return true;
+}
+
+// --- Tickets que pertenecen a un grupo ------------------------------------
+
+async function getGroupTickets(groupId) {
+  const snap = await db.collection(TICKETS).where('groupId', '==', groupId).get();
+  const tickets = snap.docs.map(d => {
+    const t = d.data();
+    const rest = Object.assign({}, t);
+    delete rest.creatorKey;
+    return rest;
+  });
+  // Se ordena aqui y no en la consulta para no obligar a crear un indice
+  // compuesto en Firestore. Un grupo maneja decenas de tickets, no miles.
+  tickets.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
+  return tickets;
+}
+
+async function setTicketGroup(ticketId, groupId) {
+  const ref = ticketRef(ticketId);
+  if (!(await ref.get()).exists) return null;
+  await ref.update({ groupId: groupId || null });
+  return (await ref.get()).data();
+}
+
+
 module.exports = {
   createTicket,
   getTicket,
@@ -290,5 +449,20 @@ module.exports = {
   addClaim,
   getClaims,
   removeClaim,
-  getPulse
+  getPulse,
+  // Grupos
+  createGroup,
+  getGroup,
+  getPublicGroup,
+  verifyGroupKey,
+  setGroupMembers,
+  setGroupStatus,
+  addGroupExpense,
+  getGroupExpenses,
+  removeGroupExpense,
+  addGroupPayment,
+  getGroupPayments,
+  removeGroupPayment,
+  getGroupTickets,
+  setTicketGroup
 };

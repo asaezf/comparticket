@@ -692,7 +692,64 @@ así que cualquier web podría disparar escaneos desde el navegador de sus
 visitantes. **Lo más rentable hoy: poner una alerta de presupuesto en Google
 Cloud, que es gratis y avisa aunque todo lo demás falle.**
 
-### Bloque G — El salto a app ← **siguiente**
+### Bloque G — Grupos: control de gastos de un viaje 🚧 **NÚCLEO HECHO**
+
+Lo que pidió Álvaro para irse de vacaciones: control de gastos tipo Tricount
+pero **basado en los tickets escaneados**, con cuadre final de quién paga a
+quién.
+
+**La decisión de diseño que lo sostiene todo:** un grupo tiene una **lista
+cerrada de miembros**, y dentro de un grupo la pantalla de marcar **cambia el
+campo de texto por pastillas** con esos nombres. Se toca, no se escribe.
+
+Eso resuelve tres cosas a la vez:
+- Identidad estable **sin inventar cuentas de usuario**
+- **Menos fricción** que antes: no se teclea nada
+- Mata de raíz toda la familia de bugs de identidad de las rondas 3-6
+
+Y lo importante: **`money.js` no se ha tocado**. El reparto dentro de
+cada ticket lo sigue haciendo él, ya probado; `settle.js` solo suma lo que aquel
+devuelve. Los nombres siguen siendo la clave, solo que ahora vienen de una
+lista cerrada en vez de un teclado.
+
+**Piezas nuevas:**
+
+| Fichero | Qué hace |
+|---|---|
+| `settle.js` | Motor de cuadre: saldos, transferencias mínimas y reparto a partes iguales. Compartido cliente/servidor como `money.js` |
+| `public/group.html` + `group.js` | La pantalla del grupo |
+| `public/new-group.html` + `newgroup.js` | Crear grupo con sus miembros |
+| Rutas `/api/groups/*` y `/g/:id` | API y enlace corto con vista previa propia |
+
+**Lo que ya funciona:**
+- Crear grupo con miembros
+- Escanear tickets que caen dentro del grupo
+- **Gastos sin ticket** (el taxi, las entradas, la gasolina) — imprescindibles: en un viaje la mitad de lo que se paga no lleva ticket
+- Saldo de cada uno, y **el tuyo en grande** con a quién se lo debes
+- **Cuadre con el mínimo de transferencias**: con 6 personas, 5 pagos en vez de 15
+- Marcar un pago como hecho, y deshacerlo
+- Recordatorio por WhatsApp ya escrito
+- Enlace del grupo con vista previa propia
+
+**🔴 Fallo encontrado al probarlo, y arreglado:** al principio los tickets
+todavía abiertos entraban en el cuadre. A quien pagó se le acreditaba el total
+mientras solo estaba repartido lo que la gente llevaba marcado — **los saldos
+sumaban 16 € en vez de cero, o sea dinero creado de la nada**. Ahora solo
+entran los tickets **cerrados**, y se avisa de cuánto dinero queda fuera y en
+cuántos tickets. Fijado con tests.
+
+**43 tests nuevos** en `scripts/test-settle.js`, que comprueban las tres
+propiedades que deben cumplirse siempre, incluso con un viaje generado al azar
+de 40 gastos entre 6 personas:
+1. El dinero no se crea ni se destruye: los saldos suman cero
+2. Las transferencias saldan a **todo** el mundo, no a la mayoría
+3. Nunca más de N-1 transferencias con N personas
+
+**Pendiente (siguiente tanda):** morosos con días sin pagar, estadísticas del
+viaje, y las fotos de los tickets — que esperan a tener Firebase en su propio
+proyecto. En la pantalla ya hay un «próximamente» donde irán.
+
+### Bloque H — El salto a app ← **siguiente**
 21. Cuentas de usuario → tickets abiertos pendientes y carpetas por viaje
 22. Capacitor → App Store y Play Store, con este mismo código
 
