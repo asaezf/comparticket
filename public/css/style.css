@@ -3014,3 +3014,127 @@ body.en-grupo .upload-area { padding-top: 6px; }
   white-space: pre-line;
   margin-bottom: 4px;
 }
+
+/* =============================================
+   PANTALLA DE GRUPO — escalada
+   =============================================
+   Aqui hay mucha mas informacion por pantalla que en un ticket suelto:
+   saldos, reparto, dos historiales y el resumen. Con el ancho de un ticket
+   —326 px dentro de una pagina de 430— todo salia apretado y pequeno.
+
+   Se ensancha el papel y se sube un escalon la tipografia, SOLO en esta
+   pantalla. Escanear, marcar y el resumen de un ticket se quedan exactamente
+   igual: alli el formato estrecho es parte de la gracia, porque imita un
+   ticket de verdad.
+   ============================================= */
+
+.pantalla-grupo .page { max-width: 470px; }
+.pantalla-grupo .printer-assembly { padding: 0 14px; }
+/* Sigue siendo mas estrecho que la impresora: si no, el papel pareceria salir
+   de ningun sitio y se perderia la ilusion. */
+.pantalla-grupo .ticket-wrap { width: 93%; }
+.pantalla-grupo .ticket { padding: 22px 24px; }
+
+/* --- Cabecera --- */
+.pantalla-grupo .ticket-store { font-size: 1rem; }
+.pantalla-grupo .ticket-date  { font-size: 0.7rem; }
+.pantalla-grupo .data-label   { font-size: 1rem; }
+.pantalla-grupo .data-value   { font-size: 1.08rem; }
+.pantalla-grupo .data-value.big { font-size: 1.5rem; }
+.pantalla-grupo .data-row { padding: 5px 0; }
+
+/* --- Titulos de seccion --- */
+.pantalla-grupo .sec-title { font-size: 0.7rem; margin: 6px 0 10px; }
+.pantalla-grupo .sec-pair-b { font-size: 0.64rem; }
+.pantalla-grupo .sec-note { font-size: 0.62rem; }
+.pantalla-grupo .fold-btn { font-size: 0.68rem; }
+.pantalla-grupo .empty-line { font-size: 0.8rem; padding: 10px 2px; }
+
+/* --- Quien eres --- */
+.pantalla-grupo .who-label { font-size: 0.7rem; margin-bottom: 9px; }
+.pantalla-grupo .who-pill { font-size: 0.8rem; padding: 8px 15px; }
+.pantalla-grupo .who-pill.small { font-size: 0.74rem; padding: 7px 12px; }
+
+/* --- Tu saldo --- */
+.pantalla-grupo .my-balance { padding: 18px 16px; margin: 14px 0 6px; }
+.pantalla-grupo .mb-label  { font-size: 0.7rem; }
+.pantalla-grupo .mb-amount { font-size: 2.1rem; margin: 6px 0 4px; }
+.pantalla-grupo .mb-hint   { font-size: 0.76rem; }
+
+/* --- Saldos --- */
+.pantalla-grupo .bal-row { padding: 9px 2px; }
+.pantalla-grupo .bal-name   { font-size: 0.86rem; }
+.pantalla-grupo .bal-amount { font-size: 0.9rem; }
+.pantalla-grupo .bal-tag    { font-size: 0.6rem; padding: 2px 6px; }
+
+/* --- Reparto --- */
+.pantalla-grupo .tr-row { padding: 12px 13px; margin-bottom: 8px; }
+.pantalla-grupo .tr-main   { font-size: 0.84rem; gap: 7px; }
+.pantalla-grupo .tr-amount { font-size: 0.94rem; }
+.pantalla-grupo .tr-btn    { font-size: 0.7rem; padding: 7px 6px; }
+.pantalla-grupo .tr-days   { font-size: 0.64rem; padding: 3px 7px; }
+.pantalla-grupo .tr-actions { margin-top: 9px; }
+.pantalla-grupo .all-settled { font-size: 0.84rem; padding: 16px 0; }
+
+/* --- Gastos --- */
+.pantalla-grupo .add-btn { font-size: 0.74rem; padding: 15px 8px; gap: 7px; }
+.pantalla-grupo .add-btn svg { width: 23px; height: 23px; }
+.pantalla-grupo .add-btn .ab-pig { width: 25px; height: 25px; }
+.pantalla-grupo .add-row { gap: 10px; margin: 4px 0 6px; }
+
+.pantalla-grupo .item-row { padding: 10px 2px; }
+.pantalla-grupo .item-name   { font-size: 0.84rem; }
+.pantalla-grupo .item-amount { font-size: 0.86rem; }
+.pantalla-grupo .item-sub    { font-size: 0.72rem; margin-top: 3px; }
+.pantalla-grupo .item-tag    { font-size: 0.6rem; padding: 3px 6px; }
+.pantalla-grupo .item-del    { font-size: 1.15rem; }
+
+/* --- Formulario de gasto --- */
+.pantalla-grupo .expense-form { padding: 15px; }
+.pantalla-grupo .ef-label { font-size: 0.66rem; }
+.pantalla-grupo .ef-row input { font-size: 0.85rem; padding: 11px 12px; }
+.pantalla-grupo .ef-row input:last-child { width: 108px; }
+
+/* --- Resumen y avisos --- */
+.pantalla-grupo .stat-row { padding: 8px 2px; }
+.pantalla-grupo .stat-k { font-size: 0.78rem; }
+.pantalla-grupo .stat-v { font-size: 0.84rem; }
+.pantalla-grupo .soon-inline { font-size: 0.7rem; }
+.pantalla-grupo .tpl-panel textarea { font-size: 0.8rem; }
+.pantalla-grupo .tpl-preview { font-size: 0.74rem; }
+
+/* --- Titulo de seccion como interruptor ----------------------------------
+   El titulo entero pliega y despliega: se toca donde se esta mirando, en vez
+   de tener que apuntar a un boton pequeno a la derecha. */
+.sec-toggle {
+  width: 100%;
+  appearance: none;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.sec-toggle:active .sec-pair { opacity: .6; }
+
+.sec-chev {
+  width: 13px; height: 13px;
+  margin-left: 5px;
+  vertical-align: -2px;
+  color: var(--gray-400);
+  /* El angulo lo pone el JavaScript segun el estado; aqui solo el movimiento. */
+  transition: transform .22s cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+/* Plegada, la seccion deja a la vista lo unico que importa: cuanto suma. */
+.sec-total {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  color: var(--gray-500);
+  text-transform: none;
+}
+.sec-toggle.plegado .sec-total { color: var(--black); }
+.pantalla-grupo .sec-total { font-size: 0.84rem; }

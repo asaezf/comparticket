@@ -366,12 +366,18 @@ function pintarStats() {
   if (!cont) return;
   cont.innerHTML = '';
 
+  const btnStats = document.getElementById('foldStats');
+  if (btnStats) {
+    btnStats.classList.remove('hidden');
+    btnStats.textContent = desplegado.stats ? 'mostrar menos' : 'mostrar más';
+    btnStats.onclick = () => { desplegado.stats = !desplegado.stats; pintar(); };
+  }
+
   if (!datos.stats.apuntes) {
     cont.innerHTML = '<div class="empty-line">Cuando haya gastos, aquí saldrá el resumen</div>';
-    pintarFold('foldStats', 'stats', 0);
     return;
   }
-  if (!desplegado.stats) { pintarFold('foldStats', 'stats', 1); return; }
+  if (!desplegado.stats) return;
 
   const gente = datos.group.members.length;
   const cerrados = datos.tickets.filter(t => t.status === 'closed').length;
@@ -408,7 +414,6 @@ function pintarStats() {
     r.innerHTML = '<span class="stat-k">' + k + '</span><span class="stat-v">' + v + '</span>';
     cont.appendChild(r);
   });
-  pintarFold('foldStats', 'stats', 1);
 }
 
 // --- El easter egg: plantilla de los recordatorios ------------------------
@@ -528,13 +533,25 @@ const desplegado = { gastos: true, cerrados: true, abiertos: true, stats: true }
  * el usuario espera poder plegar la lista, no que el boton aparezca solo a
  * partir de cierto numero.
  */
-function pintarFold(btnId, clave, total) {
+function pintarFold(btnId, clave, total, importe) {
   const b = document.getElementById(btnId);
   if (!b) return;
-  if (!total) { b.classList.add('hidden'); return; }
-  b.classList.remove('hidden');
-  b.textContent = desplegado[clave] ? 'mostrar menos' : 'mostrar más (' + total + ')';
+
+  // El titulo ENTERO es el interruptor: se toca donde se esta mirando. Un
+  // boton aparte a la derecha obligaba a apuntar a un blanco pequeno.
+  b.classList.toggle('plegado', !desplegado[clave]);
   b.onclick = () => { desplegado[clave] = !desplegado[clave]; pintar(); };
+
+  // Plegada, la seccion deja a la vista lo unico que importa de un vistazo:
+  // cuanto suma.
+  // El giro se pone aqui y no por CSS a proposito: es estado, depende de una
+  // variable de JavaScript, y asi no hay que fiarse de que una regla gane la
+  // cascada. La transicion sigue siendo del CSS.
+  const chev = b.querySelector('.sec-chev');
+  if (chev) chev.style.transform = desplegado[clave] ? 'rotate(90deg)' : 'rotate(0deg)';
+
+  const t = b.querySelector('.sec-total');
+  if (t) t.textContent = (importe === undefined || importe === null) ? '' : eur(importe);
 }
 
 /**
@@ -594,7 +611,8 @@ function pintarTickets() {
   } else if (desplegado.abiertos) {
     abiertos.forEach(t => contA.appendChild(filaTicket(t)));
   }
-  pintarFold('foldOpen', 'abiertos', abiertos.length);
+  pintarFold('foldOpen', 'abiertos', abiertos.length,
+    abiertos.reduce((a, t) => a + (+t.total || 0), 0));
 
   // --- Historial de los cerrados ---
   const cont = document.getElementById('closedList');
@@ -604,7 +622,8 @@ function pintarTickets() {
   } else if (desplegado.cerrados) {
     cerrados.forEach(t => cont.appendChild(filaTicket(t)));
   }
-  pintarFold('foldClosed', 'cerrados', cerrados.length);
+  pintarFold('foldClosed', 'cerrados', cerrados.length,
+    cerrados.reduce((a, t) => a + (+t.total || 0), 0));
 }
 
 // ---------------------------------------------------------------- gastos sueltos
@@ -615,7 +634,7 @@ function pintarGastos() {
 
   if (!datos.expenses.length) {
     cont.innerHTML = '<div class="empty-line">El taxi, las entradas, la gasolina…</div>';
-    pintarFold('foldExpenses', 'gastos', 0);
+    pintarFold('foldExpenses', 'gastos', 0, 0);
     return;
   }
 
@@ -646,7 +665,8 @@ function pintarGastos() {
     });
   }
 
-  pintarFold('foldExpenses', 'gastos', datos.expenses.length);
+  pintarFold('foldExpenses', 'gastos', datos.expenses.length,
+    datos.expenses.reduce((a, e) => a + (+e.amount || 0), 0));
 }
 
 async function borrarGasto(e) {

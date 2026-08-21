@@ -26,7 +26,7 @@
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:wght@500;700;800&display=swap">
   <link rel="stylesheet" href="/css/style.css">
 </head>
-<body>
+<body class="pantalla-grupo">
   <div class="page">
 
     <div class="top-bar">
@@ -152,29 +152,29 @@
 
           <!-- Gastos sin ticket. Plegable: en un piso compartido esta lista
                se hace interminable a los dos meses. -->
-          <div class="sec-title sec-sub">
-            <span class="sec-pair">OTROS GASTOS <span class="sec-pair-b">sin ticket</span></span>
-            <button class="fold-btn" id="foldExpenses" type="button"></button>
-          </div>
+          <button class="sec-title sec-sub sec-toggle" id="foldExpenses" type="button">
+            <span class="sec-pair">OTROS GASTOS <span class="sec-pair-b">sin ticket</span><svg class="sec-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.6 5.6 15 12l-6.4 6.4L7.2 17l5-5-5-5z"/></svg></span>
+            <span class="sec-total" id="totalExpenses"></span>
+          </button>
           <div id="expensesList"></div>
 
           <hr class="dash-sep">
 
           <!-- Los que siguen a medias: son los que hay que terminar para que
                el reparto sea definitivo, asi que van primero. -->
-          <div class="sec-title">
-            <span class="sec-pair">HISTORIAL DE TICKETS <span class="sec-pair-b">sin cerrar</span></span>
-            <button class="fold-btn" id="foldOpen" type="button"></button>
-          </div>
+          <button class="sec-title sec-toggle" id="foldOpen" type="button">
+            <span class="sec-pair">HISTORIAL DE TICKETS <span class="sec-pair-b">sin cerrar</span><svg class="sec-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.6 5.6 15 12l-6.4 6.4L7.2 17l5-5-5-5z"/></svg></span>
+            <span class="sec-total" id="totalOpen"></span>
+          </button>
           <div id="openList"></div>
 
           <hr class="dash-sep">
 
           <!-- Los cerrados: se puede entrar a cada uno y ver su reparto. -->
-          <div class="sec-title">
-            <span class="sec-pair">HISTORIAL DE TICKETS <span class="sec-pair-b">cerrados</span></span>
-            <button class="fold-btn" id="foldClosed" type="button"></button>
-          </div>
+          <button class="sec-title sec-toggle" id="foldClosed" type="button">
+            <span class="sec-pair">HISTORIAL DE TICKETS <span class="sec-pair-b">cerrados</span><svg class="sec-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.6 5.6 15 12l-6.4 6.4L7.2 17l5-5-5-5z"/></svg></span>
+            <span class="sec-total" id="totalClosed"></span>
+          </button>
           <div id="closedList"></div>
 
           <hr class="dash-sep">
