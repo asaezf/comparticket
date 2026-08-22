@@ -3138,3 +3138,83 @@ body.en-grupo .upload-area { padding-top: 6px; }
 }
 .sec-toggle.plegado .sec-total { color: var(--black); }
 .pantalla-grupo .sec-total { font-size: 0.84rem; }
+
+/* =========================================================================
+   LAS TRES LISTAS DEL GRUPO
+   Antes cada una iba entre lineas de puntos: con todo plegado el ojo se
+   chocaba con una valla cada tres lineas, y el conjunto se leia como un
+   mazacote. Ahora forman un bloque y el propio titulo hace de separador.
+   ========================================================================= */
+.fold-stack { margin: 4px 0; }
+.fold-stack > .sec-toggle { border-top: 1px solid #E6E6EA; padding-top: 11px; }
+.fold-stack > .sec-toggle:first-child { border-top: none; padding-top: 2px; }
+
+/* Plegada, la seccion se queda mas apretada: sin lista debajo, el hueco de
+   antes dejaba tres titulos flotando muy sueltos. */
+.fold-stack > .sec-toggle.plegado { margin-bottom: 4px; }
+
+/* Cuantos hay y cuanto suman. Cuando no hay nada se dice con palabras y en
+   gris claro: un "0,00 EUR" parece una cifra y hace abrir la seccion para
+   descubrir que estaba vacia. */
+.sec-total.vacio {
+  font-weight: 400;
+  font-style: italic;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--gray-400);
+}
+
+/* La unica seccion que pide algo. Mientras haya tickets a medias su dinero
+   se queda fuera del reparto, asi que las cifras de arriba son provisionales
+   y hay que verlo sin buscarlo. Con la lista vacia no se marca nada. */
+.sec-toggle.pide-accion .sec-pair { color: var(--accent); }
+.sec-toggle.pide-accion .sec-total { color: var(--accent); }
+.sec-toggle.pide-accion .sec-chev { color: var(--accent); }
+
+/* RESUMEN: pliega por el titulo como las demas, pero conserva el "mostrar
+   mas" escrito porque no tiene un total que ensenar plegado. */
+.sec-toggle.sec-quiet { border-top: none; }
+.sec-toggle.sec-quiet .fold-btn { pointer-events: none; }
+
+/* Las dos cifras que se buscan de verdad, grandes y arriba. El resto del
+   resumen eran siete filas iguales: una pared en la que no destacaba nada. */
+.stat-hero {
+  display: flex;
+  gap: 10px;
+  margin: 2px 0 10px;
+}
+.sh-cell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 9px 11px;
+  border: 1.5px dashed var(--gray-300);
+  border-radius: var(--radius-sm);
+}
+.sh-k {
+  font-family: var(--sans);
+  font-size: 0.58rem;
+  letter-spacing: 0.04em;
+  color: var(--gray-400);
+}
+.sh-v {
+  font-family: var(--mono);
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: var(--black);
+  line-height: 1.1;
+}
+
+/* --- Y lo mismo, a la escala de la pantalla de grupo -------------------- */
+.pantalla-grupo .sh-k { font-size: 0.66rem; }
+.pantalla-grupo .sh-v { font-size: 1.28rem; }
+.pantalla-grupo .sh-cell { padding: 11px 13px; }
+.pantalla-grupo .fold-stack > .sec-toggle { padding-top: 13px; }
+
+/* Tu propio nombre dentro de un grupo. Ya lo cogiste en este movil, asi que
+   no se tacha como los ajenos: se marca como tuyo y viene elegido de serie. */
+.who-pill.es-tuyo {
+  border-style: solid;
+  border-color: var(--accent);
+}

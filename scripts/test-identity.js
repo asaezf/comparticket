@@ -212,5 +212,38 @@ console.log('\n6. Nombre bloqueado tras confirmar y volver con "atrás"');
     /if \(previo\) \{/.test(src) && !/if \(!input\.value\) \{\s*\n\s*if \(previo\)/.test(src), true);
 }
 
+// --- El testigo de identidad no puede salir del servidor -----------------
+//
+// Sin cuentas de usuario, ese testigo es la UNICA prueba de que alguien es
+// quien dice ser. /api/groups/:id devolvia el miembro entero, con su
+// `claimedBy` dentro, asi que cualquiera con el enlace del grupo podia leer
+// el testigo de los demas, mandarlo en claim-member y quedarse con su
+// identidad y sus gastos. Probado a mano contra el servidor antes de taparlo.
+{
+  const src = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  const ruta = src.slice(src.indexOf("app.get('/api/groups/:id'"));
+  const cuerpo = ruta.slice(0, ruta.indexOf('}));') + 4);
+
+  check('la ruta del grupo reconstruye los miembros en vez de devolverlos tal cual',
+    /members:\s*\(group\.members \|\| \[\]\)\.map/.test(cuerpo), true);
+  check('no manda el testigo de nadie',
+    /claimedBy:/.test(cuerpo), false);
+  check('no manda tampoco la fecha en que se cogio',
+    /claimedAt:/.test(cuerpo), false);
+  check('dice si el nombre esta cogido, sin decir por quien',
+    /taken:\s*!!m\.claimedBy/.test(cuerpo), true);
+  check('solo reconoce como tuyo el que coincide con el testigo que presentas',
+    /mine:\s*!!\(m\.claimedBy && mio && m\.claimedBy === mio\)/.test(cuerpo), true);
+
+  // La pantalla del ticket lo usa para saber quien eres sin preguntar.
+  const claim = fs.readFileSync(path.join(__dirname, '..', 'public', 'js', 'claim.js'), 'utf8');
+  check('el ticket reutiliza el MISMO testigo que la pantalla del grupo',
+    /localStorage\.getItem\('ct_tok_' \+ gid\)/.test(claim), true);
+  check('un nombre cogido por otro movil no se puede tocar',
+    /const ajeno = m\.taken && !m\.mine/.test(claim), true);
+  check('si el movil ya tiene nombre en el grupo, se elige solo',
+    /if \(yo && !input\.value\.trim\(\)\)/.test(claim), true);
+}
+
 console.log(`\n${pass} ok, ${fail} fallos\n`);
 process.exit(fail ? 1 : 0);

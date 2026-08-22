@@ -460,9 +460,17 @@ function setLiveState(state) {
 async function montarSelectorDeGrupo() {
   if (!ticketData || !ticketData.groupId) return;
 
+  // El mismo testigo que usa la pantalla del grupo, con la misma clave: si en
+  // este movil ya cogiste un nombre alli, el ticket tiene que saber quien eres
+  // sin volver a preguntartelo.
+  const gid = ticketData.groupId;
+  let testigo = '';
+  try { testigo = localStorage.getItem('ct_tok_' + gid) || ''; } catch (_) {}
+
   let grupo = null;
   try {
-    const r = await fetch('/api/groups/' + ticketData.groupId);
+    const r = await fetch('/api/groups/' + encodeURIComponent(gid) +
+      (testigo ? '?tok=' + encodeURIComponent(testigo) : ''));
     if (r.ok) grupo = await r.json();
   } catch (_) { /* sin grupo se sigue con el campo de texto de siempre */ }
   if (!grupo || !Array.isArray(grupo.members) || !grupo.members.length) return;
@@ -485,14 +493,26 @@ async function montarSelectorDeGrupo() {
     });
   };
 
+  const yo = grupo.members.find(m => m.mine);
+
   grupo.members.forEach(m => {
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'who-pill';
+    // Cogido por otro movil. Se deja a la vista —saber que Nerea ya esta
+    // dentro es informacion util— pero no se puede tocar. El tuyo nunca sale
+    // marcado asi, aunque tambien este cogido: lo cogiste tu.
+    const ajeno = m.taken && !m.mine;
+    b.className = 'who-pill' + (ajeno ? ' taken' : '') + (m.mine ? ' es-tuyo' : '');
     b.dataset.nombre = m.name;
     b.textContent = m.name;
+    if (ajeno) b.title = 'Ya lo está usando otro móvil';
+
     b.addEventListener('click', () => {
       if (nameLocked) return;   // ya confirmaste: el nombre no se cambia
+      if (ajeno) {
+        toast('«' + m.name + '» ya lo está usando otro móvil');
+        return;
+      }
       input.value = m.name;
       // Se dispara el mismo evento que al teclear, para que todo lo demas
       // reaccione igual que siempre.
@@ -501,6 +521,18 @@ async function montarSelectorDeGrupo() {
     });
     pills.appendChild(b);
   });
+
+  // Si este movil ya tiene nombre en el grupo, no se pregunta nada: se elige
+  // solo. Es el caso normal —abres el ticket que te han pasado por WhatsApp—
+  // y era absurdo pedir otra vez algo que el grupo ya sabia.
+  const etiqueta = document.getElementById('groupPickerLabel');
+  if (yo && !input.value.trim()) {
+    input.value = yo.name;
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+  }
+  if (etiqueta) {
+    etiqueta.textContent = yo ? 'ESTÁS MARCANDO COMO' : '¿QUIÉN ERES?';
+  }
 
   input.addEventListener('input', pintarActivas);
   pintarActivas();

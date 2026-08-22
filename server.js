@@ -721,7 +721,25 @@ app.post('/api/groups', rateLimit({ windowMs: 60000, max: 10 }), ruta(async (req
 app.get('/api/groups/:id', ruta(async (req, res) => {
   const group = await db.getPublicGroup(req.params.id);
   if (!group) return res.status(404).json({ error: 'Grupo no encontrado' });
-  res.json(group);
+
+  // Los testigos de identidad NO salen de aqui.
+  //
+  // Sin cuentas de usuario, ese testigo es la unica prueba de que alguien es
+  // quien dice ser. Esta ruta devolvia el miembro entero, con su `claimedBy`
+  // dentro, asi que cualquiera con el enlace del grupo podia leer el testigo
+  // de los demas, mandarlo en `claim-member` y quedarse con su identidad y
+  // sus gastos. Fuera va solo lo que la pantalla necesita: si el nombre esta
+  // cogido, y —si presentas tu testigo— cual de ellos es el tuyo.
+  const mio = asText((req.query || {}).tok, 80);
+  const safe = Object.assign({}, group, {
+    members: (group.members || []).map(m => ({
+      id: m.id,
+      name: m.name,
+      taken: !!m.claimedBy,
+      mine: !!(m.claimedBy && mio && m.claimedBy === mio)
+    }))
+  });
+  res.json(safe);
 }));
 
 app.get('/api/groups/:id/summary', ruta(async (req, res) => {

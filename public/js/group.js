@@ -366,11 +366,15 @@ function pintarStats() {
   if (!cont) return;
   cont.innerHTML = '';
 
+  // El titulo pliega, igual que las tres listas de arriba, pero conserva el
+  // "mostrar mas" escrito: aqui no hay un total que ensenar plegado, asi que
+  // sin esa palabra nada indicaria que se puede abrir.
   const btnStats = document.getElementById('foldStats');
+  const pista = document.getElementById('foldStatsHint');
   if (btnStats) {
-    btnStats.classList.remove('hidden');
-    btnStats.textContent = desplegado.stats ? 'mostrar menos' : 'mostrar más';
+    btnStats.classList.toggle('plegado', !desplegado.stats);
     btnStats.onclick = () => { desplegado.stats = !desplegado.stats; pintar(); };
+    if (pista) pista.textContent = desplegado.stats ? 'mostrar menos' : 'mostrar más';
   }
 
   if (!datos.stats.apuntes) {
@@ -393,9 +397,19 @@ function pintarStats() {
     if (!caro || e.amount > caro.importe) caro = { nombre: e.description, importe: e.amount };
   });
 
+  // Las dos cifras que se buscan de verdad van grandes y arriba. El resto
+  // eran siete filas identicas: una pared de letra pequena en la que no
+  // destacaba nada, asi que no se leia ninguna.
+  const hero = document.createElement('div');
+  hero.className = 'stat-hero';
+  hero.innerHTML =
+    '<div class="sh-cell"><span class="sh-k">gasto total</span>' +
+      '<span class="sh-v">' + eur(datos.stats.total) + '</span></div>' +
+    '<div class="sh-cell"><span class="sh-k">por persona</span>' +
+      '<span class="sh-v">' + eur(datos.stats.total / Math.max(1, gente)) + '</span></div>';
+  cont.appendChild(hero);
+
   const filas = [
-    ['Gasto total', eur(datos.stats.total)],
-    ['Por persona', eur(datos.stats.total / Math.max(1, gente))],
     // Solo los tickets CERRADOS entran en el reparto, asi que la cuenta tiene
     // que cuadrar a la vista: si dijera '3 (2 tickets, 2 sueltos)' nadie se
     // creeria el resto de las cifras.
@@ -550,8 +564,23 @@ function pintarFold(btnId, clave, total, importe) {
   const chev = b.querySelector('.sec-chev');
   if (chev) chev.style.transform = desplegado[clave] ? 'rotate(90deg)' : 'rotate(0deg)';
 
+  // Plegada, la seccion tiene que decir las dos cosas que se preguntan de un
+  // vistazo: CUANTOS hay y CUANTO suman. Antes solo decia el dinero, y
+  // "79,00 EUR" no distingue un ticket de doce.
+  //
+  // Y si no hay nada se dice con palabras. Un "0,00 EUR" parece una cifra
+  // real, y obliga a abrir la seccion para descubrir que estaba vacia.
   const t = b.querySelector('.sec-total');
-  if (t) t.textContent = (importe === undefined || importe === null) ? '' : eur(importe);
+  if (t) {
+    const n = +total || 0;
+    if (!n) {
+      t.textContent = 'ninguno';
+      t.classList.add('vacio');
+    } else {
+      t.textContent = n + ' · ' + eur(importe || 0);
+      t.classList.remove('vacio');
+    }
+  }
 }
 
 /**
@@ -613,6 +642,13 @@ function pintarTickets() {
   }
   pintarFold('foldOpen', 'abiertos', abiertos.length,
     abiertos.reduce((a, t) => a + (+t.total || 0), 0));
+
+  // De las tres listas, esta es la unica que pide algo: mientras haya tickets
+  // a medias, su dinero se queda fuera del reparto y las cifras de arriba son
+  // provisionales. Se marca solo cuando hay alguno; con la lista vacia no
+  // tiene que llamar la atencion de nadie.
+  const btnAbiertos = document.getElementById('foldOpen');
+  if (btnAbiertos) btnAbiertos.classList.toggle('pide-accion', abiertos.length > 0);
 
   // --- Historial de los cerrados ---
   const cont = document.getElementById('closedList');
