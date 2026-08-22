@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#ECEAE4">
+  <title>Historial del grupo · comparTICKET</title>
+  <meta name="description" content="Todos los gastos y tickets del grupo, con buscador y filtros.">
+
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="/icon.svg">
+
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="comparTICKET">
+  <meta property="og:title" content="Historial del grupo · comparTICKET">
+  <meta property="og:description" content="Todos los gastos y tickets del grupo, con buscador y filtros.">
+  <meta property="og:image" content="/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta name="twitter:card" content="summary_large_image">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:wght@500;700;800&display=swap">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body class="pantalla-grupo pantalla-ancha">
+  <div class="page">
+
+    <div class="top-bar">
+      <button class="top-bar-btn" id="volverBtn" title="Volver al grupo">
+        <svg viewBox="0 0 24 24"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
+      </button>
+      <div class="top-bar-title" id="barTitle">Historial</div>
+      <div class="top-bar-btn" style="visibility:hidden"></div>
+    </div>
+
+    <div class="printer-assembly">
+      <div class="printer-body">
+        <div class="printer-brand"><span>compar</span><strong>TICKET</strong></div>
+        <div class="printer-right">
+          <div class="printer-leds">
+            <div class="printer-led on"></div>
+            <div class="printer-led idle"></div>
+          </div>
+        </div>
+        <div class="printer-slot"></div>
+      </div>
+
+      <div class="ticket-wrap">
+        <div class="ticket printing" id="ticket">
+
+          <div class="ticket-header">
+            <div class="ticket-store" id="grupoNombre"></div>
+            <div class="ticket-date" id="grupoResumen"></div>
+          </div>
+
+          <hr class="dash-sep heavy">
+
+          <!-- El buscador. Filtra sobre todo a la vez: el nombre del sitio o
+               del gasto, quién lo pagó, y también el importe escrito tal cual
+               ("47" encuentra 47,00 €). -->
+          <div class="busca-box">
+            <svg class="busca-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M15.5 14h-.79l-.28-.27a6.5 6.5 0 1 0-.7.7l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0A4.5 4.5 0 1 1 14 9.5 4.5 4.5 0 0 1 9.5 14z"/></svg>
+            <input type="search" id="buscador" placeholder="Buscar por sitio, quién pagó o importe" autocomplete="off">
+            <button class="busca-x hidden" id="buscaX" type="button" title="Limpiar">&times;</button>
+          </div>
+
+          <!-- Cómo se ordena. Tocar el mismo dos veces le da la vuelta. -->
+          <div class="orden-row" id="ordenRow">
+            <button class="orden-btn" data-orden="fecha" type="button">Fecha</button>
+            <button class="orden-btn" data-orden="importe" type="button">Importe</button>
+            <button class="orden-btn" data-orden="pagador" type="button">Pagador</button>
+          </div>
+
+          <!-- Filtro por persona: quién adelantó el dinero. -->
+          <div class="filtro-gente" id="filtroGente"></div>
+
+          <hr class="dash-sep">
+
+          <div id="listaTodo"></div>
+
+          <div class="empty-line hidden" id="sinResultados"></div>
+
+        </div>
+        <div class="ticket-zigzag"></div>
+      </div>
+    </div>
+
+    <div class="home-indicator"></div>
+    <div class="easter-egg">desarrollado por A.Sáez.F</div>
+  </div>
+
+  <div class="toast hidden" id="toast"></div>
+
+  <script src="/js/i18n.js"></script>
+  <script src="/js/money.js"></script>
+  <script src="/js/historial.js"></script>
+</body>
+</html>

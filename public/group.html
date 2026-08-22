@@ -79,18 +79,24 @@
             <div class="who-pills" id="whoPills"></div>
           </div>
 
-          <!-- Hay un ticket nuevo esperando a que lo marques.
-               Antes alguien cenaba, subia la foto y el ticket se quedaba ahi
-               sin que nadie se enterara: habia que abrir el historial y darse
-               cuenta solo. Esto sale arriba, donde se mira primero, y solo si
-               falta TU marca. Lo pinta pintarAvisoTickets(). -->
-          <div class="aviso-nuevo hidden" id="avisoTickets"></div>
-
           <!-- Tu saldo, en grande: es lo primero que quiere ver cualquiera -->
           <div class="my-balance hidden" id="myBalance">
             <div class="mb-label" id="myBalanceLabel"></div>
             <div class="mb-amount" id="myBalanceAmount">0,00 €</div>
             <div class="mb-hint" id="myBalanceHint"></div>
+          </div>
+
+          <!-- Los tickets que esperan TU marca.
+               Seccion propia, y justo despues de tu saldo: es lo primero que
+               hay que hacer al entrar, antes de mirar cuanto debe nadie.
+               Aparece sola cuando hay alguno y desaparece al marcarlos. -->
+          <div class="pendientes hidden" id="pendientesBlock">
+            <hr class="dash-sep">
+            <div class="sec-title pend-title">
+              <span class="pend-punto"></span>
+              <span id="pendTitulo">TICKETS PENDIENTES DE MARCAR</span>
+            </div>
+            <div id="pendientesLista"></div>
           </div>
 
           <hr class="dash-sep">

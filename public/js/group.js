@@ -540,12 +540,12 @@ function pintarStats() {
   const fila = (k, v) => { if (v) filas.push([k, v]); };
 
   // --- El grupo ---
-  fila('Miembros', gente + (gente === 1 ? ' persona' : ' personas'));
+  fila('Miembros', String(gente));
   if (datos.group.createdAt) fila('Creado el', fFecha(datos.group.createdAt));
 
   // --- El dinero ---
   fila('Gasto total', eur(datos.stats.total));
-  if (gente) fila('A partes iguales', eur(datos.stats.total / gente) + ' cada uno');
+  if (gente) fila('A partes iguales', eur(datos.stats.total / gente));
   if (caro) fila('El gasto m\u00e1s caro', esc(caro.nombre) + ' \u00b7 ' + eur(caro.importe));
 
   // --- Los tickets ---
@@ -563,29 +563,29 @@ function pintarStats() {
   }
   const tacano = menos(dinero);
   if (tacano && gente > 1 && tacano !== banco) {
-    fila('Quien menos se ha gastado', esc(tacano) + ' \u00b7 ' + eur(dinero[tacano]));
+    fila('Qui\u00e9n ha adelantado menos', esc(tacano) + ' \u00b7 ' + eur(dinero[tacano]));
   }
 
   const masVeces = mas(veces);
   if (masVeces && veces[masVeces] > 0) {
-    fila('Quien m\u00e1s veces paga',
+    fila('Qui\u00e9n paga m\u00e1s veces',
       esc(masVeces) + ' \u00b7 ' + veces[masVeces] + (veces[masVeces] === 1 ? ' vez' : ' veces'));
   }
   const menosVeces = menos(veces);
   if (menosVeces && gente > 1 && menosVeces !== masVeces) {
-    fila('Quien menos veces paga',
+    fila('Qui\u00e9n paga menos veces',
       esc(menosVeces) + ' \u00b7 ' + veces[menosVeces] + (veces[menosVeces] === 1 ? ' vez' : ' veces'));
   }
 
   const lento = mas(media), rapido = menos(media);
-  if (lento) fila('Quien m\u00e1s tarda en pagar', esc(lento) + ' \u00b7 ' + dias(media[lento]));
+  if (lento) fila('Qui\u00e9n tarda m\u00e1s en pagar', esc(lento) + ' \u00b7 ' + dias(media[lento]));
   if (rapido && rapido !== lento) {
-    fila('Quien antes paga', esc(rapido) + ' \u00b7 ' + dias(media[rapido]));
+    fila('Qui\u00e9n paga antes', esc(rapido) + ' \u00b7 ' + dias(media[rapido]));
   }
 
   const elQueMasDebe = mas(debe);
   if (elQueMasDebe) {
-    fila('Quien m\u00e1s debe ahora', esc(elQueMasDebe) + ' \u00b7 ' + eur(debe[elQueMasDebe]));
+    fila('Qui\u00e9n debe m\u00e1s ahora', esc(elQueMasDebe) + ' \u00b7 ' + eur(debe[elQueMasDebe]));
   }
 
   fila('Pagos ya hechos',
@@ -908,37 +908,39 @@ function ticketsQueTeEsperan() {
 }
 
 function pintarAvisoTickets() {
-  const caja = document.getElementById('avisoTickets');
-  if (!caja) return;
+  const caja = document.getElementById('pendientesBlock');
+  const lista = document.getElementById('pendientesLista');
+  if (!caja || !lista) return;
 
   const pendientes = ticketsQueTeEsperan();
   caja.classList.toggle('hidden', !pendientes.length);
-  if (!pendientes.length) { caja.innerHTML = ''; return; }
+  lista.innerHTML = '';
+  if (!pendientes.length) return;
 
-  const uno = pendientes.length === 1;
-  const t = pendientes[0];
+  const tit = document.getElementById('pendTitulo');
+  if (tit) {
+    tit.textContent = pendientes.length === 1
+      ? 'TICKET PENDIENTE DE MARCAR'
+      : pendientes.length + ' TICKETS PENDIENTES DE MARCAR';
+  }
 
-  caja.innerHTML =
-    '<div class="an-punto"></div>' +
-    '<div class="an-txt">' +
-      '<span class="an-tit">' + (uno ? 'Un ticket te espera' : pendientes.length + ' tickets te esperan') + '</span>' +
-      '<span class="an-sub">' + (uno
-        ? esc(t.restaurant || 'Ticket') + ' \u00b7 ' + eur(t.total)
-        : 'todav\u00eda no has marcado lo tuyo') + '</span>' +
-    '</div>' +
-    '<span class="an-ir">' + (uno ? 'marcar' : 'ver') + '</span>';
-
-  caja.onclick = () => {
-    if (uno) {
-      location.href = '/claim.html?id=' + encodeURIComponent(t.id);
-      return;
-    }
-    // Con varios no se puede elegir por ti: se abre la lista y se senalan.
-    desplegado.abiertos = true;
-    pintar();
-    const lista = document.getElementById('openList');
-    if (lista) lista.scrollIntoView({ behavior: 'smooth', block: 'center' });
-  };
+  pendientes.forEach(t => {
+    const a = document.createElement('a');
+    a.className = 'pend-row';
+    // Va directo a marcar: es lo unico que hay que hacer con el.
+    a.href = '/claim.html?id=' + encodeURIComponent(t.id);
+    const d = new Date(t.receiptDate || t.createdAt);
+    a.innerHTML =
+      '<div class="pend-main">' +
+        '<span class="pend-name">' + esc(t.restaurant || 'Ticket') + '</span>' +
+        '<span class="pend-amount">' + eur(t.total) + '</span>' +
+      '</div>' +
+      '<div class="pend-sub">' +
+        '<span>' + (isNaN(d) ? '' : fechaYHora(d)) + '</span>' +
+        '<span class="pend-ir">marcar lo m\u00edo \u2192</span>' +
+      '</div>';
+    lista.appendChild(a);
+  });
 }
 
 /** Una fila de ticket, clicable para entrar a su reparto. */
@@ -951,7 +953,13 @@ function filaTicket(t) {
   const teEspera = abierto && yo && !(t.reparto && yo in t.reparto);
   fila.className = 'item-row' + (abierto ? ' is-open' : '') +
     (est && est.clase ? ' ' + est.clase : '') + (teEspera ? ' te-espera' : '');
-  fila.href = '/summary.html?id=' + encodeURIComponent(t.id);
+  // Lleva al historial completo, no directo al ticket.
+  //
+  // Un viaje son veinte apuntes y caben aqui; un piso compartido, a los seis
+  // meses, son doscientos. Alli hace falta buscar y filtrar, y desde esa
+  // pantalla se entra al ticket igual que se entraba desde aqui. Asi no hace
+  // falta un boton de "ver todos" estorbando en cada seccion.
+  fila.href = '/historial.html?grupo=' + encodeURIComponent(groupId);
   const d = new Date(t.receiptDate || t.createdAt);
   const fecha = isNaN(d) ? '' : fechaYHora(d);
   fila.innerHTML =
@@ -1023,8 +1031,12 @@ function pintarGastos() {
         ? 'entre todos'
         : 'entre ' + entre.map(esc).join(', ');
 
-      const fila = document.createElement('div');
+      // Tocar el gasto lleva al historial completo, igual que un ticket. La
+      // cruz de borrar se queda fuera de ese gesto: si no, un dedo mal puesto
+      // borraria un gasto en vez de abrir la lista.
+      const fila = document.createElement('a');
       fila.className = 'item-row';
+      fila.href = '/historial.html?grupo=' + encodeURIComponent(groupId);
       fila.innerHTML =
         '<div class="item-main">' +
           '<span class="item-name">' + esc(e.description) + '</span>' +
@@ -1035,7 +1047,11 @@ function pintarGastos() {
           '<span class="is-meta">' + conQuien + '</span>' +
           '<button class="item-del" type="button" title="Borrar">&times;</button>' +
         '</div>';
-      fila.querySelector('.item-del').addEventListener('click', () => borrarGasto(e));
+      fila.querySelector('.item-del').addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        borrarGasto(e);
+      });
       cont.appendChild(fila);
     });
   }
@@ -1063,11 +1079,14 @@ function abrirFormulario() {
   f.classList.remove('hidden');
   document.getElementById('addExpenseBtn').classList.add('hidden');
 
-  // Por defecto: lo pagas tú (si has dicho quién eres) y se reparte entre todos,
-  // que es el caso de nueve de cada diez gastos de viaje.
-  pagadorSel = yo || '';
-  repartoSel = datos.group.members.map(m => m.name);
+  // Nada viene elegido. Antes se marcaba solo "lo pagas tú, se reparte entre
+  // todos" porque es el caso mas comun, pero un gasto que se guarda a nombre
+  // de quien no lo pago descuadra el viaje entero, y al venir ya marcado nadie
+  // lo revisa. Se toca, y punto.
+  pagadorSel = '';
+  repartoSel = [];
   pintarPildorasFormulario();
+  refrescarGuardar();
   document.getElementById('expDesc').focus();
   f.scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
@@ -1090,7 +1109,13 @@ function pintarPildorasFormulario() {
     p.type = 'button';
     p.className = 'who-pill small' + (m.name === pagadorSel ? ' active' : '');
     p.textContent = m.name;
-    p.addEventListener('click', () => { pagadorSel = m.name; pintarPildorasFormulario(); });
+    p.addEventListener('click', () => {
+      // Volver a tocar al mismo lo quita: si te equivocas, se corrige igual
+      // que se puso.
+      pagadorSel = (pagadorSel === m.name) ? '' : m.name;
+      pintarPildorasFormulario();
+      refrescarGuardar();
+    });
     cp.appendChild(p);
 
     const s = document.createElement('button');
@@ -1102,9 +1127,28 @@ function pintarPildorasFormulario() {
         ? repartoSel.filter(n => n !== m.name)
         : repartoSel.concat([m.name]);
       pintarPildorasFormulario();
+      refrescarGuardar();
     });
     cs.appendChild(s);
   });
+}
+
+/**
+ * El boton de guardar solo se enciende con las cuatro cosas puestas.
+ *
+ * Quien lo pago y entre quienes se reparte son tan obligatorios como el
+ * nombre y el importe: sin ellos el gasto no se puede repartir. Antes venian
+ * marcados de serie y se colaban sin que nadie los mirara.
+ */
+function refrescarGuardar() {
+  const btn = document.getElementById('expSave');
+  if (!btn) return;
+  const desc = (document.getElementById('expDesc').value || '').trim();
+  const imp = parseFloat(document.getElementById('expAmount').value);
+  const listo = !!desc && Number.isFinite(imp) && imp > 0 &&
+                !!pagadorSel && repartoSel.length > 0;
+  btn.disabled = !listo;
+  btn.classList.toggle('a-falta', !listo);
 }
 
 async function guardarGasto() {
@@ -1241,6 +1285,11 @@ document.getElementById('tplReset').addEventListener('click', () => {
 document.getElementById('addExpenseBtn').addEventListener('click', abrirFormulario);
 document.getElementById('expCancel').addEventListener('click', cerrarFormulario);
 document.getElementById('expSave').addEventListener('click', guardarGasto);
+
+// El botón de guardar se apaga y se enciende con lo que hay escrito, igual
+// que reacciona a las píldoras.
+document.getElementById('expDesc').addEventListener('input', refrescarGuardar);
+document.getElementById('expAmount').addEventListener('input', refrescarGuardar);
 document.getElementById('shareGroupBtn').addEventListener('click', compartirGrupo);
 document.getElementById('shareTopBtn').addEventListener('click', compartirGrupo);
 

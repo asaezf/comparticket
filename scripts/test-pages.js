@@ -30,7 +30,8 @@ const PAGINAS = {
   'claim.html':   'claim.js',
   'summary.html': 'summary.js',
   'group.html':   'group.js',
-  'new-group.html': 'newgroup.js'
+  'new-group.html': 'newgroup.js',
+  'historial.html': 'historial.js'
 };
 const GLOBALES = { 'money.js': 'Money', 'imgprep.js': 'ImgPrep', 'i18n.js': 't', 'settle.js': 'Settle' };
 

@@ -3723,3 +3723,223 @@ body.en-grupo .atajo { display: none !important; }
 .pantalla-ancha .sec-title { font-size: 0.7rem; }
 .pantalla-ancha .empty-line { font-size: 0.8rem; }
 .pantalla-ancha .dash-sep { margin: 12px 0; }
+
+/* =========================================================================
+   TICKETS PENDIENTES DE MARCAR
+   Seccion propia, justo debajo de tu saldo: es lo primero que hay que hacer
+   al entrar, antes de mirar cuanto debe nadie. Aparece sola cuando hay
+   alguno y desaparece al marcarlos.
+   ========================================================================= */
+.pendientes { animation: pendEntra .4s cubic-bezier(0.22, 0.61, 0.36, 1); }
+@keyframes pendEntra {
+  from { opacity: 0; transform: translateY(-5px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.pend-title { display: flex; align-items: center; gap: 8px; color: var(--accent); }
+
+/* Lo unico que se mueve. En una pantalla con dinero, una animacion grande da
+   la sensacion de que algo va mal. */
+.pend-punto {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pendLate 1.9s ease-in-out infinite;
+}
+@keyframes pendLate {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,53,.5); }
+  70%      { box-shadow: 0 0 0 7px rgba(255,107,53,0); }
+}
+
+.pend-row {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  padding: 10px 12px;
+  margin-bottom: 7px;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  background: rgba(255,107,53,.06);
+  transition: transform .12s ease;
+}
+.pend-row:active { transform: scale(0.985); }
+.pend-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.pend-name {
+  font-family: var(--mono);
+  font-size: 0.8rem;
+  font-weight: 800;
+  color: var(--black);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pend-amount { font-family: var(--mono); font-size: 0.84rem; font-weight: 800; }
+.pend-sub {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 3px;
+  font-family: var(--sans);
+  font-size: 0.64rem;
+  color: var(--gray-400);
+}
+.pend-ir {
+  font-family: var(--mono);
+  font-weight: 800;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* El boton de guardar apagado mientras falte algo. Quien lo pago y entre
+   quienes se reparte son tan obligatorios como el nombre y el importe. */
+.btn.a-falta, .btn:disabled { opacity: .4; cursor: not-allowed; }
+.btn:disabled:active { transform: none; }
+
+/* =========================================================================
+   HISTORIAL COMPLETO DEL GRUPO
+   Un viaje son veinte apuntes y caben en la pantalla del grupo. Un piso
+   compartido, a los seis meses, son doscientos.
+   ========================================================================= */
+.busca-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 11px;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 10px;
+  background: #fff;
+  margin: 4px 0 10px;
+}
+.busca-box:focus-within { border-color: var(--accent); }
+.busca-ico { width: 16px; height: 16px; flex-shrink: 0; color: var(--gray-400); }
+.busca-box input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: none;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  color: var(--black);
+}
+.busca-box input::placeholder { color: var(--gray-300); }
+.busca-box input::-webkit-search-cancel-button { display: none; }
+.busca-x {
+  flex-shrink: 0;
+  appearance: none;
+  border: none;
+  background: none;
+  color: var(--gray-400);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 2px;
+}
+
+.orden-row { display: flex; gap: 6px; margin-bottom: 8px; }
+.orden-btn {
+  flex: 1;
+  appearance: none;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 8px;
+  background: #fff;
+  padding: 7px 6px;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--gray-500);
+  cursor: pointer;
+}
+.orden-btn.activo { border-color: var(--black); color: var(--black); }
+/* La flecha dice hacia donde ordena, y solo sale en el que esta activo. */
+.orden-btn.activo.desc::after { content: ' \2193'; }
+.orden-btn.activo.asc::after  { content: ' \2191'; }
+
+.filtro-gente { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 4px; }
+
+/* La cabecera de cada bloque: el mes, la persona o el tramo de importe,
+   segun por donde se este ordenando. */
+.hist-grupo {
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  color: var(--gray-400);
+  margin: 14px 0 6px;
+  padding-bottom: 4px;
+  border-bottom: 1.5px dashed var(--gray-300);
+}
+.hist-grupo:first-child { margin-top: 4px; }
+
+.hist-row {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  padding: 11px 4px;
+  border-bottom: 1px dashed #E6E6EA;
+  transition: transform .12s ease;
+}
+.hist-row:last-child { border-bottom: none; }
+a.hist-row:active { transform: scale(0.99); }
+
+.hist-main {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+.hist-name {
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--black);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.hist-amount { font-family: var(--mono); font-size: 0.86rem; font-weight: 800; white-space: nowrap; }
+.hist-sub {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 3px;
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  color: var(--gray-500);
+}
+.hist-date { color: var(--gray-400); font-size: 0.64rem; white-space: nowrap; }
+
+.hist-tag {
+  display: inline-block;
+  margin-top: 6px;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 2px 7px;
+  border-radius: 5px;
+}
+.hist-tag.suelto  { background: var(--gray-100, #F4F4F5); color: var(--gray-500); }
+.hist-tag.abierto { background: rgba(255,107,53,.14); color: var(--accent); }
+.hist-tag.cerrado { background: rgba(22,163,74,.13); color: #16A34A; }
+
+.pantalla-grupo .hist-name   { font-size: 0.9rem; }
+.pantalla-grupo .hist-amount { font-size: 0.95rem; }
+.pantalla-grupo .hist-sub    { font-size: 0.76rem; }
+.pantalla-grupo .hist-grupo  { font-size: 0.68rem; }
+.pantalla-grupo .busca-box input { font-size: 0.9rem; }
+.pantalla-grupo .orden-btn   { font-size: 0.74rem; padding: 9px 6px; }
+.pantalla-grupo .pend-name   { font-size: 0.9rem; }
+.pantalla-grupo .pend-amount { font-size: 0.95rem; }
+.pantalla-grupo .pend-sub    { font-size: 0.72rem; }
