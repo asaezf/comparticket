@@ -832,8 +832,32 @@ app.post('/api/groups/:id/payments', ruta(async (req, res) => {
     return res.status(400).json({ error: 'No puedes pagarte a ti mismo', code: 'SELF_PAYMENT' });
   }
 
+  // Cuanto llevaba parada la deuda que este pago salda: del ultimo movimiento
+  // del grupo ANTES de este pago hasta ahora. Se calcula en este momento
+  // porque despues es imposible: en cuanto entre otro gasto, el grupo vuelve
+  // a moverse y la espera se pierde.
+  let esperoDias = null;
+  try {
+    const [tk, gs, pg] = await Promise.all([
+      db.getGroupTickets(req.params.id),
+      db.getGroupExpenses(req.params.id),
+      db.getGroupPayments(req.params.id)
+    ]);
+    const fechas = []
+      .concat(gs.map(e => e.createdAt))
+      .concat(tk.filter(t => t.status === 'closed').map(t => t.closedAt || t.createdAt))
+      .concat(pg.map(x => x.createdAt))
+      .filter(Boolean)
+      .map(f => new Date(f).getTime())
+      .filter(n => !isNaN(n));
+    if (fechas.length) {
+      esperoDias = Math.max(0,
+        Math.floor((Date.now() - Math.max.apply(null, fechas)) / 86400000));
+    }
+  } catch (_) { /* si falla, el pago se registra igual: es un extra */ }
+
   const pago = await db.addGroupPayment(req.params.id, {
-    id: nanoid(10), from, to, amount: +amount.toFixed(2)
+    id: nanoid(10), from, to, amount: +amount.toFixed(2), esperoDias
   });
   res.json(pago);
 }));

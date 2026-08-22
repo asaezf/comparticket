@@ -102,5 +102,33 @@ console.log('\n4. La animación de impresión no puede recortar tickets largos')
   }
 }
 
+// --- Ninguna clase del HTML puede quedarse sin CSS -----------------------
+//
+// Un fallo real: al limpiar reglas viejas se borró `.grupo-banner`, que dos
+// pantallas seguían usando. Sin la regla que le daba tamaño al icono, el SVG
+// salía a su tamaño natural — una flecha morada gigante encima del ticket.
+// El HTML seguía siendo válido y ninguna prueba se enteró.
+{
+  const css = fs.readFileSync(path.join(PUB, 'css', 'style.css'), 'utf8');
+  const huerfanas = [];
+
+  for (const f of fs.readdirSync(PUB).filter(x => x.endsWith('.html'))) {
+    const html = fs.readFileSync(path.join(PUB, f), 'utf8');
+    const clases = new Set();
+    for (const m of html.matchAll(/class="([^"]+)"/g)) {
+      m[1].split(/\s+/).forEach(c => c && clases.add(c));
+    }
+    for (const c of clases) {
+      if (c === 'hidden') continue;   // la pone y la quita el JavaScript
+      if (!new RegExp('\\.' + c.replace(/-/g, '\\-') + '(?![\\w-])').test(css)) {
+        huerfanas.push(f + ' → .' + c);
+      }
+    }
+  }
+
+  check('ninguna clase del HTML se ha quedado sin CSS',
+    huerfanas.length === 0, huerfanas.join(', '));
+}
+
 console.log(`\n${pass} ok, ${fail} fallos\n`);
 process.exit(fail ? 1 : 0);

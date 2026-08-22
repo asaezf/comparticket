@@ -90,13 +90,10 @@ async function montarGrupo() {
 
   montarSelectorDePagador();
 
-  const banner = document.getElementById('grupoBanner');
-  if (banner) {
-    banner.classList.remove('hidden');
-    banner.href = '/g/' + encodeURIComponent(ticketData.groupId);
-    const n = document.getElementById('grupoBannerNombre');
-    if (n) n.textContent = grupoDelTicket.name;
-  }
+  // El banner del grupo ya no esta: estas pantallas tienen su propia flecha
+  // de volver en la cabecera, y una segunda barra encima del ticket solo
+  // tapaba lo que se ha venido a revisar.
+
 }
 
 function renderItems() {

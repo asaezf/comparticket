@@ -410,6 +410,13 @@ async function addGroupPayment(groupId, payment) {
     from: payment.from,
     to: payment.to,
     amount: payment.amount,
+    // Cuantos dias llevaba parada la deuda cuando este pago la salda.
+    //
+    // Se apunta AQUI, en el momento del pago, porque despues ya no se puede
+    // saber: en cuanto entra otro gasto, el grupo vuelve a moverse y esa
+    // espera se pierde para siempre. Es lo que permite decir quien tarda en
+    // pagar y quien no.
+    esperoDias: (typeof payment.esperoDias === 'number') ? payment.esperoDias : null,
     createdAt: new Date().toISOString()
   };
   await paymentsRef(groupId).doc(doc.id).set(doc);

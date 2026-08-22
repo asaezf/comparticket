@@ -3369,3 +3369,8 @@ body.en-grupo .upload-area { padding-top: 6px; }
    tres pasos deja de tener sentido, y son justo los pixeles que hacen que
    "Ver mis grupos" quede fuera de la pantalla en un movil. */
 body.tiene-grupos .tutorial { display: none; }
+
+/* Los nombres del grupo, debajo de la linea de QUIEN PAGO. Solo estan
+   mientras no hay nadie elegido: en cuanto se toca uno desaparecen y el
+   nombre se queda en el hueco de puntos de arriba. */
+.payer-picker { padding: 6px 0 2px; }

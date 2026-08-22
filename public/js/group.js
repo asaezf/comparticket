@@ -387,16 +387,20 @@ function etiquetaDias() {
 /**
  * Resumen del viaje: lo que la gente quiere contar despues.
  *
- * Todas las filas se calculan con lo que ya hay —tickets, gastos y pagos— y
- * ninguna se ensena si no tiene con que: un grupo de un solo apunte no tiene
- * "quien paga mas veces", y sacar una fila vacia solo hace ruido.
+ * Todo se calcula con lo que ya hay —miembros, tickets, gastos y pagos— y
+ * ninguna linea se ensena si no tiene con que: un grupo de un solo apunte no
+ * tiene "quien paga mas veces", y una fila vacia solo hace ruido.
  */
 function pintarStats() {
   const cont = document.getElementById('statsBlock');
   if (!cont) return;
   cont.innerHTML = '';
 
-  pintarFold('foldStats', 'stats', datos.stats.apuntes || 0, datos.stats.total || 0, 'apunte');
+  const gente = (datos.group.members || []).length;
+
+  // Cerrado, la cabecera dice el total y CUANTA GENTE hay. Antes decia
+  // "2 apuntes", que no significa nada para quien mira el grupo por encima.
+  pintarFold('foldStats', 'stats', gente, datos.stats.total || 0, 'miembro');
 
   if (!datos.stats.apuntes) {
     cont.innerHTML = desplegado.stats
@@ -406,99 +410,120 @@ function pintarStats() {
   }
   if (!desplegado.stats) return;
 
-  const gente = datos.group.members.length;
   const cerrados = datos.tickets.filter(t => t.status === 'closed');
 
-  // --- Todo lo que se ha pagado, venga de un ticket o de un gasto suelto ---
+  // --- Todo lo pagado, venga de un ticket o de un gasto suelto ------------
   const apuntes = []
-    .concat(cerrados.map(t => ({
-      nombre: t.restaurant || 'Ticket', importe: +t.total || 0,
-      quien: t.payerName, cuando: t.receiptDate || t.closedAt || t.createdAt
+    .concat(datos.tickets.map(t => ({
+      nombre: t.restaurant || 'Ticket', importe: +t.total || 0, quien: t.payerName,
+      cuando: t.receiptDate || t.createdAt, esTicket: true
     })))
     .concat(datos.expenses.map(e => ({
-      nombre: e.description, importe: +e.amount || 0,
-      quien: e.paidBy, cuando: e.createdAt
+      nombre: e.description, importe: +e.amount || 0, quien: e.paidBy,
+      cuando: e.createdAt, esTicket: false
     })));
 
-  // Cuanto ha puesto cada uno y cuantas veces ha sacado la cartera.
+  // Cuanto ha puesto cada uno y cuantas veces ha sacado la cartera. Solo
+  // cuentan los CERRADOS y los sueltos: lo de un ticket abierto todavia
+  // puede cambiar.
   const dinero = {}, veces = {};
-  datos.group.members.forEach(m => { dinero[m.name] = 0; veces[m.name] = 0; });
-  apuntes.forEach(a => {
-    if (!(a.quien in dinero)) { dinero[a.quien] = 0; veces[a.quien] = 0; }
-    dinero[a.quien] += a.importe;
-    veces[a.quien] += 1;
+  (datos.group.members || []).forEach(m => { dinero[m.name] = 0; veces[m.name] = 0; });
+  []
+    .concat(cerrados.map(t => ({ quien: t.payerName, importe: +t.total || 0 })))
+    .concat(datos.expenses.map(e => ({ quien: e.paidBy, importe: +e.amount || 0 })))
+    .forEach(a => {
+      if (!(a.quien in dinero)) { dinero[a.quien] = 0; veces[a.quien] = 0; }
+      dinero[a.quien] += a.importe;
+      veces[a.quien] += 1;
+    });
+
+  const mas   = o => Object.keys(o).sort((a, b) => o[b] - o[a])[0];
+  const menos = o => Object.keys(o).sort((a, b) => o[a] - o[b])[0];
+
+  // Cuanto tarda cada uno en pagar, de media. Sale de lo que se apunto en el
+  // momento de cada pago: despues es imposible de reconstruir.
+  const esperas = {};
+  datos.payments.forEach(pg => {
+    if (typeof pg.esperoDias !== 'number') return;
+    (esperas[pg.from] = esperas[pg.from] || []).push(pg.esperoDias);
   });
+  const media = {};
+  Object.keys(esperas).forEach(k => {
+    media[k] = esperas[k].reduce((a, b) => a + b, 0) / esperas[k].length;
+  });
+  const dias = n => {
+    const r = Math.round(n * 10) / 10;
+    return r < 1 ? 'el mismo d\u00eda' : (r === 1 ? '1 d\u00eda' : r + ' d\u00edas');
+  };
 
-  const masPor = obj => Object.keys(obj).sort((a, b) => obj[b] - obj[a])[0];
-  const menosPor = obj => Object.keys(obj).sort((a, b) => obj[a] - obj[b])[0];
+  // Ordenados por fecha, para el primero y el ultimo.
+  const porFecha = apuntes.filter(a => a.cuando && !isNaN(new Date(a.cuando)))
+    .sort((a, b) => new Date(a.cuando) - new Date(b.cuando));
+  const tickets = datos.tickets.filter(t => t.createdAt && !isNaN(new Date(t.receiptDate || t.createdAt)))
+    .sort((a, b) => new Date(a.receiptDate || a.createdAt) - new Date(b.receiptDate || b.createdAt));
 
-  // El gasto mas caro, mirando tickets y sueltos por igual.
   const caro = apuntes.slice().sort((a, b) => b.importe - a.importe)[0];
-
-  // El dia en que mas se dejo el grupo.
-  const porDia = {};
-  apuntes.forEach(a => {
-    const d = new Date(a.cuando);
-    if (isNaN(d)) return;
-    const k = d.toISOString().slice(0, 10);
-    porDia[k] = (porDia[k] || 0) + a.importe;
-  });
-  const diaCaro = masPor(porDia);
-
-  // Quien ya ha saldado deudas: cuantas veces ha pagado a alguien.
-  const salda = {};
-  datos.payments.forEach(p => { salda[p.from] = (salda[p.from] || 0) + 1; });
-  const cumplidor = masPor(salda);
-
-  // Quien debe mas ahora mismo.
   const debe = {};
   datos.transfers.forEach(t => { debe[t.de] = (debe[t.de] || 0) + t.importe; });
-  const elQueMasDebe = masPor(debe);
+
+  const fFecha = f => {
+    const d = new Date(f);
+    return isNaN(d) ? '' : d.toLocaleDateString('es-ES',
+      { day: '2-digit', month: 'short', year: 'numeric' });
+  };
 
   const filas = [];
   const fila = (k, v) => { if (v) filas.push([k, v]); };
 
+  // --- El grupo ---
+  fila('Miembros', gente + (gente === 1 ? ' persona' : ' personas'));
+  if (datos.group.createdAt) fila('Creado el', fFecha(datos.group.createdAt));
+
+  // --- El dinero ---
   fila('Gasto total', eur(datos.stats.total));
-  if (apuntes.length > 1) {
-    fila('Media por apunte', eur(datos.stats.total / apuntes.length));
-  }
+  if (gente) fila('A partes iguales', eur(datos.stats.total / gente) + ' cada uno');
   if (caro) fila('El gasto m\u00e1s caro', esc(caro.nombre) + ' \u00b7 ' + eur(caro.importe));
-  if (diaCaro && Object.keys(porDia).length > 1) {
-    const d = new Date(diaCaro + 'T12:00:00');
-    fila('El d\u00eda m\u00e1s caro',
-      d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) +
-      ' \u00b7 ' + eur(porDia[diaCaro]));
+
+  // --- Los tickets ---
+  if (tickets.length) {
+    fila('Primer ticket', esc(tickets[0].restaurant || 'Ticket'));
+    if (tickets.length > 1) {
+      fila('\u00daltimo ticket', esc(tickets[tickets.length - 1].restaurant || 'Ticket'));
+    }
   }
 
-  const banco = masPor(dinero);
+  // --- La gente ---
+  const banco = mas(dinero);
   if (banco && dinero[banco] > 0) {
     fila('El banco del grupo', esc(banco) + ' \u00b7 ' + eur(dinero[banco]) + ' adelantados');
   }
-  const tacano = menosPor(dinero);
+  const tacano = menos(dinero);
   if (tacano && gente > 1 && tacano !== banco) {
-    fila('Quien menos ha puesto', esc(tacano) + ' \u00b7 ' + eur(dinero[tacano]));
+    fila('Quien menos se ha gastado', esc(tacano) + ' \u00b7 ' + eur(dinero[tacano]));
   }
 
-  const masVeces = masPor(veces);
-  if (masVeces && veces[masVeces] > 1) {
+  const masVeces = mas(veces);
+  if (masVeces && veces[masVeces] > 0) {
     fila('Quien m\u00e1s veces paga',
-      esc(masVeces) + ' \u00b7 ' + veces[masVeces] + ' veces');
+      esc(masVeces) + ' \u00b7 ' + veces[masVeces] + (veces[masVeces] === 1 ? ' vez' : ' veces'));
   }
-  if (cumplidor) {
-    fila('El m\u00e1s cumplidor',
-      esc(cumplidor) + ' \u00b7 ' + salda[cumplidor] +
-      (salda[cumplidor] === 1 ? ' deuda saldada' : ' deudas saldadas'));
-  }
-  if (elQueMasDebe) {
-    fila('Quien m\u00e1s debe ahora',
-      esc(elQueMasDebe) + ' \u00b7 ' + eur(debe[elQueMasDebe]));
+  const menosVeces = menos(veces);
+  if (menosVeces && gente > 1 && menosVeces !== masVeces) {
+    fila('Quien menos veces paga',
+      esc(menosVeces) + ' \u00b7 ' + veces[menosVeces] + (veces[menosVeces] === 1 ? ' vez' : ' veces'));
   }
 
-  fila('En el reparto', datos.stats.apuntes + ' (' + cerrados.length +
-    ' cerrados, ' + datos.expenses.length + ' sueltos)');
-  fila('Sin cerrar todav\u00eda', datos.ticketsAbiertos
-    ? datos.ticketsAbiertos + ' \u00b7 ' + eur(datos.pendienteDeCerrar || 0) + ' fuera'
-    : 'ninguno');
+  const lento = mas(media), rapido = menos(media);
+  if (lento) fila('Quien m\u00e1s tarda en pagar', esc(lento) + ' \u00b7 ' + dias(media[lento]));
+  if (rapido && rapido !== lento) {
+    fila('Quien antes paga', esc(rapido) + ' \u00b7 ' + dias(media[rapido]));
+  }
+
+  const elQueMasDebe = mas(debe);
+  if (elQueMasDebe) {
+    fila('Quien m\u00e1s debe ahora', esc(elQueMasDebe) + ' \u00b7 ' + eur(debe[elQueMasDebe]));
+  }
+
   fila('Pagos ya hechos',
     datos.payments.length + ' de ' + (datos.payments.length + datos.transfers.length));
 
@@ -619,7 +644,10 @@ async function deshacerPago(p) {
 // Que listas estan desplegadas. Abiertas de entrada: lo normal es querer ver
 // lo que hay. Se pueden compactar porque en un piso compartido, a los dos
 // meses, la lista se hace interminable.
-const desplegado = { gastos: true, cerrados: true, abiertos: true, stats: true };
+// Todo empieza cerrado. Al entrar a un grupo lo que importa son los saldos y
+// el reparto, que estan arriba; las listas son para ir a buscarlas, no para
+// que te reciban desplegadas con todo lo que hay dentro.
+const desplegado = { gastos: false, cerrados: false, abiertos: false, stats: false };
 
 /**
  * Boton de mostrar mas / mostrar menos.
@@ -695,6 +723,17 @@ function estadoTicket(t) {
   return { clase: todos && cuadra ? 'listo' : (todos ? 'descuadra' : ''), chips };
 }
 
+/**
+ * Fecha y hora de un ticket, en el formato del papel: "09 AGO 21:37".
+ *
+ * La hora importa mas de lo que parece: en un viaje se cena dos veces en el
+ * mismo sitio, y con solo el dia los dos tickets se confunden.
+ */
+function fechaYHora(d) {
+  return fmtFecha(d) + ' ' + d.toLocaleTimeString('es-ES',
+    { hour: '2-digit', minute: '2-digit' });
+}
+
 /** Una fila de ticket, clicable para entrar a su reparto. */
 function filaTicket(t) {
   const abierto = t.status !== 'closed';
@@ -703,7 +742,7 @@ function filaTicket(t) {
   fila.className = 'item-row' + (abierto ? ' is-open' : '') + (est && est.clase ? ' ' + est.clase : '');
   fila.href = '/summary.html?id=' + encodeURIComponent(t.id);
   const d = new Date(t.receiptDate || t.createdAt);
-  const fecha = isNaN(d) ? '' : fmtFecha(d);
+  const fecha = isNaN(d) ? '' : fechaYHora(d);
   fila.innerHTML =
     '<div class="item-main">' +
       '<span class="item-name">' + esc(t.restaurant || 'Ticket') + '</span>' +

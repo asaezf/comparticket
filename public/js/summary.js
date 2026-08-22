@@ -321,23 +321,13 @@ async function montarGrupo() {
   if (!ticketData || !ticketData.groupId) return;
 
   const destino = '/g/' + encodeURIComponent(ticketData.groupId);
-  const banner = document.getElementById('grupoBanner');
+  // La barra de arriba ya no esta: esta pantalla tiene su flecha de volver en
+  // la cabecera y su boton de volver al grupo abajo. Una tercera via, encima
+  // del ticket, solo tapaba lo que se ha venido a mirar.
   const area = document.getElementById('backToGroupArea');
   const btn = document.getElementById('backToGroupBtn');
   if (btn) btn.href = destino;
   if (area) area.classList.remove('hidden');
-  if (banner) {
-    banner.classList.remove('hidden');
-    banner.href = destino;
-  }
-
-  try {
-    const r = await fetch('/api/groups/' + encodeURIComponent(ticketData.groupId));
-    if (!r.ok) return;
-    const g = await r.json();
-    const n = document.getElementById('grupoBannerNombre');
-    if (n && g && g.name) n.textContent = g.name;
-  } catch (_) {}
 }
 
 function renderProgress() {
