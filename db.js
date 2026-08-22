@@ -127,7 +127,18 @@ async function setTicketStatus(id, status) {
   const ref = ticketRef(id);
   const snap = await ref.get();
   if (!snap.exists) return null;
-  await ref.update({ status });
+
+  // Se apunta CUANDO se cierra, no solo que esta cerrado.
+  //
+  // Es la fecha que convierte una deuda en exigible: hasta que el ticket no
+  // se cierra, lo que debe cada uno todavia puede cambiar, y no tiene sentido
+  // contarle los dias a nadie. Desde el cierre si: es el momento a partir del
+  // cual alguien lleva sin pagar.
+  const campos = { status };
+  if (status === 'closed' && !snap.data().closedAt) {
+    campos.closedAt = new Date().toISOString();
+  }
+  await ref.update(campos);
   return (await ref.get()).data();
 }
 

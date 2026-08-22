@@ -88,6 +88,8 @@ async function montarGrupo() {
     if (!pInput.value) pInput.value = String(topeParticipantes);
   }
 
+  montarSelectorDePagador();
+
   const banner = document.getElementById('grupoBanner');
   if (banner) {
     banner.classList.remove('hidden');
@@ -390,4 +392,69 @@ function textoTicketWhatsApp() {
     (quien ? quien + ' ha pagado. ' : '') +
     'Marca lo que has tomado para saber cuánto le debes.\n' +
     '\uD83D\uDC47';
+}
+
+
+/**
+ * Quien ha pagado, elegido de la lista del grupo.
+ *
+ * Es el primer paso despues de escanear, y hasta ahora se escribia a mano
+ * incluso dentro de un grupo donde los nombres ya estan decididos. Escribirlos
+ * es la puerta por la que "Alvaro", "alvaro" y "Alvarito" acaban siendo tres
+ * personas distintas al sumar quince tickets, y el reparto final sale mal sin
+ * que nadie llegue a ver por que.
+ *
+ * El campo de texto no se elimina: se oculta y las pastillas lo rellenan, asi
+ * que todo lo que ya dependia de el sigue funcionando igual.
+ */
+function montarSelectorDePagador() {
+  const caja  = document.getElementById('payerPicker');
+  const pills = document.getElementById('payerPickerPills');
+  const campo = document.querySelector('.payer-field');
+  const input = document.getElementById('payerInput');
+  if (!caja || !pills || !campo || !input) return;
+  if (!grupoDelTicket || !Array.isArray(grupoDelTicket.members) ||
+      !grupoDelTicket.members.length) return;
+
+  campo.classList.add('hidden');
+  caja.classList.remove('hidden');
+  pills.innerHTML = '';
+
+  const marcar = () => {
+    const actual = (input.value || '').trim().toLowerCase();
+    pills.querySelectorAll('.who-pill').forEach(b => {
+      b.classList.toggle('active', b.dataset.nombre.toLowerCase() === actual);
+    });
+  };
+
+  grupoDelTicket.members.forEach(m => {
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'who-pill';
+    b.dataset.nombre = m.name;
+    b.textContent = m.name;
+    b.addEventListener('click', () => {
+      input.value = m.name;
+      // El mismo evento que al teclear, para que lo que ya escuchaba al campo
+      // siga reaccionando igual.
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      marcar();
+    });
+    pills.appendChild(b);
+  });
+
+  // Si este movil ya tiene nombre en el grupo, lo normal es que sea quien
+  // acaba de pagar y de escanear: viene elegido, y se cambia con un toque.
+  if (!input.value.trim()) {
+    let testigo = '';
+    try { testigo = localStorage.getItem('ct_tok_' + ticketData.groupId) || ''; } catch (_) {}
+    if (testigo) {
+      const yo = grupoDelTicket.members.find(m => m.mine);
+      if (yo) input.value = yo.name;
+    }
+  }
+
+  input.addEventListener('input', marcar);
+  marcar();
+  if (typeof fitTicket === 'function') fitTicket();
 }

@@ -628,7 +628,10 @@ async function groupSummary(groupId, req_token) {
       receiptDate: t.receiptDate,
       createdAt: t.createdAt,
       lineas: (t.items || []).length,
-      reparto: r.perPerson
+      reparto: r.perPerson,
+      // La fecha del cierre: es la que convierte la deuda en exigible y a
+      // partir de la cual empiezan a contar los dias sin pagar.
+      closedAt: t.closedAt || null
     });
   }
 
@@ -654,9 +657,14 @@ async function groupSummary(groupId, req_token) {
   // Cuanto lleva el grupo sin moverse. Mientras siguen entrando gastos, la
   // deuda todavia esta cambiando y no tiene sentido reclamar nada; en cuanto
   // el grupo se queda quieto, los dias empiezan a contar de verdad.
+  //
+  // De un ticket cuenta la fecha en que se CERRO, no en que se creo: hasta
+  // que no se cierra, lo que debe cada uno todavia puede cambiar y no hay
+  // ninguna deuda que reclamar. Un ticket escaneado hace diez dias y cerrado
+  // hoy no lleva diez dias sin pagarse: lleva cero.
   const fechas = []
     .concat(expenses.map(e => e.createdAt))
-    .concat(detalleTickets.map(t => t.createdAt))
+    .concat(detalleTickets.map(t => t.closedAt || t.createdAt))
     .concat(payments.map(p => p.createdAt))
     .filter(Boolean)
     .map(f => new Date(f).getTime())

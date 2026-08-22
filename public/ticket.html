@@ -79,6 +79,14 @@
             <input type="text" id="payerInput" autocomplete="given-name" maxlength="30" placeholder="—">
           </div>
 
+          <!-- Dentro de un grupo, quien pago no se escribe: se toca. Los
+               nombres ya estan decididos, y escribirlos a mano es la puerta
+               por la que "Alvaro", "alvaro" y "Alvarito" acaban siendo tres
+               personas distintas al cuadrar quince tickets. -->
+          <div class="payer-picker hidden" id="payerPicker">
+            <div class="who-pills" id="payerPickerPills"></div>
+          </div>
+
           <hr class="dash-sep">
 
           <!-- Expected participants -->

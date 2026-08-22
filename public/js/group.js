@@ -292,11 +292,18 @@ function pintarTransferencias() {
   // Los tickets sin cerrar no entran en el cuadre: a quien pagó se le
   // acreditaría el total mientras solo está repartido lo marcado, y el dinero
   // se crearía de la nada. Se dice cuánto queda fuera y por qué.
-  nota.textContent = datos.ticketsAbiertos
-    ? eur(datos.pendienteDeCerrar || 0) + ' sin contar · ' +
-      datos.ticketsAbiertos + (datos.ticketsAbiertos === 1 ? ' ticket sin cerrar' : ' tickets sin cerrar')
-    : '';
-  nota.className = 'sec-note' + (datos.ticketsAbiertos ? ' warn' : '');
+  // El aviso ya no va apretado a la derecha del titulo: tiene su propia
+  // franja debajo, con la cifra en grande y el motivo debajo en una linea
+  // entera. Cuando no hay nada fuera del cuadre, desaparece.
+  const n = datos.ticketsAbiertos || 0;
+  nota.classList.toggle('hidden', !n);
+  if (n) {
+    document.getElementById('settleNoteAmount').textContent =
+      eur(datos.pendienteDeCerrar || 0);
+    document.getElementById('settleNoteWhy').textContent = n === 1
+      ? 'todav\u00eda fuera del reparto — queda 1 ticket sin cerrar'
+      : 'todav\u00eda fuera del reparto — quedan ' + n + ' tickets sin cerrar';
+  }
 
   if (!datos.transfers.length) {
     cont.innerHTML = datos.stats.apuntes
@@ -366,19 +373,13 @@ function pintarStats() {
   if (!cont) return;
   cont.innerHTML = '';
 
-  // El titulo pliega, igual que las tres listas de arriba, pero conserva el
-  // "mostrar mas" escrito: aqui no hay un total que ensenar plegado, asi que
-  // sin esa palabra nada indicaria que se puede abrir.
-  const btnStats = document.getElementById('foldStats');
-  const pista = document.getElementById('foldStatsHint');
-  if (btnStats) {
-    btnStats.classList.toggle('plegado', !desplegado.stats);
-    btnStats.onclick = () => { desplegado.stats = !desplegado.stats; pintar(); };
-    if (pista) pista.textContent = desplegado.stats ? 'mostrar menos' : 'mostrar más';
-  }
+  // El resumen se abre igual que las demas secciones: tocando la cabecera.
+  pintarFold('foldStats', 'stats', datos.stats.apuntes || 0, datos.stats.total || 0);
 
   if (!datos.stats.apuntes) {
-    cont.innerHTML = '<div class="empty-line">Cuando haya gastos, aquí saldrá el resumen</div>';
+    cont.innerHTML = desplegado.stats
+      ? '<div class="empty-line">Cuando haya gastos, aquí saldrá el resumen</div>'
+      : '';
     return;
   }
   if (!desplegado.stats) return;
@@ -551,36 +552,22 @@ function pintarFold(btnId, clave, total, importe) {
   const b = document.getElementById(btnId);
   if (!b) return;
 
-  // El titulo ENTERO es el interruptor: se toca donde se esta mirando. Un
-  // boton aparte a la derecha obligaba a apuntar a un blanco pequeno.
-  b.classList.toggle('plegado', !desplegado[clave]);
+  // La cabecera entera es el interruptor. No lleva flecha ni "mostrar mas":
+  // una fila con un total delante es algo que se toca, y basta con que se
+  // hunda al pulsarla para que se note que responde.
+  b.classList.toggle('abierta', !!desplegado[clave]);
   b.onclick = () => { desplegado[clave] = !desplegado[clave]; pintar(); };
 
-  // Plegada, la seccion deja a la vista lo unico que importa de un vistazo:
-  // cuanto suma.
-  // El giro se pone aqui y no por CSS a proposito: es estado, depende de una
-  // variable de JavaScript, y asi no hay que fiarse de que una regla gane la
-  // cascada. La transicion sigue siendo del CSS.
-  const chev = b.querySelector('.sec-chev');
-  if (chev) chev.style.transform = desplegado[clave] ? 'rotate(90deg)' : 'rotate(0deg)';
+  // Cerrada o abierta, la cabecera dice siempre lo mismo: cuanto suma y
+  // cuantos son. Son las dos preguntas que se hacen de un vistazo, y "79,00
+  // EUR" a secas no distingue un ticket de doce.
+  const suma = b.querySelector('.sh-sum');
+  const cuenta = b.querySelector('.sh-count');
+  const n = +total || 0;
 
-  // Plegada, la seccion tiene que decir las dos cosas que se preguntan de un
-  // vistazo: CUANTOS hay y CUANTO suman. Antes solo decia el dinero, y
-  // "79,00 EUR" no distingue un ticket de doce.
-  //
-  // Y si no hay nada se dice con palabras. Un "0,00 EUR" parece una cifra
-  // real, y obliga a abrir la seccion para descubrir que estaba vacia.
-  const t = b.querySelector('.sec-total');
-  if (t) {
-    const n = +total || 0;
-    if (!n) {
-      t.textContent = 'ninguno';
-      t.classList.add('vacio');
-    } else {
-      t.textContent = n + ' · ' + eur(importe || 0);
-      t.classList.remove('vacio');
-    }
-  }
+  if (suma) suma.textContent = (importe === undefined || importe === null) ? '' : eur(importe);
+  if (cuenta) cuenta.textContent = n ? (n === 1 ? '1 apunte' : n + ' apuntes') : 'vac\u00edo';
+  b.classList.toggle('sin-nada', !n);
 }
 
 /**
@@ -622,9 +609,10 @@ function filaTicket(t) {
       '<span class="item-amount">' + eur(t.total) + '</span>' +
     '</div>' +
     '<div class="item-sub">' +
-      fecha + esc(t.payerName || 'sin pagador') + ' · ' + t.lineas + ' líneas' +
-      (est ? '<span class="item-tag ' + est.tono + '">' + esc(est.texto) + '</span>' : '') +
-    '</div>';
+      '<span class="is-who">' + esc(t.payerName || 'sin pagador') + '</span>' +
+      '<span class="is-meta">' + fecha + t.lineas + ' l\u00edneas</span>' +
+    '</div>' +
+    (est ? '<div class="item-state ' + est.tono + '">' + esc(est.texto) + '</div>' : '');
   return fila;
 }
 
@@ -643,12 +631,6 @@ function pintarTickets() {
   pintarFold('foldOpen', 'abiertos', abiertos.length,
     abiertos.reduce((a, t) => a + (+t.total || 0), 0));
 
-  // De las tres listas, esta es la unica que pide algo: mientras haya tickets
-  // a medias, su dinero se queda fuera del reparto y las cifras de arriba son
-  // provisionales. Se marca solo cuando hay alguno; con la lista vacia no
-  // tiene que llamar la atencion de nadie.
-  const btnAbiertos = document.getElementById('foldOpen');
-  if (btnAbiertos) btnAbiertos.classList.toggle('pide-accion', abiertos.length > 0);
 
   // --- Historial de los cerrados ---
   const cont = document.getElementById('closedList');
@@ -693,7 +675,8 @@ function pintarGastos() {
           '<span class="item-amount">' + eur(e.amount) + '</span>' +
         '</div>' +
         '<div class="item-sub">' +
-          'pagó ' + esc(e.paidBy) + ' · ' + conQuien +
+          '<span class="is-who">pag\u00f3 ' + esc(e.paidBy) + '</span>' +
+          '<span class="is-meta">' + conQuien + '</span>' +
           '<button class="item-del" type="button" title="Borrar">&times;</button>' +
         '</div>';
       fila.querySelector('.item-del').addEventListener('click', () => borrarGasto(e));

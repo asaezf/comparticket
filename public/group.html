@@ -97,7 +97,15 @@
           <!-- El cuadre: quien le paga a quien, con el minimo de pagos -->
           <div class="sec-title">
             <span id="repartoTitulo">REPARTO</span>
-            <span class="sec-note" id="settleNote"></span>
+          </div>
+
+          <!-- El aviso de lo que queda fuera del cuadre.
+               Estaba pegado a la derecha del titulo, en letra diminuta y
+               partiendose por la mitad. Aqui abajo tiene sitio para decirse
+               entero y en dos alturas: primero la cifra, y debajo por que. -->
+          <div class="settle-note hidden" id="settleNote">
+            <span class="sn-amount" id="settleNoteAmount"></span>
+            <span class="sn-why" id="settleNoteWhy"></span>
           </div>
 
           <!-- Easter egg: tres toques en REPARTO. Se guarda en el grupo y no
@@ -125,11 +133,11 @@
           <div class="sec-title">AÑADIR</div>
           <div class="add-row">
             <button class="add-btn" id="addTicketBtn" type="button">
-              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
+              <span class="ab-icos"><svg class="ab-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg><svg class="ab-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 2h14a1 1 0 0 1 1 1v18.1a.5.5 0 0 1-.75.43L17.5 20.4l-1.75 1.15a.5.5 0 0 1-.55 0L13.5 20.4l-1.75 1.15a.5.5 0 0 1-.55 0L9.5 20.4l-1.75 1.15a.5.5 0 0 1-.55 0L5.5 20.4l-1.75 1.13A.5.5 0 0 1 3 21.1V3a1 1 0 0 1 1-1z" opacity=".18"/><path d="M5.2 2.4h13.6a.9.9 0 0 1 .9.9v17.4c0 .38-.42.6-.74.4l-1.66-1.05-1.66 1.05a.75.75 0 0 1-.8 0l-1.66-1.05-1.66 1.05a.75.75 0 0 1-.8 0L8.1 20.05 6.44 21.1a.47.47 0 0 1-.74-.4V3.3a.9.9 0 0 1 .9-.9z" fill="none" stroke="currentColor" stroke-width="1.5"/><rect x="8" y="7" width="8" height="1.5" rx=".75"/><rect x="8" y="11" width="8" height="1.5" rx=".75"/><rect x="8" y="15" width="5" height="1.5" rx=".75"/></svg></span>
               <span>Escanear un ticket</span>
             </button>
             <button class="add-btn" id="addExpenseBtn" type="button">
-              <svg class="ab-pig" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><ellipse cx="13" cy="12.6" rx="7.4" ry="5.4"/><path d="M9.4 7.6 11.9 4.9 13.1 8.4Z"/><ellipse cx="5.1" cy="13" rx="2.7" ry="2.3"/><rect x="8.4" y="17.2" width="2.3" height="2.8" rx="1.1"/><rect x="14.6" y="17.2" width="2.3" height="2.8" rx="1.1"/><rect x="11.2" y="8" width="5.2" height="1.5" rx=".75" fill="#FFFEF8"/><circle cx="9.1" cy="11.4" r=".95" fill="#FFFEF8"/></svg>
+              <span class="ab-icos"><svg class="ab-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="1.6" y="4.6" width="20.8" height="14.8" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="1.6" y="8" width="20.8" height="3"/><rect x="4.6" y="14" width="6" height="1.8" rx=".9"/></svg><svg class="ab-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="7.4" y="1.6" width="9.2" height="3.2" rx="1" opacity=".45"/><rect x="4.4" y="5" width="15.2" height="17.4" rx="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><rect x="7" y="7.6" width="10" height="4.4" rx="1"/><circle cx="8.4" cy="15.4" r="1.05"/><circle cx="12" cy="15.4" r="1.05"/><circle cx="15.6" cy="15.4" r="1.05"/><circle cx="8.4" cy="18.9" r="1.05"/><circle cx="12" cy="18.9" r="1.05"/><circle cx="15.6" cy="18.9" r="1.05"/></svg></span>
               <span>Gasto sin ticket</span>
             </button>
           </div>
@@ -150,48 +158,66 @@
             </div>
           </div>
 
-          <!-- Las tres listas del grupo, en un solo bloque.
-               Antes iban separadas por una linea de puntos cada una: con todo
-               plegado el ojo se chocaba con una valla cada tres lineas. Ahora
-               el propio titulo hace de separador.
+          <!-- Cada seccion se toca y se abre. No lleva flecha ni texto:
+               una fila con un total y un recuento delante es algo que se
+               toca, y el unico aviso que hace falta es que se hunda al
+               pulsarla.
 
-               Y la palabra que distingue cada seccion va DELANTE. Antes dos de
-               los tres titulos empezaban por "HISTORIAL DE TICKETS" y habia
-               que leer hasta el final para saber cual era cual; ahora se
-               distinguen por la primera palabra. -->
-          <div class="fold-stack">
-
-            <button class="sec-title sec-toggle" id="foldExpenses" type="button">
-              <span class="sec-pair">GASTOS SUELTOS <span class="sec-pair-b">sin ticket</span><svg class="sec-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.6 5.6 15 12l-6.4 6.4L7.2 17l5-5-5-5z"/></svg></span>
-              <span class="sec-total" id="totalExpenses"></span>
-            </button>
-            <div id="expensesList"></div>
-
-            <!-- Los que siguen a medias son los unicos que piden algo: hasta
-                 que se cierran, su dinero no entra en el reparto. -->
-            <button class="sec-title sec-toggle" id="foldOpen" type="button">
-              <span class="sec-pair">A MEDIAS <span class="sec-pair-b">tickets sin cerrar</span><svg class="sec-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.6 5.6 15 12l-6.4 6.4L7.2 17l5-5-5-5z"/></svg></span>
-              <span class="sec-total" id="totalOpen"></span>
-            </button>
-            <div id="openList"></div>
-
-            <button class="sec-title sec-toggle" id="foldClosed" type="button">
-              <span class="sec-pair">CERRADOS <span class="sec-pair-b">tickets ya repartidos</span><svg class="sec-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M8.6 5.6 15 12l-6.4 6.4L7.2 17l5-5-5-5z"/></svg></span>
-              <span class="sec-total" id="totalClosed"></span>
-            </button>
-            <div id="closedList"></div>
-
-          </div>
+               El titulo va en dos alturas, como se imprime en un ticket:
+               arriba el nombre y el dinero, debajo la aclaracion y el
+               recuento. Antes era una sola linea con cuatro cosas
+               apretadas que se cortaban entre si. -->
+          <button class="sec-head" id="foldExpenses" type="button">
+            <span class="sh-line">
+              <span class="sh-title">OTROS GASTOS</span>
+              <span class="sh-sum" id="totalExpenses"></span>
+            </span>
+            <span class="sh-line sh-line-b">
+              <span class="sh-what">sin ticket</span>
+              <span class="sh-count" id="totalExpensesCount"></span>
+            </span>
+          </button>
+          <div id="expensesList"></div>
 
           <hr class="dash-sep">
 
-          <!-- Resumen del grupo. Conserva su boton de "mostrar mas" —no es una
-               lista, es un bloque que se mira entero o no se mira— pero el
-               titulo tambien pliega, para que el gesto sea el mismo en toda la
-               pantalla. -->
-          <button class="sec-title sec-toggle sec-quiet" id="foldStats" type="button">
-            <span class="sec-pair">RESUMEN <span class="sec-pair-b">del grupo</span></span>
-            <span class="fold-btn" id="foldStatsHint"></span>
+          <button class="sec-head" id="foldOpen" type="button">
+            <span class="sh-line">
+              <span class="sh-title">HISTORIAL DE TICKETS</span>
+              <span class="sh-sum" id="totalOpen"></span>
+            </span>
+            <span class="sh-line sh-line-b">
+              <span class="sh-what">sin cerrar</span>
+              <span class="sh-count" id="totalOpenCount"></span>
+            </span>
+          </button>
+          <div id="openList"></div>
+
+          <hr class="dash-sep">
+
+          <button class="sec-head" id="foldClosed" type="button">
+            <span class="sh-line">
+              <span class="sh-title">HISTORIAL DE TICKETS</span>
+              <span class="sh-sum" id="totalClosed"></span>
+            </span>
+            <span class="sh-line sh-line-b">
+              <span class="sh-what">cerrados</span>
+              <span class="sh-count" id="totalClosedCount"></span>
+            </span>
+          </button>
+          <div id="closedList"></div>
+
+          <hr class="dash-sep">
+
+          <button class="sec-head" id="foldStats" type="button">
+            <span class="sh-line">
+              <span class="sh-title">RESUMEN</span>
+              <span class="sh-sum" id="totalStats"></span>
+            </span>
+            <span class="sh-line sh-line-b">
+              <span class="sh-what">del grupo</span>
+              <span class="sh-count" id="totalStatsCount"></span>
+            </span>
           </button>
           <div id="statsBlock"></div>
 

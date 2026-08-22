@@ -2272,16 +2272,6 @@ input[type="file"] { display: none; }
   color: var(--gray-500);
   margin: 4px 0 8px;
 }
-.sec-note {
-  font-family: var(--mono);
-  font-size: 0.56rem;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  color: var(--gray-400);
-  text-transform: none;
-}
-.sec-note.warn { color: var(--accent); font-weight: 700; }
-
 .empty-line {
   font-family: var(--sans);
   font-size: 0.7rem;
@@ -2773,38 +2763,6 @@ input[type="file"] { display: none; }
 }
 
 /* Subtitulo dentro de un apartado (OTROS GASTOS, TICKETS SIN CERRAR) */
-.sec-title.sec-sub { margin-top: 14px; }
-
-/* Dos palabras pegadas con el mismo estilo: "OTROS GASTOS sin ticket".
-   La segunda es una aclaracion, no una cifra, asi que va justo detras y no
-   al otro extremo de la linea. */
-.sec-pair { display: inline; }
-.sec-pair-b {
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  text-transform: none;
-  color: var(--gray-400);
-  margin-left: 5px;
-}
-
-/* Mostrar mas / mostrar menos. Se lee igual que la aclaracion de la
-   izquierda ("sin ticket"), para que no compita con el titulo. */
-.fold-btn {
-  flex-shrink: 0;
-  appearance: none;
-  border: none;
-  background: none;
-  padding: 2px 0 2px 10px;
-  font-family: var(--mono);
-  font-size: 0.6rem;
-  font-weight: 400;
-  letter-spacing: 0.04em;
-  color: var(--gray-400);
-  cursor: pointer;
-  text-transform: none;
-}
-.fold-btn:active { color: var(--accent); }
-
 /* Aviso discreto dentro del historial, donde se buscarian las fotos */
 .soon-inline {
   font-family: var(--sans);
@@ -3045,9 +3003,6 @@ body.en-grupo .upload-area { padding-top: 6px; }
 
 /* --- Titulos de seccion --- */
 .pantalla-grupo .sec-title { font-size: 0.7rem; margin: 6px 0 10px; }
-.pantalla-grupo .sec-pair-b { font-size: 0.64rem; }
-.pantalla-grupo .sec-note { font-size: 0.62rem; }
-.pantalla-grupo .fold-btn { font-size: 0.68rem; }
 .pantalla-grupo .empty-line { font-size: 0.8rem; padding: 10px 2px; }
 
 /* --- Quien eres --- */
@@ -3106,115 +3061,175 @@ body.en-grupo .upload-area { padding-top: 6px; }
 /* --- Titulo de seccion como interruptor ----------------------------------
    El titulo entero pliega y despliega: se toca donde se esta mirando, en vez
    de tener que apuntar a un boton pequeno a la derecha. */
-.sec-toggle {
-  width: 100%;
-  appearance: none;
-  border: none;
-  background: none;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.sec-toggle:active .sec-pair { opacity: .6; }
-
-.sec-chev {
-  width: 13px; height: 13px;
-  margin-left: 5px;
-  vertical-align: -2px;
-  color: var(--gray-400);
-  /* El angulo lo pone el JavaScript segun el estado; aqui solo el movimiento. */
-  transition: transform .22s cubic-bezier(0.22, 0.61, 0.36, 1);
-}
-
 /* Plegada, la seccion deja a la vista lo unico que importa: cuanto suma. */
-.sec-total {
-  flex-shrink: 0;
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  font-weight: 700;
-  letter-spacing: 0;
-  color: var(--gray-500);
-  text-transform: none;
-}
-.sec-toggle.plegado .sec-total { color: var(--black); }
-.pantalla-grupo .sec-total { font-size: 0.84rem; }
-
-/* =========================================================================
-   LAS TRES LISTAS DEL GRUPO
-   Antes cada una iba entre lineas de puntos: con todo plegado el ojo se
-   chocaba con una valla cada tres lineas, y el conjunto se leia como un
-   mazacote. Ahora forman un bloque y el propio titulo hace de separador.
-   ========================================================================= */
-.fold-stack { margin: 4px 0; }
-.fold-stack > .sec-toggle { border-top: 1px solid #E6E6EA; padding-top: 11px; }
-.fold-stack > .sec-toggle:first-child { border-top: none; padding-top: 2px; }
-
-/* Plegada, la seccion se queda mas apretada: sin lista debajo, el hueco de
-   antes dejaba tres titulos flotando muy sueltos. */
-.fold-stack > .sec-toggle.plegado { margin-bottom: 4px; }
-
-/* Cuantos hay y cuanto suman. Cuando no hay nada se dice con palabras y en
-   gris claro: un "0,00 EUR" parece una cifra y hace abrir la seccion para
-   descubrir que estaba vacia. */
-.sec-total.vacio {
-  font-weight: 400;
-  font-style: italic;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--gray-400);
-}
-
-/* La unica seccion que pide algo. Mientras haya tickets a medias su dinero
-   se queda fuera del reparto, asi que las cifras de arriba son provisionales
-   y hay que verlo sin buscarlo. Con la lista vacia no se marca nada. */
-.sec-toggle.pide-accion .sec-pair { color: var(--accent); }
-.sec-toggle.pide-accion .sec-total { color: var(--accent); }
-.sec-toggle.pide-accion .sec-chev { color: var(--accent); }
-
-/* RESUMEN: pliega por el titulo como las demas, pero conserva el "mostrar
-   mas" escrito porque no tiene un total que ensenar plegado. */
-.sec-toggle.sec-quiet { border-top: none; }
-.sec-toggle.sec-quiet .fold-btn { pointer-events: none; }
-
-/* Las dos cifras que se buscan de verdad, grandes y arriba. El resto del
-   resumen eran siete filas iguales: una pared en la que no destacaba nada. */
-.stat-hero {
-  display: flex;
-  gap: 10px;
-  margin: 2px 0 10px;
-}
-.sh-cell {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 9px 11px;
-  border: 1.5px dashed var(--gray-300);
-  border-radius: var(--radius-sm);
-}
-.sh-k {
-  font-family: var(--sans);
-  font-size: 0.58rem;
-  letter-spacing: 0.04em;
-  color: var(--gray-400);
-}
-.sh-v {
-  font-family: var(--mono);
-  font-size: 1.05rem;
-  font-weight: 800;
-  color: var(--black);
-  line-height: 1.1;
-}
-
-/* --- Y lo mismo, a la escala de la pantalla de grupo -------------------- */
-.pantalla-grupo .sh-k { font-size: 0.66rem; }
-.pantalla-grupo .sh-v { font-size: 1.28rem; }
-.pantalla-grupo .sh-cell { padding: 11px 13px; }
-.pantalla-grupo .fold-stack > .sec-toggle { padding-top: 13px; }
-
 /* Tu propio nombre dentro de un grupo. Ya lo cogiste en este movil, asi que
    no se tacha como los ajenos: se marca como tuyo y viene elegido de serie. */
 .who-pill.es-tuyo {
   border-style: solid;
   border-color: var(--accent);
 }
+
+
+/* =========================================================================
+   LAS SECCIONES DEL GRUPO
+   Mismo sitio y mismo nombre que siempre; lo que cambia es que respiran.
+
+   Antes cada cabecera era una linea con cuatro cosas apretadas —titulo,
+   aclaracion, total y un boton— que se cortaban entre si en una pantalla de
+   movil. Ahora van en dos alturas, que es como se imprime un ticket de
+   verdad: arriba el concepto y el dinero, debajo el detalle.
+
+   Y no llevan flecha ni "mostrar mas". Una fila con un total delante es algo
+   que se toca; el unico aviso que hace falta es que se hunda al pulsarla.
+   ========================================================================= */
+.sec-head {
+  display: block;
+  width: 100%;
+  appearance: none;
+  border: none;
+  background: none;
+  padding: 10px 4px 9px;
+  margin: 2px 0 2px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 8px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .16s ease, transform .12s ease;
+}
+.sec-head:active {
+  background: rgba(0,0,0,.045);
+  transform: scale(0.985);
+}
+
+.sh-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+.sh-line-b { margin-top: 3px; }
+
+.sh-title {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: var(--black);
+}
+.sh-sum {
+  font-family: var(--mono);
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: var(--black);
+  white-space: nowrap;
+}
+.sh-what {
+  font-family: var(--sans);
+  font-size: 0.66rem;
+  color: var(--gray-400);
+}
+.sh-count {
+  font-family: var(--sans);
+  font-size: 0.64rem;
+  color: var(--gray-400);
+  white-space: nowrap;
+}
+
+/* Sin nada dentro, la cabecera baja la voz en vez de ensenar un 0,00 EUR
+   que parece una cifra de verdad. */
+.sec-head.sin-nada .sh-title,
+.sec-head.sin-nada .sh-sum { color: var(--gray-400); font-weight: 700; }
+.sec-head.sin-nada .sh-sum { font-size: 0.76rem; }
+
+/* Abierta, la cabecera se queda pegada a su lista: asi se ve de un vistazo
+   donde empieza y donde acaba lo que se ha desplegado. */
+.sec-head.abierta { background: rgba(0,0,0,.028); margin-bottom: 0; }
+
+/* --- El aviso de lo que queda fuera del cuadre --------------------------
+   Estaba pegado a la derecha del titulo REPARTO, en letra diminuta, y se
+   partia por la mitad. Aqui abajo tiene una franja propia: la cifra manda y
+   el motivo se lee entero debajo. */
+.settle-note {
+  display: block;
+  margin: 2px 0 12px;
+  padding: 9px 12px;
+  border-left: 3px solid var(--accent);
+  background: rgba(255,107,53,.06);
+  border-radius: 0 8px 8px 0;
+}
+.sn-amount {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: var(--accent);
+  line-height: 1.15;
+}
+.sn-why {
+  display: block;
+  font-family: var(--sans);
+  font-size: 0.66rem;
+  color: var(--gray-500);
+  margin-top: 2px;
+}
+
+/* --- Las filas de dentro -----------------------------------------------
+   Antes iban tres o cuatro datos seguidos separados por puntos, y en un
+   movil se partian donde caia. Ahora quien pago va a la izquierda, el resto
+   a la derecha, y el estado —cuando lo hay— en su propia linea. */
+.item-row { padding: 11px 4px; }
+.item-main { gap: 12px; }
+.item-sub {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 3px;
+}
+.is-who {
+  font-family: var(--sans);
+  font-size: 0.68rem;
+  color: var(--gray-500);
+}
+.is-meta {
+  font-family: var(--sans);
+  font-size: 0.64rem;
+  color: var(--gray-400);
+  text-align: right;
+  white-space: nowrap;
+}
+.item-state {
+  display: inline-block;
+  margin-top: 7px;
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 5px;
+}
+.item-state.warn { background: rgba(255,107,53,.13); color: var(--accent); }
+.item-state.ok   { background: rgba(22,163,74,.13);  color: #16A34A; }
+.item-state.bad  { background: rgba(220,38,38,.13);  color: var(--red); }
+
+/* --- Los dos iconos de cada boton de anadir ---------------------------- */
+.ab-icos {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.add-btn .ab-ico { width: 20px; height: 20px; flex-shrink: 0; }
+
+/* --- Y todo esto, a la escala de la pantalla de grupo ------------------- */
+.pantalla-grupo .sh-title { font-size: 0.9rem; }
+.pantalla-grupo .sh-sum   { font-size: 1rem; }
+.pantalla-grupo .sh-what  { font-size: 0.74rem; }
+.pantalla-grupo .sh-count { font-size: 0.72rem; }
+.pantalla-grupo .sec-head { padding: 12px 6px 11px; }
+.pantalla-grupo .is-who   { font-size: 0.78rem; }
+.pantalla-grupo .is-meta  { font-size: 0.72rem; }
+.pantalla-grupo .item-state { font-size: 0.64rem; padding: 4px 9px; }
+.pantalla-grupo .sn-amount { font-size: 1.08rem; }
+.pantalla-grupo .sn-why    { font-size: 0.74rem; }
+.pantalla-grupo .add-btn .ab-ico { width: 23px; height: 23px; }
