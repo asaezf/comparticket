@@ -52,6 +52,39 @@ const ImgPrep = (() => {
   }
 
   /**
+   * Copia pequeña para guardar, no para leer.
+   *
+   * La que se manda a la IA va a 2000 px porque tiene que poder leer letra de
+   * ticket. Esta solo tiene que servir para que una persona mire la foto y
+   * reconozca el sitio y el importe, así que 1000 px al 60% sobra — y baja de
+   * unos 1,5 MB a unos 120 KB.
+   *
+   * El tamaño no es un capricho: cada foto se guarda en su propio documento
+   * de Firestore, que tiene un tope duro de 1 MB, y al codificarla en base64
+   * crece un tercio. A 120 KB caben de sobra; a 1,5 MB no cabría ninguna.
+   */
+  async function archive(file) {
+    try {
+      const bmp = await decode(file);
+      const w = bmp.width || bmp.naturalWidth;
+      const h = bmp.height || bmp.naturalHeight;
+      if (!w || !h) return null;
+
+      const scale = Math.min(1, 1000 / Math.max(w, h));
+      const blob = await toBlob(draw(bmp, scale), 0.6);
+      if (bmp.close) bmp.close();
+      if (!blob) return null;
+
+      const name = (file.name || 'ticket').replace(/\.[^.]+$/, '') + '.jpg';
+      return new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() });
+    } catch (_) {
+      // Sin copia de archivo el ticket funciona igual: simplemente no tendrá
+      // foto que enseñar. No es motivo para romper el escaneo.
+      return null;
+    }
+  }
+
+  /**
    * Reduce una foto. Si algo falla (formato que el navegador no decodifica,
    * por ejemplo HEIC en según qué sitio) devuelve el original: más vale
    * intentar subirlo que quedarse sin nada.
@@ -137,5 +170,5 @@ const ImgPrep = (() => {
     return out;
   }
 
-  return { prepare, shrink, rotate, looksSideways, MAX_EDGE, BUDGET };
+  return { prepare, shrink, archive, rotate, looksSideways, MAX_EDGE, BUDGET };
 })();

@@ -673,6 +673,68 @@ async function getGroupEvents(groupId, limite) {
   }
 }
 
+
+// --- Las fotos del ticket -------------------------------------------------
+//
+// Cada foto va en SU PROPIO documento, no en un array dentro del ticket. Un
+// documento de Firestore tiene un tope duro de 1 MB, y el ticket ya lleva
+// dentro los articulos, el reparto y las marcas de cada persona: meterle ahi
+// tres fotos lo reventaria en cuanto el ticket creciera un poco.
+//
+// Se guardan en base64 dentro del documento porque el almacenamiento de
+// ficheros todavia no esta montado. Es una solucion de mientras, y hay un
+// tope de tamano para que no pueda romper nada: el navegador manda una copia
+// reducida de unos 120 KB (ver ImgPrep.archive), que en base64 son unos 160.
+// Cuando haya bucket, esto se cambia por una URL y lo demas no se entera.
+
+const TOPE_FOTO = 700 * 1024;   // holgura de sobra bajo el 1 MB del documento
+
+function photosRef(ticketId) { return ticketRef(ticketId).collection('photos'); }
+
+/**
+ * Guarda una foto de un ticket. Devuelve null si no cabe.
+ *
+ * Nunca lanza: una foto que no se puede guardar no puede tumbar el escaneo,
+ * que es lo que de verdad importa. El ticket funciona igual sin foto.
+ */
+async function addTicketPhoto(ticketId, buffer, mime) {
+  if (!ticketId || !buffer || !buffer.length) return null;
+  const b64 = buffer.toString('base64');
+  if (b64.length > TOPE_FOTO) return null;
+
+  try {
+    const ref = photosRef(ticketId).doc();
+    const doc = {
+      id: ref.id,
+      mime: mime || 'image/jpeg',
+      datos: b64,
+      bytes: buffer.length,
+      createdAt: new Date().toISOString()
+    };
+    await ref.set(doc);
+
+    // Cuantas hay, apuntado en el propio ticket: asi la pantalla sabe si
+    // ensenar el boton de la foto sin tener que leer la subcoleccion entera
+    // de cada ticket para averiguarlo.
+    await ticketRef(ticketId).update({
+      photoCount: admin.firestore.FieldValue.increment(1)
+    });
+    return { id: doc.id, bytes: doc.bytes };
+  } catch (_) {
+    return null;
+  }
+}
+
+/** Las fotos de un ticket. Solo se piden cuando alguien las quiere ver. */
+async function getTicketPhotos(ticketId) {
+  try {
+    const snap = await photosRef(ticketId).orderBy('createdAt', 'asc').get();
+    return snap.docs.map(d => d.data());
+  } catch (_) {
+    return [];
+  }
+}
+
 module.exports = {
   createTicket,
   getTicket,
@@ -709,5 +771,7 @@ module.exports = {
   setGroupLocked,
   clearGroupSettlement,
   addGroupEvent,
-  getGroupEvents
+  getGroupEvents,
+  addTicketPhoto,
+  getTicketPhotos
 };

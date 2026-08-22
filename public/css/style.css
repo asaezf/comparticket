@@ -4100,3 +4100,157 @@ a.hist-row:active { transform: scale(0.99); }
   cursor: pointer;
 }
 .av-x:active { color: #fff; }
+
+/* =========================================================================
+   SILENCIAR LOS AVISOS
+   La campana se tacha cuando están silenciados: el estado se ve de un
+   vistazo, sin tener que leer el texto de al lado.
+   ========================================================================= */
+.ajuste-campana {
+  flex-basis: 100%;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 4px;
+  padding: 9px 11px;
+  appearance: none;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 10px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color .15s ease, transform .12s ease;
+}
+.ajuste-campana:active { transform: scale(0.985); }
+
+.campana-ico {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--accent);
+  transition: color .15s ease;
+}
+/* La raya que tacha la campana. Se dibuja sola de una esquina a otra en vez
+   de aparecer de golpe: así se entiende que la acción es "tachar". */
+.campana-tacha {
+  stroke-dasharray: 26;
+  /* El trazo lo pone el JavaScript según el estado; aquí solo el movimiento. */
+  transition: stroke-dashoffset .22s ease;
+}
+.ajuste-campana.silenciado .campana-ico { color: var(--gray-400); }
+
+.campana-txt {
+  font-family: var(--sans);
+  font-size: 0.72rem;
+  font-weight: 600;
+  color: var(--gray-500);
+}
+.ajuste-campana.silenciado .campana-txt { color: var(--gray-400); }
+
+/* =========================================================================
+   LAS FOTOS DEL TICKET
+   Un botón de cámara en cada fila del historial que tiene foto guardada, y
+   un visor a pantalla completa. Las fotos se piden al tocarlo, nunca antes.
+   ========================================================================= */
+.hist-pie {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 6px;
+}
+.hist-pie .hist-tag { margin-top: 0; }
+
+.hist-foto {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  appearance: none;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 8px;
+  background: #fff;
+  padding: 5px 9px;
+  color: var(--gray-500);
+  cursor: pointer;
+  transition: border-color .15s ease, color .15s ease, transform .12s ease;
+}
+.hist-foto:active { transform: scale(0.94); border-color: var(--accent); color: var(--accent); }
+.hist-foto svg { width: 15px; height: 15px; }
+.hist-foto span {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+/* --- El visor --- */
+.visor {
+  position: fixed;
+  inset: 0;
+  z-index: 700;
+  background: rgba(24,24,27,.94);
+  display: flex;
+  flex-direction: column;
+  animation: visorEntra .2s ease-out both;
+}
+@keyframes visorEntra { from { opacity: 0; } to { opacity: 1; } }
+
+/* Con el visor abierto el fondo no se desplaza: si no, al arrastrar la foto
+   se movía la lista de debajo. */
+body.con-visor { overflow: hidden; }
+
+.visor-barra {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: max(12px, env(safe-area-inset-top)) 16px 12px;
+  flex-shrink: 0;
+}
+.visor-tit {
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  font-weight: 800;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.visor-x {
+  flex-shrink: 0;
+  appearance: none;
+  border: none;
+  background: rgba(255,255,255,.12);
+  color: #fff;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  font-size: 1.3rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.visor-x:active { background: rgba(255,255,255,.25); }
+
+.visor-cuerpo {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 12px max(16px, env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+.visor-img {
+  max-width: 100%;
+  border-radius: 10px;
+  /* Un ticket es alto y estrecho: se deja crecer hasta llenar la pantalla,
+     que es como se lee de verdad. */
+  box-shadow: 0 8px 30px rgba(0,0,0,.4);
+}
+.visor-cargando {
+  color: rgba(255,255,255,.7);
+  font-family: var(--sans);
+  font-size: 0.8rem;
+  padding: 40px 20px;
+  text-align: center;
+}

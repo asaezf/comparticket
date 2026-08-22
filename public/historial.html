@@ -91,6 +91,19 @@
     <div class="easter-egg">desarrollado por A.Sáez.F</div>
   </div>
 
+  <!-- Visor de las fotos del ticket.
+       Las fotos NO se cargan con la pantalla: pesan cientos de kilobytes
+       cada una, y traerse las de veinte tickets cada vez que se abre el
+       historial serían varios megas para algo que casi nunca se mira. Se
+       piden al tocar el botón de la cámara. -->
+  <div class="visor hidden" id="visorFotos">
+    <div class="visor-barra">
+      <span class="visor-tit" id="visorTitulo"></span>
+      <button class="visor-x" id="visorCerrar" type="button" aria-label="Cerrar">&times;</button>
+    </div>
+    <div class="visor-cuerpo" id="visorContenido"></div>
+  </div>
+
   <div class="toast hidden" id="toast"></div>
 
   <script src="/js/i18n.js"></script>

@@ -157,6 +157,18 @@
           </select>
         </label>
         <div class="ajuste-nota" id="notaMoneda"></div>
+
+        <!-- Silenciar los avisos del grupo.
+             La campana se tacha cuando están silenciados: se ve de un
+             vistazo en qué estado está, sin tener que leer nada. -->
+        <button class="ajuste-campana" id="btnCampana" type="button">
+          <svg class="campana-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-1.7 1.7a1 1 0 0 0 .7 1.3h14a1 1 0 0 0 .7-1.3L18 16z"/>
+            <line class="campana-tacha" x1="3.5" y1="3.5" x2="20.5" y2="20.5"
+                  stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+          <span class="campana-txt" id="txtCampana"></span>
+        </button>
       </div>
     </div>
 

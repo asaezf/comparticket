@@ -69,6 +69,7 @@ function construirApuntes() {
       importe: +t.total || 0,
       pagador: t.payerName || '',
       cuando: t.receiptDate || t.closedAt || t.createdAt,
+      fotos: t.fotos || 0,
       // Un ticket lleva a su reparto; si sigue abierto, a marcarlo.
       destino: t.status === 'closed'
         ? '/summary.html?id=' + encodeURIComponent(t.id)
@@ -248,9 +249,83 @@ function filaApunte(a) {
       '<span class="hist-who">' + (a.pagador ? 'Pagador: ' + esc(a.pagador) : '—') + '</span>' +
       '<span class="hist-date">' + fecha + '</span>' +
     '</div>' +
-    '<span class="hist-tag ' + a.tipo + '">' + etiqueta + '</span>';
+    '<div class="hist-pie">' +
+      '<span class="hist-tag ' + a.tipo + '">' + etiqueta + '</span>' +
+      (a.fotos
+        ? '<button class="hist-foto" type="button">' +
+            '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+            '<path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/>' +
+            '<path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/>' +
+            '</svg>' +
+            (a.fotos > 1 ? '<span>' + a.fotos + '</span>' : '') +
+          '</button>'
+        : '') +
+    '</div>';
+
+  // Ver la foto NO entra al ticket: son dos cosas distintas y el dedo cae en
+  // el mismo sitio. Se para aqui la propagacion para que tocar la camara no
+  // acabe navegando.
+  const btnFoto = el.querySelector('.hist-foto');
+  if (btnFoto) {
+    btnFoto.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      verFotos(a);
+    });
+  }
 
   return el;
+}
+
+// ---------------------------------------------------------------- las fotos
+
+/**
+ * Abre el visor con las fotos de un ticket.
+ *
+ * Se piden AQUI y no al cargar la pantalla: cada foto son cientos de
+ * kilobytes, y traerse las de veinte tickets cada vez que se abre el
+ * historial serian varios megas para algo que casi nunca se mira.
+ */
+async function verFotos(a) {
+  const visor = document.getElementById('visorFotos');
+  const cont = document.getElementById('visorContenido');
+  const titulo = document.getElementById('visorTitulo');
+  if (!visor || !cont) return;
+
+  titulo.textContent = a.nombre;
+  cont.innerHTML = '<div class="visor-cargando">Cargando\u2026</div>';
+  visor.classList.remove('hidden');
+  document.body.classList.add('con-visor');
+
+  let fotos = [];
+  try {
+    const r = await fetch('/api/tickets/' + encodeURIComponent(a.id) + '/photos');
+    if (r.ok) fotos = await r.json();
+  } catch (_) { /* se trata igual que si no hubiera */ }
+
+  if (!fotos.length) {
+    cont.innerHTML = '<div class="visor-cargando">No hay ninguna foto guardada de este ticket</div>';
+    return;
+  }
+
+  cont.innerHTML = '';
+  fotos.forEach(f => {
+    const img = document.createElement('img');
+    img.className = 'visor-img';
+    img.src = f.url;
+    img.alt = a.nombre;
+    cont.appendChild(img);
+  });
+}
+
+function cerrarVisor() {
+  const visor = document.getElementById('visorFotos');
+  if (!visor) return;
+  visor.classList.add('hidden');
+  document.body.classList.remove('con-visor');
+  // Se sueltan las imagenes: son cientos de kilobytes cada una y no hay
+  // motivo para tenerlas en memoria con el visor cerrado.
+  document.getElementById('visorContenido').innerHTML = '';
 }
 
 // ---------------------------------------------------------------- eventos
@@ -294,4 +369,14 @@ cargar().then(() => {
       cuerpo: t.tourHistSortBody
     }
   ]);
+});
+
+document.getElementById('visorCerrar').addEventListener('click', cerrarVisor);
+document.getElementById('visorFotos').addEventListener('click', (e) => {
+  // Tocar fuera de la foto cierra, que es lo que espera cualquiera.
+  if (e.target.id === 'visorFotos') cerrarVisor();
+});
+// Y la tecla de escape, para quien lo abra en un ordenador.
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') cerrarVisor();
 });

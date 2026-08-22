@@ -712,6 +712,13 @@ function pintarAvisos() {
   // Al abrir el grupo no salta nada: solo se toma nota de por donde vas.
   if (primeraPasadaDeAvisos) { primeraPasadaDeAvisos = false; return; }
 
+  // Silenciados desde la portada. Se comprueba DESPUES de marcar los eventos
+  // como vistos, a proposito: si no, al quitar el silencio te caerian de
+  // golpe todos los de los ultimos dias.
+  let callado = false;
+  try { callado = localStorage.getItem('ct_avisos_silencio') === '1'; } catch (_) {}
+  if (callado) return;
+
   nuevos.forEach(ev => {
     if (yo && ev.actor === yo) return;      // lo acabas de hacer tu
     const a = textoDelAviso(ev);

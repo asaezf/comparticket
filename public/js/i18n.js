@@ -159,7 +159,9 @@ const translations = {
     tourHistSearchTitle: 'Busca lo que sea',
     tourHistSearchBody: 'Escribe el sitio, quién pagó o el importe. Se filtra al momento.',
     tourHistSortTitle: 'Ordena como quieras',
-    tourHistSortBody: 'Por fecha, importe o pagador. Toca el mismo botón otra vez para invertir el orden.'
+    tourHistSortBody: 'Por fecha, importe o pagador. Toca el mismo botón otra vez para invertir el orden.',
+    avisosOn: 'Avisos del grupo activados',
+    avisosOff: 'Avisos del grupo silenciados'
   },
   en: {
     brand: 'compar',
@@ -320,7 +322,9 @@ const translations = {
     tourHistSearchTitle: 'Search for anything',
     tourHistSearchBody: 'Type the place, who paid, or the amount. It filters as you type.',
     tourHistSortTitle: 'Sort it your way',
-    tourHistSortBody: 'By date, amount, or payer. Tap the same button again to flip the order.'
+    tourHistSortBody: 'By date, amount, or payer. Tap the same button again to flip the order.',
+    avisosOn: 'Group alerts on',
+    avisosOff: 'Group alerts muted'
   },
   no: {
     brand: 'del',
@@ -479,7 +483,9 @@ const translations = {
     tourHistSearchTitle: 'Søk etter hva som helst',
     tourHistSearchBody: 'Skriv stedet, hvem som betalte, eller beløpet. Det filtreres mens du skriver.',
     tourHistSortTitle: 'Sorter som du vil',
-    tourHistSortBody: 'Etter dato, beløp eller betaler. Trykk på samme knapp igjen for å snu rekkefølgen.'
+    tourHistSortBody: 'Etter dato, beløp eller betaler. Trykk på samme knapp igjen for å snu rekkefølgen.',
+    avisosOn: 'Gruppevarsler på',
+    avisosOff: 'Gruppevarsler av'
   },
   pl: {
     brand: 'podziel',
@@ -638,7 +644,9 @@ const translations = {
     tourHistSearchTitle: 'Szukaj czego chcesz',
     tourHistSearchBody: 'Wpisz miejsce, kto zapłacił albo kwotę. Filtruje się na bieżąco.',
     tourHistSortTitle: 'Sortuj, jak wolisz',
-    tourHistSortBody: 'Według daty, kwoty albo płatnika. Dotknij tego samego przycisku ponownie, żeby odwrócić kolejność.'
+    tourHistSortBody: 'Według daty, kwoty albo płatnika. Dotknij tego samego przycisku ponownie, żeby odwrócić kolejność.',
+    avisosOn: 'Powiadomienia grupy włączone',
+    avisosOff: 'Powiadomienia grupy wyciszone'
   },
   fr: {
     brand: 'partage',
@@ -797,7 +805,9 @@ const translations = {
     tourHistSearchTitle: 'Cherchez n\'importe quoi',
     tourHistSearchBody: 'Tapez le lieu, qui a payé, ou le montant. Le filtre s\'applique au fur et à mesure.',
     tourHistSortTitle: 'Triez comme vous voulez',
-    tourHistSortBody: 'Par date, montant ou payeur. Touchez à nouveau le même bouton pour inverser l\'ordre.'
+    tourHistSortBody: 'Par date, montant ou payeur. Touchez à nouveau le même bouton pour inverser l\'ordre.',
+    avisosOn: 'Alertes du groupe activées',
+    avisosOff: 'Alertes du groupe en sourdine'
   },
   it: {
     brand: 'dividi',
@@ -956,7 +966,9 @@ const translations = {
     tourHistSearchTitle: 'Cerca quello che vuoi',
     tourHistSearchBody: 'Scrivi il posto, chi ha pagato o l\'importo. Si filtra mentre scrivi.',
     tourHistSortTitle: 'Ordina come vuoi',
-    tourHistSortBody: 'Per data, importo o pagatore. Tocca di nuovo lo stesso pulsante per invertire l\'ordine.'
+    tourHistSortBody: 'Per data, importo o pagatore. Tocca di nuovo lo stesso pulsante per invertire l\'ordine.',
+    avisosOn: 'Avvisi del gruppo attivi',
+    avisosOff: 'Avvisi del gruppo silenziati'
   },
   de: {
     brand: 'teil',
@@ -1115,7 +1127,9 @@ const translations = {
     tourHistSearchTitle: 'Suche nach allem',
     tourHistSearchBody: 'Gib den Ort, wer bezahlt hat, oder den Betrag ein. Es filtert sich sofort.',
     tourHistSortTitle: 'Sortiere, wie du willst',
-    tourHistSortBody: 'Nach Datum, Betrag oder Zahler. Tippe erneut auf denselben Button, um die Reihenfolge umzudrehen.'
+    tourHistSortBody: 'Nach Datum, Betrag oder Zahler. Tippe erneut auf denselben Button, um die Reihenfolge umzudrehen.',
+    avisosOn: 'Gruppenhinweise an',
+    avisosOff: 'Gruppenhinweise stumm'
   }
 };
 

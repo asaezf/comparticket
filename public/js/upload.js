@@ -178,6 +178,23 @@ scanBtn.addEventListener('click', async () => {
       try { localStorage.setItem('ck_' + data.id, data.creatorKey); } catch (_) {}
     }
 
+    // Se guarda una copia reducida de las fotos para poder mirar despues el
+    // papel original cuando una cifra no cuadra.
+    //
+    // Va en una peticion aparte y DESPUES de crear el ticket: la del escaneo
+    // ya va justa contra el limite de 4,5 MB de Vercel, y si esto falla el
+    // ticket tiene que quedar creado igualmente. La foto es un extra.
+    if (data.id) {
+      try {
+        const copias = (await Promise.all(files.map(f => ImgPrep.archive(f)))).filter(Boolean);
+        if (copias.length) {
+          const fdFotos = new FormData();
+          copias.forEach(f => fdFotos.append('photos', f));
+          await fetch('/api/tickets/' + data.id + '/photos', { method: 'POST', body: fdFotos });
+        }
+      } catch (_) { /* sin foto guardada, el ticket funciona igual */ }
+    }
+
     // Si se venia de un grupo ("escanear un ticket" desde su pantalla), el
     // ticket recien creado se mete dentro. Si esta llamada fallase, el ticket
     // sigue existiendo suelto y se puede asignar despues: no se pierde nada.
@@ -496,3 +513,51 @@ if (!grupoDestino) {
     }
   ]);
 }
+
+
+// =========================================================================
+// SILENCIAR LOS AVISOS
+//
+// Los avisos del grupo no suenan ni vibran: son tarjetas dentro de la
+// aplicación y nada más. Silenciarlos, entonces, es dejar de enseñarlos.
+//
+// Se guarda en el móvil y no en el grupo: es una preferencia de quien mira
+// la pantalla. Silenciar para ti no puede callar los avisos de los demás.
+// =========================================================================
+
+const CAMPANA_KEY = 'ct_avisos_silencio';
+
+function avisosSilenciados() {
+  try { return localStorage.getItem(CAMPANA_KEY) === '1'; } catch (_) { return false; }
+}
+
+function montarCampana() {
+  const btn = document.getElementById('btnCampana');
+  const txt = document.getElementById('txtCampana');
+  if (!btn || !txt) return;
+
+  const raya = btn.querySelector('.campana-tacha');
+
+  const pintar = () => {
+    const callado = avisosSilenciados();
+    btn.classList.toggle('silenciado', callado);
+    // La campana tachada ya dice el estado; el texto dice qué pasa al tocarla.
+    txt.textContent = callado ? t.avisosOff : t.avisosOn;
+    btn.setAttribute('aria-pressed', String(callado));
+
+    // La raya se dibuja desde aquí y no desde el CSS a propósito: es estado
+    // —depende de una variable— y así no hay que fiarse de que una regla gane
+    // la cascada. La transición sigue siendo del CSS.
+    if (raya) raya.style.strokeDashoffset = callado ? '0' : '26';
+  };
+
+  btn.addEventListener('click', () => {
+    const nuevo = !avisosSilenciados();
+    try { localStorage.setItem(CAMPANA_KEY, nuevo ? '1' : '0'); } catch (_) {}
+    pintar();
+  });
+
+  pintar();
+}
+
+montarCampana();

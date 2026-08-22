@@ -647,7 +647,10 @@ async function groupSummary(groupId, req_token) {
       reparto: r.perPerson,
       // La fecha del cierre: es la que convierte la deuda en exigible y a
       // partir de la cual empiezan a contar los dias sin pagar.
-      closedAt: t.closedAt || null
+      closedAt: t.closedAt || null,
+      // Cuantas fotos tiene. Solo el numero: las fotos pesan cientos de
+      // kilobytes y se piden aparte, cuando alguien las quiere ver.
+      fotos: t.photoCount || 0
     });
   }
 
@@ -878,6 +881,54 @@ app.post('/api/groups/:id/payments', ruta(async (req, res) => {
 app.delete('/api/groups/:id/payments/:paymentId', ruta(async (req, res) => {
   await db.removeGroupPayment(req.params.id, req.params.paymentId);
   res.json({ ok: true });
+}));
+
+
+// --- Las fotos del ticket -------------------------------------------------
+//
+// Hasta ahora las fotos se mandaban a la IA y se tiraban: no quedaba ninguna
+// copia. Esto guarda una version reducida —la que prepara el navegador con
+// ImgPrep.archive, unos 120 KB— para poder mirar despues el papel original
+// cuando una cifra no cuadra.
+//
+// Van en una peticion APARTE de la del escaneo, y no en la misma, por dos
+// razones: el escaneo ya va justo de tamano contra el limite de 4,5 MB de
+// Vercel, y si guardar la foto falla el ticket tiene que quedar creado
+// igualmente. La foto es un extra, el ticket es lo importante.
+
+app.post('/api/tickets/:id/photos', upload.array('photos', 6), ruta(async (req, res) => {
+  const ticket = await db.getTicket(req.params.id);
+  if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
+
+  const archivos = req.files || [];
+  if (!archivos.length) return res.status(400).json({ error: 'No hay fotos', code: 'NO_PHOTOS' });
+
+  let guardadas = 0;
+  for (const f of archivos) {
+    const r = await db.addTicketPhoto(req.params.id, f.buffer, f.mimetype);
+    if (r) guardadas++;
+  }
+  res.json({ ok: true, guardadas, recibidas: archivos.length });
+}));
+
+/**
+ * Las fotos de un ticket.
+ *
+ * Solo se piden cuando alguien las quiere ver, nunca con el resumen del
+ * grupo: son cientos de kilobytes cada una, y cargarlas de golpe en un viaje
+ * de veinte tickets seria varios megas por cada vez que se abre la pantalla.
+ */
+app.get('/api/tickets/:id/photos', ruta(async (req, res) => {
+  const ticket = await db.getTicket(req.params.id);
+  if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
+
+  const fotos = await db.getTicketPhotos(req.params.id);
+  res.json(fotos.map(f => ({
+    id: f.id,
+    // Lista para poner en un <img> sin mas vueltas.
+    url: 'data:' + (f.mime || 'image/jpeg') + ';base64,' + f.datos,
+    bytes: f.bytes || 0
+  })));
 }));
 
 // --- Meter un ticket en un grupo ------------------------------------------
