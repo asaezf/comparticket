@@ -255,29 +255,83 @@ function pintarMisGrupos() {
   try { lista = JSON.parse(localStorage.getItem('ct_grupos') || '[]'); } catch (_) {}
   lista = (lista || []).filter(g => g && g.id && g.name);
 
+  const cta  = document.getElementById('verGruposCta');
   const caja = document.getElementById('misGrupos');
   const cont = document.getElementById('misGruposLista');
-  if (!caja || !cont) return;
-  if (!lista.length) { caja.classList.add('hidden'); return; }
+  if (!cta || !caja || !cont) return;
 
-  caja.classList.remove('hidden');
-  const etq = document.getElementById('misGruposLabel');
-  if (etq && typeof t !== 'undefined' && t.yourGroups) etq.textContent = t.yourGroups;
+  if (!lista.length) {
+    document.body.classList.remove('tiene-grupos');
+    cta.classList.add('hidden');
+    caja.classList.add('hidden');
+    return;
+  }
+
+  // Quien ya tiene grupos no necesita el tutorial de tres pasos: ya ha usado
+  // la aplicacion. Y esos 232 px son justo los que hacen que "Ver mis grupos"
+  // quede fuera de la pantalla en un movil.
+  document.body.classList.add('tiene-grupos');
+
+  cta.classList.remove('hidden');
+  const cuantos = document.getElementById('verGruposCuantos');
+  if (cuantos) cuantos.textContent = lista.length;
+
+  cta.onclick = () => {
+    caja.classList.toggle('hidden');
+    cta.classList.toggle('abierto', !caja.classList.contains('hidden'));
+  };
 
   cont.innerHTML = '';
-  lista.slice(0, 6).forEach(g => {
+  lista.slice(0, 20).forEach(g => {
+    const fila = document.createElement('div');
+    fila.className = 'mg-row';
+
+    // El enlace ocupa la fila entera menos la papelera: se entra tocando en
+    // cualquier sitio menos ahi.
     const a = document.createElement('a');
-    a.className = 'mg-row';
+    a.className = 'mg-link';
     a.href = '/g/' + encodeURIComponent(g.id);
-    const total = (typeof Money !== 'undefined' && typeof g.total === 'number')
-      ? Money.formatEUR(g.total, lang) : '';
     a.innerHTML =
       '<span class="mg-name"></span>' +
-      '<span class="mg-total"></span>';
+      '<span class="mg-meta"></span>';
     // textContent y no innerHTML: el nombre lo escribio un usuario.
     a.querySelector('.mg-name').textContent = g.name;
-    a.querySelector('.mg-total').textContent = total;
-    cont.appendChild(a);
+
+    // Lo que sirve para reconocer un grupo es con quien es y de cuando es.
+    // El dinero no: en la portada, un total suelto no dice si es lo que has
+    // gastado, lo que debes o lo que te deben.
+    const trozos = [];
+    if (g.gente) trozos.push(g.gente === 1 ? '1 persona' : g.gente + ' personas');
+    const f = g.creado ? new Date(g.creado) : null;
+    if (f && !isNaN(f)) {
+      trozos.push('creado el ' + f.toLocaleDateString('es-ES',
+        { day: '2-digit', month: 'short', year: 'numeric' }));
+    }
+    a.querySelector('.mg-meta').textContent = trozos.join(' · ');
+    fila.appendChild(a);
+
+    const borrar = document.createElement('button');
+    borrar.className = 'mg-del';
+    borrar.type = 'button';
+    borrar.title = 'Quitar de esta lista';
+    borrar.innerHTML = '&times;';
+    borrar.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      // Se quita de la lista de ESTE movil. El grupo sigue existiendo y el
+      // enlace sigue funcionando: esto no borra nada de nadie.
+      if (!confirm('¿Quitar «' + g.name + '» de esta lista?\n\n' +
+                   'El grupo no se borra: si tienes el enlace, puedes volver a entrar.')) return;
+      try {
+        const act = JSON.parse(localStorage.getItem('ct_grupos') || '[]');
+        localStorage.setItem('ct_grupos',
+          JSON.stringify(act.filter(x => x && x.id !== g.id)));
+      } catch (_) {}
+      pintarMisGrupos();
+    });
+    fila.appendChild(borrar);
+
+    cont.appendChild(fila);
   });
 }
 
@@ -295,8 +349,12 @@ function modoGrupo() {
   document.body.classList.add('en-grupo');
 
   // De donde viene y a donde vuelve si se arrepiente.
-  const volver = document.getElementById('volverGrupo');
-  if (volver) volver.href = '/g/' + encodeURIComponent(grupoDestino);
+  // La fila se ensena entera; el href va en la flecha, que es lo unico que
+  // ahora es un boton.
+  const fila = document.getElementById('volverGrupo');
+  if (fila) fila.classList.remove('hidden');
+  const flecha = document.getElementById('volverGrupoLink');
+  if (flecha) flecha.href = '/g/' + encodeURIComponent(grupoDestino);
 
   // El nombre del grupo, para que se vea a que grupo va este ticket.
   fetch('/api/groups/' + encodeURIComponent(grupoDestino))

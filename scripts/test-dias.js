@@ -67,5 +67,33 @@ check('manda el movimiento MÁS RECIENTE de todos',
     /!snap\.data\(\)\.closedAt/.test(bd), true);
 }
 
+// --- La escala de color de la etiqueta -----------------------------------
+//
+//     0 días   nada          algo se ha movido hoy
+//     1-6      gris          normal, nadie se alarma
+//     7-13     naranja       ya lleva una semana
+//     14-29    rojo suave    dos semanas
+//     30+      rojo macizo   un mes
+{
+  // La misma regla que etiquetaDias() en group.js.
+  const nivel = d => d < 1 ? '' : (d >= 30 ? 'd3' : d >= 14 ? 'd2' : d >= 7 ? 'd1' : 'd0');
+
+  check('0 días: no sale etiqueta',   nivel(0),  '');
+  check('1 día: gris',                nivel(1),  'd0');
+  check('6 días: sigue gris',         nivel(6),  'd0');
+  check('7 días: naranja',            nivel(7),  'd1');
+  check('13 días: sigue naranja',     nivel(13), 'd1');
+  check('14 días: rojo suave',        nivel(14), 'd2');
+  check('29 días: sigue rojo suave',  nivel(29), 'd2');
+  check('30 días: rojo macizo',       nivel(30), 'd3');
+
+  const g = require('fs').readFileSync(
+    require('path').join(__dirname, '..', 'public', 'js', 'group.js'), 'utf8');
+  check('group.js usa esa misma escala',
+    /d >= 30 \? 'd3' : d >= 14 \? 'd2' : d >= 7 \? 'd1' : 'd0'/.test(g), true);
+  check('la etiqueta sale ya desde el primer día',
+    /if \(d < 1\) return ''/.test(g), true);
+}
+
 console.log('\n' + ok + ' ok, ' + mal + ' fallos\n');
 process.exit(mal ? 1 : 0);

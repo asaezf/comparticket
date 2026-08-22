@@ -93,7 +93,11 @@ function recordarGrupo() {
     resto.unshift({
       id: groupId,
       name: datos.group.name,
-      total: datos.stats.total,
+      // Con quien es y de cuando es: lo que sirve para reconocerlo en la
+      // portada. El total se guardaba y no se usa: alli un numero suelto no
+      // dice si es lo gastado, lo que debes o lo que te deben.
+      gente: (datos.group.members || []).length,
+      creado: datos.group.createdAt || null,
       at: new Date().toISOString()
     });
     // Un tope para que no crezca sin fin en un movil que se usa mucho.
@@ -353,75 +357,150 @@ function pintarTransferencias() {
 }
 
 /**
- * Cuanto lleva el grupo sin moverse, en formato de etiqueta.
+ * Cuanto lleva la deuda parada, en formato de etiqueta.
  *
- * Mientras siguen entrando gastos la deuda todavia esta cambiando y no tiene
- * sentido reclamar nada; en cuanto el grupo se queda quieto, los dias
- * empiezan a contar de verdad. El color sube con ellos, pero sin insultar a
- * nadie: es una cuenta entre amigos, no una agencia de cobros.
+ * Se cuenta desde el ultimo movimiento del grupo: el ultimo gasto apuntado,
+ * el ultimo ticket cerrado o el ultimo pago hecho. Mientras siguen entrando
+ * gastos la deuda todavia esta cambiando y no tiene sentido reclamar nada;
+ * en cuanto el grupo se queda quieto, los dias empiezan a contar.
+ *
+ * La escala, de menos a mas:
+ *
+ *     0 dias   nada          algo se ha movido hoy
+ *     1-6      gris          normal, nadie se alarma
+ *     7-13     naranja       ya lleva una semana
+ *     14-29    rojo suave    dos semanas
+ *     30+      rojo macizo   un mes
+ *
+ * El color sube, pero sin insultar a nadie: es una cuenta entre amigos, no
+ * una agencia de cobros. Y antes empezaba a los dos dias, con lo que en la
+ * practica casi nunca se llegaba a ver.
  */
 function etiquetaDias() {
   const d = +datos.diasQuieto || 0;
-  if (d < 2) return '';
+  if (d < 1) return '';
   const nivel = d >= 30 ? 'd3' : d >= 14 ? 'd2' : d >= 7 ? 'd1' : 'd0';
-  return '<span class="tr-days ' + nivel + '">' + d + ' días</span>';
+  return '<span class="tr-days ' + nivel + '">' + d +
+    (d === 1 ? ' día' : ' días') + '</span>';
 }
 
-/** Resumen del viaje: lo que la gente quiere contar despues. */
+/**
+ * Resumen del viaje: lo que la gente quiere contar despues.
+ *
+ * Todas las filas se calculan con lo que ya hay —tickets, gastos y pagos— y
+ * ninguna se ensena si no tiene con que: un grupo de un solo apunte no tiene
+ * "quien paga mas veces", y sacar una fila vacia solo hace ruido.
+ */
 function pintarStats() {
   const cont = document.getElementById('statsBlock');
   if (!cont) return;
   cont.innerHTML = '';
 
-  // El resumen se abre igual que las demas secciones: tocando la cabecera.
-  pintarFold('foldStats', 'stats', datos.stats.apuntes || 0, datos.stats.total || 0);
+  pintarFold('foldStats', 'stats', datos.stats.apuntes || 0, datos.stats.total || 0, 'apunte');
 
   if (!datos.stats.apuntes) {
     cont.innerHTML = desplegado.stats
-      ? '<div class="empty-line">Cuando haya gastos, aquí saldrá el resumen</div>'
+      ? '<div class="empty-line">Cuando haya gastos, aqu\u00ed saldr\u00e1 el resumen</div>'
       : '';
     return;
   }
   if (!desplegado.stats) return;
 
   const gente = datos.group.members.length;
-  const cerrados = datos.tickets.filter(t => t.status === 'closed').length;
-  const puesto = datos.stats.puestoPor || {};
-  const masPuso = Object.keys(puesto).sort((a, b) => puesto[b] - puesto[a])[0];
+  const cerrados = datos.tickets.filter(t => t.status === 'closed');
 
-  // El gasto mas caro, mirando tickets y gastos sueltos por igual.
-  let caro = null;
-  datos.tickets.forEach(t => {
-    if (!caro || t.total > caro.importe) caro = { nombre: t.restaurant || 'Ticket', importe: t.total };
+  // --- Todo lo que se ha pagado, venga de un ticket o de un gasto suelto ---
+  const apuntes = []
+    .concat(cerrados.map(t => ({
+      nombre: t.restaurant || 'Ticket', importe: +t.total || 0,
+      quien: t.payerName, cuando: t.receiptDate || t.closedAt || t.createdAt
+    })))
+    .concat(datos.expenses.map(e => ({
+      nombre: e.description, importe: +e.amount || 0,
+      quien: e.paidBy, cuando: e.createdAt
+    })));
+
+  // Cuanto ha puesto cada uno y cuantas veces ha sacado la cartera.
+  const dinero = {}, veces = {};
+  datos.group.members.forEach(m => { dinero[m.name] = 0; veces[m.name] = 0; });
+  apuntes.forEach(a => {
+    if (!(a.quien in dinero)) { dinero[a.quien] = 0; veces[a.quien] = 0; }
+    dinero[a.quien] += a.importe;
+    veces[a.quien] += 1;
   });
-  datos.expenses.forEach(e => {
-    if (!caro || e.amount > caro.importe) caro = { nombre: e.description, importe: e.amount };
+
+  const masPor = obj => Object.keys(obj).sort((a, b) => obj[b] - obj[a])[0];
+  const menosPor = obj => Object.keys(obj).sort((a, b) => obj[a] - obj[b])[0];
+
+  // El gasto mas caro, mirando tickets y sueltos por igual.
+  const caro = apuntes.slice().sort((a, b) => b.importe - a.importe)[0];
+
+  // El dia en que mas se dejo el grupo.
+  const porDia = {};
+  apuntes.forEach(a => {
+    const d = new Date(a.cuando);
+    if (isNaN(d)) return;
+    const k = d.toISOString().slice(0, 10);
+    porDia[k] = (porDia[k] || 0) + a.importe;
   });
+  const diaCaro = masPor(porDia);
 
-  // Las dos cifras que se buscan de verdad van grandes y arriba. El resto
-  // eran siete filas identicas: una pared de letra pequena en la que no
-  // destacaba nada, asi que no se leia ninguna.
-  const hero = document.createElement('div');
-  hero.className = 'stat-hero';
-  hero.innerHTML =
-    '<div class="sh-cell"><span class="sh-k">gasto total</span>' +
-      '<span class="sh-v">' + eur(datos.stats.total) + '</span></div>' +
-    '<div class="sh-cell"><span class="sh-k">por persona</span>' +
-      '<span class="sh-v">' + eur(datos.stats.total / Math.max(1, gente)) + '</span></div>';
-  cont.appendChild(hero);
+  // Quien ya ha saldado deudas: cuantas veces ha pagado a alguien.
+  const salda = {};
+  datos.payments.forEach(p => { salda[p.from] = (salda[p.from] || 0) + 1; });
+  const cumplidor = masPor(salda);
 
-  const filas = [
-    // Solo los tickets CERRADOS entran en el reparto, asi que la cuenta tiene
-    // que cuadrar a la vista: si dijera '3 (2 tickets, 2 sueltos)' nadie se
-    // creeria el resto de las cifras.
-    ['En el reparto', datos.stats.apuntes + ' (' + cerrados + ' cerrados, ' + datos.expenses.length + ' sueltos)'],
-    ['Sin cerrar todavía', datos.ticketsAbiertos
-      ? datos.ticketsAbiertos + ' · ' + eur(datos.pendienteDeCerrar || 0) + ' fuera'
-      : 'ninguno'],
-    ['Quien más ha adelantado', masPuso ? esc(masPuso) + ' · ' + eur(puesto[masPuso]) : '—'],
-    ['El gasto más caro', caro ? esc(caro.nombre) + ' · ' + eur(caro.importe) : '—'],
-    ['Pagos ya hechos', datos.payments.length + ' de ' + (datos.payments.length + datos.transfers.length)]
-  ];
+  // Quien debe mas ahora mismo.
+  const debe = {};
+  datos.transfers.forEach(t => { debe[t.de] = (debe[t.de] || 0) + t.importe; });
+  const elQueMasDebe = masPor(debe);
+
+  const filas = [];
+  const fila = (k, v) => { if (v) filas.push([k, v]); };
+
+  fila('Gasto total', eur(datos.stats.total));
+  if (apuntes.length > 1) {
+    fila('Media por apunte', eur(datos.stats.total / apuntes.length));
+  }
+  if (caro) fila('El gasto m\u00e1s caro', esc(caro.nombre) + ' \u00b7 ' + eur(caro.importe));
+  if (diaCaro && Object.keys(porDia).length > 1) {
+    const d = new Date(diaCaro + 'T12:00:00');
+    fila('El d\u00eda m\u00e1s caro',
+      d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }) +
+      ' \u00b7 ' + eur(porDia[diaCaro]));
+  }
+
+  const banco = masPor(dinero);
+  if (banco && dinero[banco] > 0) {
+    fila('El banco del grupo', esc(banco) + ' \u00b7 ' + eur(dinero[banco]) + ' adelantados');
+  }
+  const tacano = menosPor(dinero);
+  if (tacano && gente > 1 && tacano !== banco) {
+    fila('Quien menos ha puesto', esc(tacano) + ' \u00b7 ' + eur(dinero[tacano]));
+  }
+
+  const masVeces = masPor(veces);
+  if (masVeces && veces[masVeces] > 1) {
+    fila('Quien m\u00e1s veces paga',
+      esc(masVeces) + ' \u00b7 ' + veces[masVeces] + ' veces');
+  }
+  if (cumplidor) {
+    fila('El m\u00e1s cumplidor',
+      esc(cumplidor) + ' \u00b7 ' + salda[cumplidor] +
+      (salda[cumplidor] === 1 ? ' deuda saldada' : ' deudas saldadas'));
+  }
+  if (elQueMasDebe) {
+    fila('Quien m\u00e1s debe ahora',
+      esc(elQueMasDebe) + ' \u00b7 ' + eur(debe[elQueMasDebe]));
+  }
+
+  fila('En el reparto', datos.stats.apuntes + ' (' + cerrados.length +
+    ' cerrados, ' + datos.expenses.length + ' sueltos)');
+  fila('Sin cerrar todav\u00eda', datos.ticketsAbiertos
+    ? datos.ticketsAbiertos + ' \u00b7 ' + eur(datos.pendienteDeCerrar || 0) + ' fuera'
+    : 'ninguno');
+  fila('Pagos ya hechos',
+    datos.payments.length + ' de ' + (datos.payments.length + datos.transfers.length));
 
   filas.forEach(([k, v]) => {
     const r = document.createElement('div');
@@ -548,7 +627,8 @@ const desplegado = { gastos: true, cerrados: true, abiertos: true, stats: true }
  * el usuario espera poder plegar la lista, no que el boton aparezca solo a
  * partir de cierto numero.
  */
-function pintarFold(btnId, clave, total, importe) {
+function pintarFold(btnId, clave, total, importe, unidad) {
+  unidad = unidad || 'apunte';
   const b = document.getElementById(btnId);
   if (!b) return;
 
@@ -566,8 +646,17 @@ function pintarFold(btnId, clave, total, importe) {
   const n = +total || 0;
 
   if (suma) suma.textContent = (importe === undefined || importe === null) ? '' : eur(importe);
-  if (cuenta) cuenta.textContent = n ? (n === 1 ? '1 apunte' : n + ' apuntes') : 'vac\u00edo';
+  // Cada seccion cuenta lo suyo: gastos, tickets o apuntes. "1 apunte" en la
+  // lista de tickets obliga a traducir mentalmente algo que ya se sabia.
+  if (cuenta) cuenta.textContent = n ? (n + ' ' + (n === 1 ? unidad : unidad + 's')) : 'vac\u00edo';
   b.classList.toggle('sin-nada', !n);
+
+  // La lista se ensena como cuerpo de la seccion, no como filas sueltas
+  // detras de ella.
+  const cuerpo = b.nextElementSibling;
+  if (cuerpo && cuerpo.classList.contains('sec-body')) {
+    cuerpo.classList.toggle('abierto', !!desplegado[clave]);
+  }
 }
 
 /**
@@ -585,13 +674,25 @@ function estadoTicket(t) {
   const esperados = t.expectedParticipants || 0;
   const todos = esperados > 0 && votantes >= esperados;
 
-  if (!votantes) return { clase: '', texto: 'sin marcar', tono: 'warn' };
-  if (todos && cuadra) return { clase: 'listo', texto: '✓ listo para cerrar', tono: 'ok' };
-  if (todos && !cuadra) return { clase: 'descuadra', texto: 'todos han marcado · no cuadra', tono: 'bad' };
-  return {
-    clase: '', tono: 'warn',
-    texto: esperados ? votantes + ' de ' + esperados + ' han marcado' : votantes + ' marcando'
-  };
+  const chip = (tono, txt) => '<span class="item-state ' + tono + '">' + esc(txt) + '</span>';
+
+  // Cuantos han marcado va SIEMPRE, y se pone en verde cuando ya estan todos.
+  let chips = !votantes
+    ? chip('warn', 'sin marcar')
+    : chip(todos ? 'ok' : 'warn',
+        esperados ? votantes + ' de ' + esperados + ' han marcado'
+                  : votantes + ' marcando');
+
+  // Y si han marcado todos pero las cuentas no salen, se dice aparte: es un
+  // problema distinto de "falta gente", y hay que revisarlo ANTES de cerrar,
+  // no descubrirlo despues.
+  if (todos && !cuadra) {
+    chips += chip('bad', falta > 0
+      ? 'no cuadra \u00b7 faltan ' + eur(falta)
+      : 'no cuadra \u00b7 sobran ' + eur(Math.abs(falta)));
+  }
+
+  return { clase: todos && cuadra ? 'listo' : (todos ? 'descuadra' : ''), chips };
 }
 
 /** Una fila de ticket, clicable para entrar a su reparto. */
@@ -602,17 +703,17 @@ function filaTicket(t) {
   fila.className = 'item-row' + (abierto ? ' is-open' : '') + (est && est.clase ? ' ' + est.clase : '');
   fila.href = '/summary.html?id=' + encodeURIComponent(t.id);
   const d = new Date(t.receiptDate || t.createdAt);
-  const fecha = isNaN(d) ? '' : fmtFecha(d) + ' · ';
+  const fecha = isNaN(d) ? '' : fmtFecha(d);
   fila.innerHTML =
     '<div class="item-main">' +
       '<span class="item-name">' + esc(t.restaurant || 'Ticket') + '</span>' +
       '<span class="item-amount">' + eur(t.total) + '</span>' +
     '</div>' +
     '<div class="item-sub">' +
-      '<span class="is-who">' + esc(t.payerName || 'sin pagador') + '</span>' +
-      '<span class="is-meta">' + fecha + t.lineas + ' l\u00edneas</span>' +
+      '<span class="is-who">Pagador: ' + esc(t.payerName || '\u2014') + '</span>' +
+      '<span class="is-meta">' + fecha + '</span>' +
     '</div>' +
-    (est ? '<div class="item-state ' + est.tono + '">' + esc(est.texto) + '</div>' : '');
+    (est ? '<div class="item-tags">' + est.chips + '</div>' : '');
   return fila;
 }
 
@@ -629,7 +730,7 @@ function pintarTickets() {
     abiertos.forEach(t => contA.appendChild(filaTicket(t)));
   }
   pintarFold('foldOpen', 'abiertos', abiertos.length,
-    abiertos.reduce((a, t) => a + (+t.total || 0), 0));
+    abiertos.reduce((a, t) => a + (+t.total || 0), 0), 'ticket');
 
 
   // --- Historial de los cerrados ---
@@ -641,7 +742,7 @@ function pintarTickets() {
     cerrados.forEach(t => cont.appendChild(filaTicket(t)));
   }
   pintarFold('foldClosed', 'cerrados', cerrados.length,
-    cerrados.reduce((a, t) => a + (+t.total || 0), 0));
+    cerrados.reduce((a, t) => a + (+t.total || 0), 0), 'ticket');
 }
 
 // ---------------------------------------------------------------- gastos sueltos
@@ -652,7 +753,7 @@ function pintarGastos() {
 
   if (!datos.expenses.length) {
     cont.innerHTML = '<div class="empty-line">El taxi, las entradas, la gasolina…</div>';
-    pintarFold('foldExpenses', 'gastos', 0, 0);
+    pintarFold('foldExpenses', 'gastos', 0, 0, 'gasto');
     return;
   }
 
@@ -685,7 +786,7 @@ function pintarGastos() {
   }
 
   pintarFold('foldExpenses', 'gastos', datos.expenses.length,
-    datos.expenses.reduce((a, e) => a + (+e.amount || 0), 0));
+    datos.expenses.reduce((a, e) => a + (+e.amount || 0), 0), 'gasto');
 }
 
 async function borrarGasto(e) {

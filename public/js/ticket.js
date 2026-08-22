@@ -416,15 +416,23 @@ function montarSelectorDePagador() {
   if (!grupoDelTicket || !Array.isArray(grupoDelTicket.members) ||
       !grupoDelTicket.members.length) return;
 
-  campo.classList.add('hidden');
-  caja.classList.remove('hidden');
+  // La linea de "QUIEN PAGO" se queda donde estaba, con su hueco de puntos:
+  // es donde se lee el nombre una vez elegido, igual que cuando se escribia.
+  // Lo unico que cambia es que ya no se teclea.
+  input.readOnly = true;
+  input.placeholder = 'toca un nombre';
+  campo.classList.add('con-lista');
   pills.innerHTML = '';
 
-  const marcar = () => {
-    const actual = (input.value || '').trim().toLowerCase();
+  // Los botones solo estan mientras hacen falta. Con alguien ya elegido
+  // sobran, y dejarlos ahi llena la pantalla de nombres que no dicen nada.
+  const refrescar = () => {
+    const elegido = (input.value || '').trim();
+    caja.classList.toggle('hidden', !!elegido);
     pills.querySelectorAll('.who-pill').forEach(b => {
-      b.classList.toggle('active', b.dataset.nombre.toLowerCase() === actual);
+      b.classList.toggle('active', b.dataset.nombre === elegido);
     });
+    if (typeof fitTicket === 'function') fitTicket();
   };
 
   grupoDelTicket.members.forEach(m => {
@@ -435,16 +443,22 @@ function montarSelectorDePagador() {
     b.textContent = m.name;
     b.addEventListener('click', () => {
       input.value = m.name;
-      // El mismo evento que al teclear, para que lo que ya escuchaba al campo
-      // siga reaccionando igual.
       input.dispatchEvent(new Event('input', { bubbles: true }));
-      marcar();
+      refrescar();
     });
     pills.appendChild(b);
   });
 
+  // Y para cambiarlo, se toca el nombre: vuelven los botones.
+  input.addEventListener('click', () => {
+    if (!input.readOnly) return;
+    input.value = '';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    refrescar();
+  });
+
   // Si este movil ya tiene nombre en el grupo, lo normal es que sea quien
-  // acaba de pagar y de escanear: viene elegido, y se cambia con un toque.
+  // acaba de pagar y de escanear: viene puesto, y se cambia con un toque.
   if (!input.value.trim()) {
     let testigo = '';
     try { testigo = localStorage.getItem('ct_tok_' + ticketData.groupId) || ''; } catch (_) {}
@@ -454,7 +468,5 @@ function montarSelectorDePagador() {
     }
   }
 
-  input.addEventListener('input', marcar);
-  marcar();
-  if (typeof fitTicket === 'function') fitTicket();
+  refrescar();
 }

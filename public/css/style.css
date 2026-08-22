@@ -2797,38 +2797,7 @@ input[type="file"] { display: none; }
 
 /* Tus grupos, en la portada. Sin cuentas de usuario, esto es lo que evita que
    un grupo se pierda al cerrar la pestana. */
-.my-groups { margin-top: 22px; }
-.mg-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 11px 13px;
-  margin-bottom: 7px;
-  border: 1.5px dashed var(--gray-300);
-  border-radius: var(--radius-sm);
-  background: #fff;
-  text-decoration: none;
-  transition: border-color .16s, transform .1s;
-}
 .mg-row:active { transform: scale(0.985); border-color: var(--accent); }
-.mg-name {
-  font-family: var(--mono);
-  font-size: 0.74rem;
-  font-weight: 700;
-  color: var(--black);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-.mg-total {
-  font-family: var(--mono);
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--gray-400);
-  flex-shrink: 0;
-}
-
 /* --- Escanear desde dentro de un grupo -----------------------------------
    Quien ya esta en un grupo no necesita que le presenten la aplicacion otra
    vez: se esconde todo lo que sobra y quedan los dos botones de camara y
@@ -2839,29 +2808,12 @@ body.en-grupo #viaGrupoLabel,
 body.en-grupo #groupCta,
 body.en-grupo #groupCtaSub,
 body.en-grupo #misGrupos,
+body.en-grupo #verGruposCta,
 body.en-grupo .brand-logo,
 body.en-grupo #viaSueltaLabel { display: none !important; }
 
-body.en-grupo .grupo-banner.hidden { display: flex !important; }
+body.en-grupo .volver-fila.hidden { display: flex !important; }
 body.en-grupo .upload-area { padding-top: 6px; }
-
-.grupo-banner {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 0 0 18px;
-  padding: 10px 12px;
-  border: 1.5px dashed var(--accent);
-  border-radius: var(--radius-sm);
-  background: rgba(255,107,53,.06);
-  text-decoration: none;
-  font-family: var(--mono);
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--gray-500);
-}
-.grupo-banner svg { width: 15px; height: 15px; flex-shrink: 0; color: var(--accent); }
-.grupo-banner strong { color: var(--black); }
 
 /* --- Dias sin pagar ------------------------------------------------------
    Mientras siguen entrando gastos la deuda todavia cambia; en cuanto el grupo
@@ -3143,8 +3095,6 @@ body.en-grupo .upload-area { padding-top: 6px; }
 
 /* Abierta, la cabecera se queda pegada a su lista: asi se ve de un vistazo
    donde empieza y donde acaba lo que se ha desplegado. */
-.sec-head.abierta { background: rgba(0,0,0,.028); margin-bottom: 0; }
-
 /* --- El aviso de lo que queda fuera del cuadre --------------------------
    Estaba pegado a la derecha del titulo REPARTO, en letra diminuta, y se
    partia por la mitad. Aqui abajo tiene una franja propia: la cifra manda y
@@ -3233,3 +3183,189 @@ body.en-grupo .upload-area { padding-top: 6px; }
 .pantalla-grupo .sn-amount { font-size: 1.08rem; }
 .pantalla-grupo .sn-why    { font-size: 0.74rem; }
 .pantalla-grupo .add-btn .ab-ico { width: 23px; height: 23px; }
+
+
+/* =========================================================================
+   VOLVER AL GRUPO
+   Era una barra naranja entera, y competia con los dos botones de escanear
+   —que es a lo que se ha venido—. Ahora solo la flecha es un boton; el texto
+   de al lado se limita a decir a donde vuelves.
+   ========================================================================= */
+.volver-fila {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 16px;
+}
+.volver-flecha {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 50%;
+  background: #fff;
+  color: var(--accent);
+  text-decoration: none;
+  transition: transform .12s ease, border-color .15s ease;
+}
+.volver-flecha:active { transform: scale(0.9); border-color: var(--accent); }
+.volver-flecha svg { width: 17px; height: 17px; }
+.volver-texto {
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--gray-500);
+}
+.volver-texto strong { color: var(--black); }
+
+/* =========================================================================
+   VER MIS GRUPOS
+   Segundo boton con el mismo formato que el de crear, y no una lista colgando
+   al final de la pagina: asi cabe en pantalla sin bajar, y los grupos solo
+   ocupan sitio cuando se piden.
+   ========================================================================= */
+.group-cta-b { margin-top: 10px; }
+.group-cta-b .gc-people { color: var(--gray-500); }
+.gc-badge {
+  min-width: 20px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: var(--gray-200, #E8E8EC);
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+  color: var(--gray-500);
+}
+.group-cta-b.abierto {
+  border-style: solid;
+  border-color: var(--accent);
+}
+.group-cta-b.abierto .gc-badge { background: rgba(255,107,53,.16); color: var(--accent); }
+
+.my-groups { margin-top: 8px; }
+
+.mg-row {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  border-bottom: 1px dashed var(--gray-300);
+}
+.mg-row:last-child { border-bottom: none; }
+
+.mg-link {
+  flex: 1;
+  min-width: 0;
+  display: block;
+  padding: 11px 4px;
+  text-decoration: none;
+  color: inherit;
+}
+.mg-name {
+  display: block;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  font-weight: 800;
+  color: var(--black);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Con quien es y de cuando es. En la portada, un total suelto no dice si es
+   lo que has gastado, lo que debes o lo que te deben: solo confunde. */
+.mg-meta {
+  display: block;
+  margin-top: 2px;
+  font-family: var(--sans);
+  font-size: 0.66rem;
+  color: var(--gray-400);
+}
+.mg-del {
+  flex-shrink: 0;
+  width: 34px;
+  appearance: none;
+  border: none;
+  background: none;
+  color: var(--gray-300);
+  font-size: 1.2rem;
+  line-height: 1;
+  cursor: pointer;
+}
+.mg-del:active { color: var(--red); }
+
+/* =========================================================================
+   UNA SECCION ABIERTA SE VE COMO UNA CAJA
+   Al desplegar, sus filas quedaban al mismo nivel visual que la cabecera:
+   parecian secciones hermanas, no el contenido de la que acabas de abrir.
+   Ahora la cabecera y su lista forman un solo bloque —misma tinta de fondo,
+   esquinas redondeadas arriba y abajo— y las filas van metidas hacia dentro,
+   colgando de una linea de puntos que baja por el margen. Es el mismo recurso
+   que ya usa el ticket en todas partes, no un estilo nuevo.
+   ========================================================================= */
+/* Las filas cuelgan de una linea de puntos que baja por el margen: es lo que
+   dice "esto de aqui esta dentro de lo de arriba". */
+/* La ultima fila cierra la caja con un codo, para que la linea no se corte
+   en el aire. */
+/* Las etiquetas de estado de un ticket abierto. Van dos: cuantos han marcado
+   —en verde cuando ya estan todos— y, si aun asi las cuentas no salen, una
+   segunda que lo dice. Son dos problemas distintos: que falte gente por
+   marcar, y que lo marcado no sume el total. */
+.item-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 7px;
+}
+.item-tags .item-state { margin-top: 0; }
+
+
+/* =========================================================================
+   UNA SECCION ABIERTA ES UNA CAJA
+   Al desplegarla, sus filas quedaban al mismo nivel visual que la cabecera:
+   parecian secciones hermanas, no el contenido de la que acabas de abrir.
+
+   Ahora la cabecera y su lista se encierran juntas en un recuadro de puntos
+   —la misma trama que usa el ticket en todas partes, no un estilo nuevo— y
+   las filas van metidas hacia dentro. Cerrada no se dibuja nada: solo hay
+   caja cuando hay algo dentro que encerrar.
+   ========================================================================= */
+.sec-head.abierta {
+  background: rgba(0,0,0,.03);
+  border: 1.5px dashed var(--gray-300);
+  border-bottom: none;
+  border-radius: 10px 10px 0 0;
+  padding-left: 12px;
+  padding-right: 12px;
+  margin-bottom: 0;
+}
+
+.sec-body { display: none; }
+.sec-body.abierto {
+  display: block;
+  background: rgba(0,0,0,.03);
+  border: 1.5px dashed var(--gray-300);
+  border-top: none;
+  border-radius: 0 0 10px 10px;
+  margin: 0 0 10px;
+  padding: 2px 12px 8px;
+}
+
+/* Metidas hacia dentro respecto al titulo: es lo que dice "esto cuelga de
+   lo de arriba". */
+.sec-body.abierto > .item-row,
+.sec-body.abierto > .stat-row,
+.sec-body.abierto > .empty-line {
+  margin-left: 10px;
+}
+.sec-body.abierto > .item-row { border-bottom: 1px dashed #D8D8DF; }
+.sec-body.abierto > .item-row:last-of-type { border-bottom: none; }
+
+.pantalla-grupo .sec-head.abierta,
+.pantalla-grupo .sec-body.abierto { padding-left: 14px; padding-right: 14px; }
+
+/* Quien ya tiene grupos guardados ya ha usado la aplicacion: el tutorial de
+   tres pasos deja de tener sentido, y son justo los pixeles que hacen que
+   "Ver mis grupos" quede fuera de la pantalla en un movil. */
+body.tiene-grupos .tutorial { display: none; }
