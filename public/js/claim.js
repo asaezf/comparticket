@@ -394,50 +394,29 @@ function renderLivePeople() {
     </span>`).join('');
 }
 
-// --- Aviso de primera vez ---
-// Tres líneas de texto dentro del ticket no las lee nadie, y menos en un bar.
-// En su lugar, una etiqueta flotante señalando la primera píldora. Sale UNA
-// vez en la vida de este navegador y desaparece al primer toque.
-const TIP_KEY = 'ct_seen_claim_tip';
-
-function maybeShowTip() {
-  let seen = true;
-  try { seen = !!localStorage.getItem(TIP_KEY); } catch (_) {}
-  if (seen) return;
-
-  const first = document.querySelector('.unit-pill');
-  if (!first) return;
-
-  const tip = document.createElement('div');
-  tip.className = 'coach-tip';
-  tip.id = 'coachTip';
-  tip.innerHTML = `<span>${esc(t.tipFirstPill)}</span>`;
-  document.body.appendChild(tip);
-
-  const place = () => {
-    const r = first.getBoundingClientRect();
-    if (!r.width) return;
-    tip.style.top = (window.scrollY + r.bottom + 10) + 'px';
-    tip.style.left = (window.scrollX + r.left + r.width / 2) + 'px';
-  };
-  place();
-  requestAnimationFrame(place);
-  window.addEventListener('resize', place);
-  window.addEventListener('scroll', place, { passive: true });
-  first.classList.add('coach-target');
-
-  tip.addEventListener('click', dismissTip);
-  // Red de seguridad: si nadie lo toca, se va solo.
-  setTimeout(dismissTip, 12000);
-}
-
-function dismissTip() {
-  const tip = document.getElementById('coachTip');
-  if (!tip) return;
-  try { localStorage.setItem(TIP_KEY, '1'); } catch (_) {}
-  document.querySelectorAll('.coach-target').forEach(el => el.classList.remove('coach-target'));
-  tip.classList.add('leaving');
-  setTimeout(() => tip.remove(), 250);
+// --- Tutorial de primera vez ---
+// Tres líneas de texto dentro del ticket no las lee nadie, y menos en un
+// bar. En su lugar, tres pasos guiados con Tour (public/js/tour.js): nombre,
+// píldoras y qué pasa si una unidad ya tiene el nombre de otra persona. Sale
+// UNA vez en la vida de este navegador.
+function mostrarTutorial() {
+  Tour.iniciar('claim', [
+    {
+      // Con grupo el nombre se elige de una lista; sin grupo, se escribe.
+      selector: ['.group-picker', '.name-field'],
+      titulo: t.tourClaimNameTitle,
+      cuerpo: t.ctut1
+    },
+    {
+      selector: '.unit-pill',
+      titulo: t.tourClaimPillsTitle,
+      cuerpo: t.ctut2
+    },
+    {
+      titulo: t.tourClaimSharedTitle,
+      cuerpo: t.ctut3
+    }
+  ]);
 }
 
 function setLiveState(state) {
@@ -624,7 +603,7 @@ async function loadTicket() {
   startPolling();
   montarSelectorDeGrupo();
   setLiveState('saved');
-  maybeShowTip();
+  mostrarTutorial();
 }
 
 function myNameNormalized() {
@@ -874,7 +853,7 @@ function onPillClick(e) {
   // A partir del primer toque propio, lo marcado es mío y ya no procede de
   // haber cargado la selección de otra persona al escribir el nombre.
   prefilledFrom = null;
-  dismissTip();
+  Tour.terminar();
 
   lastTouch = Date.now();
   goFast();      // si yo me muevo, los demás probablemente también

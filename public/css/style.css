@@ -1377,46 +1377,6 @@ body {
   max-width: 320px;
 }
 
-/* Tutorial steps */
-.tutorial {
-  width: 100%;
-  max-width: 360px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-top: 4px;
-}
-.tut-row {
-  display: flex;
-  gap: 12px;
-  align-items: flex-start;
-  padding: 12px 14px;
-  background: rgba(255,255,255,0.6);
-  border-radius: 14px;
-  border: 1px solid var(--gray-200);
-  backdrop-filter: blur(6px);
-}
-.tut-step-num {
-  flex-shrink: 0;
-  width: 26px;
-  height: 26px;
-  border-radius: 50%;
-  background: var(--black);
-  color: white;
-  font-family: var(--display);
-  font-weight: 800;
-  font-size: 0.82rem;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.tut-text {
-  font-size: 0.8rem;
-  line-height: 1.45;
-  color: var(--gray-900);
-}
-.tut-text strong { color: var(--black); font-weight: 700; }
-
 /* Multi-upload thumbnails */
 .thumbs {
   display: flex;
@@ -2802,7 +2762,6 @@ input[type="file"] { display: none; }
    Quien ya esta en un grupo no necesita que le presenten la aplicacion otra
    vez: se esconde todo lo que sobra y quedan los dos botones de camara y
    galeria, que es a lo unico que ha venido. */
-body.en-grupo .tutorial,
 body.en-grupo .via-sep,
 body.en-grupo #viaGrupoLabel,
 body.en-grupo #groupCta,
@@ -3371,7 +3330,6 @@ body.en-grupo .upload-area { padding-top: 6px; }
 /* Quien ya tiene grupos guardados ya ha usado la aplicacion: el tutorial de
    tres pasos deja de tener sentido, y son justo los pixeles que hacen que
    "Ver mis grupos" quede fuera de la pantalla en un movil. */
-body.tiene-grupos .tutorial { display: none; }
 
 /* Los nombres del grupo, debajo de la linea de QUIEN PAGO. Solo estan
    mientras no hay nadie elegido: en cuanto se toca uno desaparecen y el
@@ -3943,3 +3901,114 @@ a.hist-row:active { transform: scale(0.99); }
 .pantalla-grupo .pend-name   { font-size: 0.9rem; }
 .pantalla-grupo .pend-amount { font-size: 0.95rem; }
 .pantalla-grupo .pend-sub    { font-size: 0.72rem; }
+
+/* =========================================================================
+   TUTORIALES GUIADOS (tour.js)
+   Una burbuja que señala al elemento del que habla, pero SIEMPRE dentro de
+   los márgenes de la pantalla — se intenta debajo, si no cabe encima, y si
+   ninguno cabe se centra en mitad de la pantalla sin piquito. La posición
+   se calcula en tour.js; aquí solo la forma.
+   ========================================================================= */
+.tour-bubble {
+  position: fixed;
+  z-index: 500;
+  box-sizing: border-box;
+  background: var(--black);
+  color: #fff;
+  border-radius: 14px;
+  padding: 12px 14px 14px;
+  box-shadow: 0 14px 34px rgba(0,0,0,.32);
+  animation: tourIn .26s cubic-bezier(0.22, 0.61, 0.36, 1) both;
+}
+@keyframes tourIn {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to   { opacity: 1; transform: none; }
+}
+
+.tb-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+.tb-count {
+  font-family: var(--mono);
+  font-size: 0.58rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.tb-skip {
+  appearance: none;
+  border: none;
+  background: none;
+  color: rgba(255,255,255,.55);
+  font-size: 1.15rem;
+  line-height: 1;
+  padding: 0 2px;
+  cursor: pointer;
+  margin: -4px -2px 0 0;
+}
+.tb-skip:active { color: #fff; }
+
+.tb-title {
+  font-family: var(--sans);
+  font-size: 0.86rem;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 4px;
+}
+.tb-body {
+  font-family: var(--sans);
+  font-size: 0.76rem;
+  line-height: 1.45;
+  color: rgba(255,255,255,.82);
+}
+.tb-next {
+  display: block;
+  width: 100%;
+  margin-top: 12px;
+  appearance: none;
+  border: none;
+  border-radius: 9px;
+  background: #fff;
+  color: var(--black);
+  font-family: var(--sans);
+  font-size: 0.76rem;
+  font-weight: 700;
+  padding: 9px 10px;
+  cursor: pointer;
+}
+.tb-next:active { background: var(--accent); color: #fff; }
+
+/* El piquito. Su posición horizontal la fija tour.js en --punta-x, medida
+   desde el borde izquierdo de la burbuja hasta el centro del objetivo. */
+.tour-bubble.con-piquito-arriba::before,
+.tour-bubble.con-piquito-abajo::before {
+  content: '';
+  position: absolute;
+  left: var(--punta-x, 50%);
+  margin-left: -6px;
+  border-left: 6px solid transparent;
+  border-right: 6px solid transparent;
+}
+.tour-bubble.con-piquito-arriba::before {
+  top: -6px;
+  border-bottom: 6px solid var(--black);
+}
+.tour-bubble.con-piquito-abajo::before {
+  bottom: -6px;
+  border-top: 6px solid var(--black);
+}
+
+/* El elemento señalado. Un anillo que late, en el naranja de la marca —el
+   mismo recurso que ya usa la aplicación para "esto está pasando ahora". */
+.tour-target {
+  border-radius: 10px;
+  animation: tourPulso 1.7s ease-in-out infinite;
+}
+@keyframes tourPulso {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(255,107,53,.4); }
+  50%      { box-shadow: 0 0 0 6px rgba(255,107,53,.12); }
+}

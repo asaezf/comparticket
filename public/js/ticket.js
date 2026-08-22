@@ -57,6 +57,34 @@ async function loadTicket() {
   updateTotal();
   montarGrupo();
 
+  // El tutorial arranca aquí, con los artículos ya pintados: antes de esto
+  // #itemsList existe pero está vacío, y el paso que lo señala se vería
+  // apuntando a una lista en blanco.
+  Tour.iniciar('ticket', [
+    {
+      // Dentro de un grupo el campo de texto se oculta y aparecen los
+      // botones con los nombres; solo uno de los dos está visible cada vez.
+      selector: ['.payer-picker', '.payer-field'],
+      titulo: t.tourTicketPayerTitle,
+      cuerpo: t.tourTicketPayerBody
+    },
+    {
+      selector: '#itemsList',
+      titulo: t.tourTicketItemsTitle,
+      cuerpo: t.tourTicketItemsBody
+    },
+    {
+      selector: '#addBtn',
+      titulo: t.tourTicketAddTitle,
+      cuerpo: t.tourTicketAddBody
+    },
+    {
+      selector: '#shareBtn',
+      titulo: t.tourTicketShareTitle,
+      cuerpo: t.tourTicketShareBody
+    }
+  ]);
+
   if (ticketData.status === 'shared' || ticketData.status === 'closed') {
     showShare();
   }

@@ -58,6 +58,25 @@ async function loadData() {
   if (ticketData.status === 'closed') {
     showClosed();
   }
+
+  // El paso de "cierra la cuenta" no tiene sentido si ya está cerrada: el
+  // botón ni siquiera está en pantalla, y el tutorial se vería señalando a
+  // nada. Se cuenta solo lo que hay que hacer todavía.
+  const pasos = [
+    {
+      selector: '#personList',
+      titulo: t.tourSummaryPeopleTitle,
+      cuerpo: t.tourSummaryPeopleBody
+    }
+  ];
+  if (ticketData.status !== 'closed') {
+    pasos.push({
+      selector: '#closeBtn',
+      titulo: t.tourSummaryCloseTitle,
+      cuerpo: t.tourSummaryCloseBody
+    });
+  }
+  Tour.iniciar('summary', pasos);
 }
 
 /**

@@ -280,4 +280,18 @@ document.getElementById('ordenRow').addEventListener('click', (e) => {
   fitTicket();
 });
 
-cargar().then(() => fitTicket());
+cargar().then(() => {
+  fitTicket();
+  Tour.iniciar('historial', [
+    {
+      selector: '.busca-box',
+      titulo: t.tourHistSearchTitle,
+      cuerpo: t.tourHistSearchBody
+    },
+    {
+      selector: '.orden-row',
+      titulo: t.tourHistSortTitle,
+      cuerpo: t.tourHistSortBody
+    }
+  ]);
+});

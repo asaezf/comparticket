@@ -7,9 +7,6 @@ document.getElementById('uploadSub').textContent = t.uploadHint;
 document.getElementById('retakeText').textContent = t.retakeBtn;
 document.getElementById('scanText').textContent = t.scanBtn;
 document.getElementById('procText').textContent = t.processing;
-document.getElementById('tutText1').textContent = t.tut1;
-document.getElementById('tutText2').textContent = t.tut2;
-document.getElementById('tutText3').textContent = t.tut3;
 document.getElementById('cameraBtnText').textContent = t.cameraLabel || 'Cámara';
 document.getElementById('galleryBtnText').textContent = t.galleryLabel || 'Galería';
 const addHint = document.getElementById('addHintText');
@@ -261,16 +258,10 @@ function pintarMisGrupos() {
   if (!cta || !caja || !cont) return;
 
   if (!lista.length) {
-    document.body.classList.remove('tiene-grupos');
     cta.classList.add('hidden');
     caja.classList.add('hidden');
     return;
   }
-
-  // Quien ya tiene grupos no necesita el tutorial de tres pasos: ya ha usado
-  // la aplicacion. Y esos 232 px son justo los que hacen que "Ver mis grupos"
-  // quede fuera de la pantalla en un movil.
-  document.body.classList.add('tiene-grupos');
 
   cta.classList.remove('hidden');
   const cuantos = document.getElementById('verGruposCuantos');
@@ -477,4 +468,26 @@ if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("/sw.js").catch(() => {});
   });
+}
+
+// =========================================================================
+// TUTORIAL DE LA PORTADA
+//
+// Solo la primera vez, y solo en la vía normal: quien llega desde el enlace
+// de un grupo (?grupo=...) ya sabe lo que hace — viene de escanear otro
+// ticket del mismo viaje — y no necesita que le presenten la aplicación.
+// =========================================================================
+if (!grupoDestino) {
+  Tour.iniciar('index', [
+    {
+      selector: '.upload-btns-row',
+      titulo: t.tourIdxScanTitle,
+      cuerpo: t.tut1
+    },
+    {
+      selector: '#groupCta',
+      titulo: t.tourIdxGroupTitle,
+      cuerpo: t.tourIdxGroupBody
+    }
+  ]);
 }

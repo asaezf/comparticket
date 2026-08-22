@@ -1299,4 +1299,36 @@ document.getElementById('addTicketBtn').addEventListener('click', () => {
   window.location.href = '/?grupo=' + encodeURIComponent(groupId);
 });
 
-cargar().then(arrancarLatido);
+/**
+ * El tutorial se arranca una sola vez, tras la primera carga — no dentro de
+ * pintar(), que se repite cada vez que llega una novedad por el latido. Los
+ * cuatro objetivos son elementos que siempre están en el documento (aunque
+ * a veces ocultos, como el botón de bloquear sin ningún gasto todavía), así
+ * que da igual en qué estado esté el grupo la primera vez que se abre.
+ */
+function iniciarTutorialGrupo() {
+  Tour.iniciar('group', [
+    {
+      selector: '#whoBlock',
+      titulo: t.tourGroupWhoTitle,
+      cuerpo: t.tourGroupWhoBody
+    },
+    {
+      selector: '.add-row',
+      titulo: t.tourGroupAddTitle,
+      cuerpo: t.tourGroupAddBody
+    },
+    {
+      selector: '#repartoTitulo',
+      titulo: t.tourGroupLockTitle,
+      cuerpo: t.tourGroupLockBody
+    },
+    {
+      selector: '#foldExpenses',
+      titulo: t.tourGroupHistTitle,
+      cuerpo: t.tourGroupHistBody
+    }
+  ]);
+}
+
+cargar().then(() => { arrancarLatido(); iniciarTutorialGrupo(); });

@@ -113,3 +113,16 @@ const habitual = nombreHabitual();
 if (habitual) miembros.push(habitual);
 pintar();
 document.getElementById('groupNameInput').focus();
+
+Tour.iniciar('newgroup', [
+  {
+    selector: '#groupNameInput',
+    titulo: t.tourNewGroupNameTitle,
+    cuerpo: t.tourNewGroupNameBody
+  },
+  {
+    selector: '#memberInput',
+    titulo: t.tourNewGroupMembersTitle,
+    cuerpo: t.tourNewGroupMembersBody
+  }
+]);
