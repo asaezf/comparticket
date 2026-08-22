@@ -368,3 +368,113 @@ function modoGrupo() {
 }
 
 modoGrupo();
+
+
+// =========================================================================
+// IDIOMA Y MONEDA
+//
+// Los dos se guardan en el movil y no en el servidor: no hay cuentas de
+// usuario, y son cosa de quien mira la pantalla, no del grupo. Al cambiar
+// cualquiera de los dos hace falta recargar, porque los textos y los
+// importes se pintan al arrancar cada pantalla.
+// =========================================================================
+
+function montarAjustes() {
+  const idioma = document.getElementById('selIdioma');
+  const moneda = document.getElementById('selMoneda');
+  if (!idioma || !moneda) return;
+
+  document.getElementById('lblIdioma').textContent = t.langLabel;
+  document.getElementById('lblMoneda').textContent = t.currencyLabel;
+  document.getElementById('notaMoneda').textContent = t.currencyNote;
+
+  idioma.value = lang;
+  try { moneda.value = Money.monedaActual(); } catch (_) {}
+
+  idioma.addEventListener('change', () => {
+    try { localStorage.setItem('ct_idioma', idioma.value); } catch (_) {}
+    location.reload();
+  });
+  moneda.addEventListener('change', () => {
+    try { localStorage.setItem('ct_moneda', moneda.value); } catch (_) {}
+    location.reload();
+  });
+}
+
+montarAjustes();
+
+
+// =========================================================================
+// ACCESO DIRECTO EN LA PANTALLA DEL MOVIL
+//
+// En Android el navegador avisa con `beforeinstallprompt` cuando se puede
+// instalar, y entonces se ensena el boton: al tocarlo sale el dialogo del
+// sistema. En iPhone eso NO existe —Apple no da ninguna API para provocarlo—
+// asi que alli lo unico posible es explicar los dos toques que hay que dar.
+//
+// Y si ya esta instalada no se ensena nada: la aplicacion se abre en modo
+// standalone, y ofrecer instalar algo que ya tienes solo confunde.
+// =========================================================================
+
+let promesaDeInstalar = null;
+
+function yaEstaInstalada() {
+  return window.matchMedia('(display-mode: standalone)').matches ||
+         window.navigator.standalone === true;
+}
+
+function esIphone() {
+  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+}
+
+function montarAtajo() {
+  const caja = document.getElementById('atajo');
+  const btn = document.getElementById('atajoBtn');
+  if (!caja || !btn) return;
+
+  const tit = document.getElementById('atajoTitulo');
+  const sub = document.getElementById('atajoSub');
+
+  if (yaEstaInstalada()) { caja.classList.add('hidden'); return; }
+
+  if (esIphone()) {
+    // Sin dialogo posible: se explica y se acabo.
+    tit.textContent = t.addToHome;
+    sub.textContent = t.addToHomeIos;
+    btn.classList.add('solo-texto');
+    caja.classList.remove('hidden');
+    return;
+  }
+
+  // Android y escritorio: el boton solo aparece si el navegador dice que se
+  // puede instalar. Sin eso, tocarlo no haria nada.
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    promesaDeInstalar = e;
+    tit.textContent = t.addToHome;
+    sub.textContent = t.addToHomeSub;
+    caja.classList.remove('hidden');
+  });
+
+  btn.addEventListener('click', async () => {
+    if (!promesaDeInstalar) return;
+    promesaDeInstalar.prompt();
+    try { await promesaDeInstalar.userChoice; } catch (_) {}
+    promesaDeInstalar = null;
+    caja.classList.add('hidden');
+  });
+
+  window.addEventListener('appinstalled', () => caja.classList.add('hidden'));
+}
+
+montarAtajo();
+
+// El navegador no ofrece instalar la aplicacion si no hay un service worker
+// registrado. El nuestro no cachea nada a proposito —ver public/sw.js—: aqui
+// se manejan importes, y servir una version vieja del codigo que reparte el
+// dinero es peor que no poder abrir sin conexion.
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  });
+}

@@ -3452,3 +3452,97 @@ body.tiene-grupos .tutorial { display: none; }
 .pantalla-grupo .an-tit { font-size: 0.84rem; }
 .pantalla-grupo .an-sub { font-size: 0.74rem; }
 .pantalla-grupo .an-ir  { font-size: 0.68rem; }
+
+/* =========================================================================
+   ACCESO DIRECTO EN LA PANTALLA DEL MOVIL
+   En Android el navegador avisa cuando se puede instalar y entonces sale el
+   boton. En iPhone no hay forma de provocarlo, asi que alli el mismo hueco
+   se limita a explicar los dos toques que hay que dar.
+   ========================================================================= */
+.atajo { margin-top: 14px; }
+.atajo-btn {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  width: 100%;
+  padding: 13px 14px;
+  appearance: none;
+  border: 1.5px dashed var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .15s ease, transform .12s ease;
+}
+.atajo-btn:active { transform: scale(0.985); border-color: var(--accent); }
+.atajo-btn svg { width: 19px; height: 19px; flex-shrink: 0; color: var(--accent); }
+.atajo-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.atajo-tit {
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 800;
+  color: var(--black);
+}
+.atajo-sub {
+  font-family: var(--sans);
+  font-size: 0.64rem;
+  color: var(--gray-400);
+  line-height: 1.35;
+}
+/* En iPhone no hay dialogo que abrir: el hueco solo informa, asi que no se
+   comporta como un boton. */
+.atajo-btn.solo-texto { cursor: default; }
+.atajo-btn.solo-texto:active { transform: none; border-color: var(--gray-300); }
+
+/* =========================================================================
+   IDIOMA Y MONEDA
+   Al final de la pagina a proposito: se tocan una vez y no se vuelve, asi
+   que no pueden quitarle sitio a lo que si se usa todos los dias.
+   ========================================================================= */
+.ajustes {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 22px 0 4px;
+  padding-top: 14px;
+  border-top: 1.5px dashed var(--gray-300);
+}
+.ajuste { flex: 1; min-width: 120px; display: flex; flex-direction: column; gap: 4px; }
+.ajuste-lbl {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--gray-400);
+}
+.ajuste select {
+  width: 100%;
+  appearance: none;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 8px;
+  padding: 9px 26px 9px 10px;
+  font-family: var(--mono);
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--black);
+  background: #fff
+    url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23A1A1AA'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E")
+    no-repeat right 6px center / 15px;
+  cursor: pointer;
+}
+.ajuste select:focus { outline: none; border-color: var(--accent); }
+
+/* La moneda cambia como se escriben los importes, no cuanto valen. Decirlo
+   evita que alguien crea que la aplicacion convierte divisas. */
+.ajuste-nota {
+  flex-basis: 100%;
+  font-family: var(--sans);
+  font-size: 0.6rem;
+  color: var(--gray-400);
+  line-height: 1.35;
+}
+
+/* Dentro de un grupo esto sobra, como todo lo demas de la portada. */
+body.en-grupo .ajustes,
+body.en-grupo .atajo { display: none !important; }

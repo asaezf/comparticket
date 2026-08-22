@@ -22,10 +22,56 @@
    * en una app española canta muchísimo, y esto sale impreso en la imagen que
    * la gente comparte.
    */
-  function formatEUR(n, lang) {
+  /**
+   * Las divisas que entiende la aplicacion.
+   *
+   * `antes` dice si el simbolo va delante del numero, y `coma` si los
+   * decimales se separan con coma. No es un capricho: en Espana se escribe
+   * "20,00 EUR" y en el Reino Unido "GBP20.00", y un importe escrito al reves
+   * se lee mal aunque el numero sea el mismo.
+   */
+  const MONEDAS = {
+    EUR: { simbolo: '\u20ac', antes: false, coma: true  },
+    USD: { simbolo: '$',       antes: true,  coma: false },
+    GBP: { simbolo: '\u00a3', antes: true,  coma: false },
+    DKK: { simbolo: 'kr',      antes: false, coma: true  },
+    NOK: { simbolo: 'kr',      antes: false, coma: true  }
+  };
+
+  /**
+   * Escribe un importe en la moneda que toque.
+   *
+   * OJO: esto NO convierte. Un ticket de 20 escaneado en Londres son 20
+   * libras, y si se ensena en euros seguira poniendo 20 — cambia como se
+   * escribe, no cuanto vale. Convertir de verdad necesitaria un cambio del
+   * dia y guardar la moneda de cada ticket.
+   */
+  function format(n, lang, moneda) {
+    const m = MONEDAS[moneda] || MONEDAS.EUR;
     const v = round2(+n || 0);
-    if (lang === 'en') return `€${v.toFixed(2)}`;
-    return `${v.toFixed(2).replace('.', ',')} €`;
+    let txt = v.toFixed(2);
+    if (m.coma) txt = txt.replace('.', ',');
+    // Espacio normal, no duro: es lo que la aplicaci\u00f3n ha escrito siempre, y
+    // este texto acaba pegado en WhatsApp y en las vistas previas de los
+    // enlaces. Cambiarlo aqu\u00ed cambiar\u00eda todos esos mensajes de golpe.
+    return m.antes ? `${m.simbolo}${txt}` : `${txt} ${m.simbolo}`;
+  }
+
+  /**
+   * La moneda elegida en este movil. En el servidor no hay eleccion posible
+   * —no sabe quien mira— asi que alli se queda en euros.
+   */
+  function monedaActual() {
+    try {
+      const m = localStorage.getItem('ct_moneda');
+      if (m && MONEDAS[m]) return m;
+    } catch (_) {}
+    return 'EUR';
+  }
+
+  /** Se mantiene el nombre de siempre: lo llaman decenas de sitios. */
+  function formatEUR(n, lang) {
+    return format(n, lang, monedaActual());
   }
 
   /** Suma de las líneas del ticket. */
@@ -177,7 +223,7 @@
   }
 
   return {
-    TOL, round2, formatEUR, itemsSum, reconcileTicket, confirmedOnly,
+    TOL, round2, formatEUR, format, monedaActual, MONEDAS, itemsSum, reconcileTicket, confirmedOnly,
     unitsFromClaim, splitByUnits, reconcileClaims, adjustmentItem
   };
 });

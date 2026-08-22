@@ -9,6 +9,10 @@
 
   <!-- Icono. SVG para navegadores modernos; el de 16-32 px va sin renglones
        porque a ese tamaño se convierten en una mancha gris. -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="comparTICKET">
+  <link rel="apple-touch-icon" href="/icon.svg">
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="/icon.svg">
 
@@ -114,6 +118,50 @@
 
       <div class="my-groups hidden" id="misGrupos">
         <div id="misGruposLista"></div>
+      </div>
+
+      <!-- Acceso directo en la pantalla del movil.
+           En Android el navegador avisa cuando se puede instalar y entonces
+           sale el boton. En iPhone no hay forma de provocarlo —Apple no da
+           esa API—, asi que alli se ensenan las instrucciones y ya esta.
+           Si la aplicacion ya esta instalada, no se ensena nada. -->
+      <div class="atajo hidden" id="atajo">
+        <button class="atajo-btn" id="atajoBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+          <span class="atajo-txt">
+            <span class="atajo-tit" id="atajoTitulo"></span>
+            <span class="atajo-sub" id="atajoSub"></span>
+          </span>
+        </button>
+      </div>
+
+      <!-- Idioma y moneda. Al final de la pagina a proposito: se toca una vez
+           y no se vuelve, asi que no puede quitarle sitio a lo que si se usa
+           todos los dias. -->
+      <div class="ajustes">
+        <label class="ajuste">
+          <span class="ajuste-lbl" id="lblIdioma">IDIOMA</span>
+          <select id="selIdioma">
+            <option value="es">Espa&#241;ol</option>
+            <option value="en">English</option>
+            <option value="fr">Fran&#231;ais</option>
+            <option value="it">Italiano</option>
+            <option value="de">Deutsch</option>
+            <option value="no">Norsk</option>
+            <option value="pl">Polski</option>
+          </select>
+        </label>
+        <label class="ajuste">
+          <span class="ajuste-lbl" id="lblMoneda">MONEDA</span>
+          <select id="selMoneda">
+            <option value="EUR">EUR &#8364;</option>
+            <option value="USD">USD $</option>
+            <option value="GBP">GBP &#163;</option>
+            <option value="DKK">DKK kr</option>
+            <option value="NOK">NOK kr</option>
+          </select>
+        </label>
+        <div class="ajuste-nota" id="notaMoneda"></div>
       </div>
     </div>
 
