@@ -2425,7 +2425,7 @@ input[type="file"] { display: none; }
   from { opacity: 0; transform: translateX(-4px); }
   to   { opacity: 1; transform: translateX(0); }
 }
-.tr-row.is-mine { border-color: var(--accent); background: rgba(255,107,53,.05); }
+
 .tr-row.is-done { opacity: .55; border-style: solid; border-color: #E4E4E7; }
 
 .tr-main {
@@ -2938,12 +2938,15 @@ body.en-grupo .upload-area { padding-top: 6px; }
    ticket de verdad.
    ============================================= */
 
-.pantalla-grupo .page { max-width: 470px; }
-.pantalla-grupo .printer-assembly { padding: 0 14px; }
+/* El ancho lo decide una sola clase, que llevan las cuatro pantallas con
+   ticket. Si algun dia se cambia, cambian todas a la vez: no se pueden
+   quedar unas anchas y otras estrechas. */
+.pantalla-ancha .page { max-width: 470px; }
+.pantalla-ancha .printer-assembly { padding: 0 14px; }
 /* Sigue siendo mas estrecho que la impresora: si no, el papel pareceria salir
    de ningun sitio y se perderia la ilusion. */
-.pantalla-grupo .ticket-wrap { width: 93%; }
-.pantalla-grupo .ticket { padding: 22px 24px; }
+.pantalla-ancha .ticket-wrap { width: 93%; }
+.pantalla-ancha .ticket { padding: 22px 24px; }
 
 /* --- Cabecera --- */
 .pantalla-grupo .ticket-store { font-size: 1rem; }
@@ -3546,3 +3549,177 @@ body.tiene-grupos .tutorial { display: none; }
 /* Dentro de un grupo esto sobra, como todo lo demas de la portada. */
 body.en-grupo .ajustes,
 body.en-grupo .atajo { display: none !important; }
+
+/* =========================================================================
+   EL CANTO DE LA TARJETA DE REPARTO
+   El tiempo que lleva viva la deuda se cuenta desde que se BLOQUEO el
+   reparto, no desde el ultimo gasto: mientras esta abierto la cifra todavia
+   puede cambiar y no hay nada que reclamar.
+
+   Solo cambia el canto. El interior se queda igual, para que la tarjeta siga
+   leyendose como las demas y el color sea un dato de fondo, no un grito.
+
+       menos de 1 h   sin color
+       1 h            amarillo
+       1 dia          naranja
+       2 dias         rojo
+       3 dias         rojo intenso
+       5 dias         violeta
+       7 dias o mas   negro
+   ========================================================================= */
+.tr-row.e1 { border-color: #E8B93B; }
+.tr-row.e2 { border-color: #F08C2E; }
+.tr-row.e3 { border-color: #DC2626; }
+.tr-row.e4 { border-color: #B91C1C; }
+.tr-row.e5 { border-color: #86198F; }
+.tr-row.e6 { border-color: #18181B; }
+
+/* La tuya. En azul y no en naranja: el naranja es el color con el que la
+   aplicacion pide cosas, y aqui solo esta senalando cual te toca a ti. El
+   canto lo sigue mandando el tiempo, igual que en las demas. */
+.tr-row.is-mine {
+  border-color: #3B82F6;
+  background: rgba(59,130,246,.06);
+}
+.tr-row.is-mine.e1 { border-color: #E8B93B; }
+.tr-row.is-mine.e2 { border-color: #F08C2E; }
+.tr-row.is-mine.e3 { border-color: #DC2626; }
+.tr-row.is-mine.e4 { border-color: #B91C1C; }
+.tr-row.is-mine.e5 { border-color: #86198F; }
+.tr-row.is-mine.e6 { border-color: #18181B; }
+
+/* El relojito: entre el nombre de quien cobra y el importe, gris flojo. Es un
+   dato de apoyo, y no puede cambiar el alto de la tarjeta. */
+.tr-clock {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  font-family: var(--sans);
+  font-size: 0.58rem;
+  font-weight: 400;
+  color: var(--gray-400);
+  white-space: nowrap;
+  line-height: 1;
+}
+.tr-clock-ico { font-size: 0.66rem; line-height: 1; opacity: .75; }
+
+/* =========================================================================
+   BLOQUEAR EL REPARTO
+   Un boton largo y, solo cuando esta bloqueado, la papelera cuadrada a su
+   derecha: misma altura, lo mas estrecha posible.
+   ========================================================================= */
+.lock-row { display: flex; align-items: stretch; gap: 8px; margin: 12px 0 2px; }
+
+.btn-lock {
+  flex: 1;
+  appearance: none;
+  border: 1.5px dashed var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  padding: 12px 14px;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: var(--black);
+  cursor: pointer;
+  transition: border-color .15s ease, transform .12s ease, background .15s ease;
+}
+.btn-lock:active { transform: scale(0.985); }
+/* Bloqueado: linea continua. El reparto ya no se mueve, y el canto lo dice. */
+.btn-lock.cerrado {
+  border-style: solid;
+  border-color: var(--black);
+  background: var(--black);
+  color: #fff;
+}
+
+.btn-wipe {
+  flex-shrink: 0;
+  width: 46px;
+  appearance: none;
+  border: 1.5px solid var(--red);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--red);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background .15s ease, transform .12s ease;
+}
+.btn-wipe:active { transform: scale(0.94); background: rgba(220,38,38,.08); }
+.btn-wipe svg { width: 17px; height: 17px; }
+
+/* Bloqueado no entra nada nuevo: se dice al lado de los botones apagados. */
+.locked-hint {
+  margin: 8px 0 2px;
+  padding: 9px 11px;
+  border-left: 3px solid var(--black);
+  background: rgba(0,0,0,.045);
+  border-radius: 0 8px 8px 0;
+  font-family: var(--sans);
+  font-size: 0.66rem;
+  color: var(--gray-500);
+  line-height: 1.4;
+}
+.add-btn:disabled { opacity: .4; cursor: not-allowed; }
+.add-btn:disabled:active { transform: none; }
+
+.pantalla-grupo .btn-lock { font-size: 0.8rem; padding: 14px 16px; }
+.pantalla-grupo .btn-wipe { width: 52px; }
+.pantalla-grupo .btn-wipe svg { width: 19px; height: 19px; }
+.pantalla-grupo .tr-clock { font-size: 0.66rem; }
+.pantalla-grupo .locked-hint { font-size: 0.74rem; }
+
+
+/* =========================================================================
+   LAS TRES PANTALLAS DE TICKET, A LA ESCALA DE LA DE GRUPO
+   El papel pasa de 326 a 411 px de ancho. Si las letras se quedaran donde
+   estaban, el ticket se veria vacio: suben en la misma proporcion (~1,15x)
+   que ya subieron en el grupo. Solo tamanos y espacios — ni una posicion,
+   ni un color, ni una estructura.
+   ========================================================================= */
+
+/* --- Cabecera del papel --- */
+.pantalla-ancha .ticket-store { font-size: 1rem; }
+.pantalla-ancha .ticket-date  { font-size: 0.68rem; }
+
+/* --- Quien pago y cuantos sois --- */
+.pantalla-ancha .payer-field label,
+.pantalla-ancha .participants-field label { font-size: 0.7rem; }
+.pantalla-ancha .payer-field input,
+.pantalla-ancha .participants-field input { font-size: 0.9rem; }
+.pantalla-ancha .participants-hint { font-size: 0.7rem; }
+
+/* --- La lista de articulos --- */
+.pantalla-ancha .edit-header { font-size: 0.62rem; }
+.pantalla-ancha .edit-name,
+.pantalla-ancha .item-line-name { font-size: 0.84rem; }
+.pantalla-ancha .edit-qty,
+.pantalla-ancha .edit-unit,
+.pantalla-ancha .edit-total { font-size: 0.8rem; }
+
+/* --- Totales --- */
+.pantalla-ancha .data-label { font-size: 0.82rem; }
+.pantalla-ancha .data-value { font-size: 0.92rem; }
+.pantalla-ancha .data-value.big { font-size: 1.25rem; }
+
+/* --- Marcar lo tuyo --- */
+.pantalla-ancha .name-field input { font-size: 1.05rem; }
+.pantalla-ancha .claim-item-name { font-size: 0.84rem; }
+.pantalla-ancha .claim-item-price { font-size: 0.82rem; }
+.pantalla-ancha .unit-pill { font-size: 0.74rem; }
+.pantalla-ancha .claim-help summary { font-size: 0.74rem; }
+.pantalla-ancha .ct-txt { font-size: 0.76rem; }
+
+/* --- Resumen --- */
+.pantalla-ancha .person-name { font-size: 0.9rem; }
+.pantalla-ancha .person-total { font-size: 0.95rem; }
+.pantalla-ancha .person-item { font-size: 0.78rem; }
+
+/* --- Lo que se comparte con todos --- */
+.pantalla-ancha .sec-title { font-size: 0.7rem; }
+.pantalla-ancha .empty-line { font-size: 0.8rem; }
+.pantalla-ancha .dash-sep { margin: 12px 0; }

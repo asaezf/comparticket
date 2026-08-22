@@ -389,7 +389,9 @@ async function addGroupExpense(groupId, expense) {
 
 async function getGroupExpenses(groupId) {
   const snap = await expensesRef(groupId).orderBy('createdAt', 'asc').get();
-  return snap.docs.map(d => d.data());
+  // Lo archivado no vuelve a salir: pertenece a un reparto ya liquidado.
+  // No se borra —el documento sigue en la base de datos— pero deja de contar.
+  return snap.docs.map(d => d.data()).filter(e => !e.archivedAt);
 }
 
 async function removeGroupExpense(groupId, expenseId) {
@@ -426,7 +428,7 @@ async function addGroupPayment(groupId, payment) {
 
 async function getGroupPayments(groupId) {
   const snap = await paymentsRef(groupId).orderBy('createdAt', 'asc').get();
-  return snap.docs.map(d => d.data());
+  return snap.docs.map(d => d.data()).filter(p => !p.archivedAt);
 }
 
 async function removeGroupPayment(groupId, paymentId) {
@@ -444,7 +446,7 @@ async function getGroupTickets(groupId) {
     const rest = Object.assign({}, t);
     delete rest.creatorKey;
     return rest;
-  });
+  }).filter(t => !t.archivedAt);
   // Se ordena aqui y no en la consulta para no obligar a crear un indice
   // compuesto en Firestore. Un grupo maneja decenas de tickets, no miles.
   tickets.sort((a, b) => String(a.createdAt).localeCompare(String(b.createdAt)));
@@ -556,6 +558,65 @@ async function setGroupTemplate(groupId, template) {
   return (await ref.get()).data();
 }
 
+
+/**
+ * Bloquea o desbloquea el reparto del grupo.
+ *
+ * Mientras esta abierto, las deudas todavia se estan moviendo: cada gasto que
+ * entra las recalcula, y no tiene sentido reclamarle nada a nadie ni ponerse
+ * a contar dias. Al bloquear se congela el momento —`lockedAt`— y a partir de
+ * ahi si: empiezan los recordatorios, los colores y el reloj.
+ *
+ * Bloqueado no se pueden anadir gastos ni tickets. Es lo que hace que la cifra
+ * que ves sea la cifra que se paga.
+ */
+async function setGroupLocked(groupId, bloqueado) {
+  const ref = groupRef(groupId);
+  if (!(await ref.get()).exists) return null;
+  await ref.update({ lockedAt: bloqueado ? new Date().toISOString() : null });
+  await bumpGroupVersion(groupId);
+  return (await ref.get()).data();
+}
+
+/**
+ * Liquida el reparto y deja el grupo a cero.
+ *
+ * Para cuando todo el mundo ha pagado y se quiere empezar de nuevo: un viaje
+ * que termina, un mes de piso que se cierra. Lo que habia deja de contar y el
+ * reparto arranca vacio.
+ *
+ * NO borra nada. Marca cada gasto, cada pago y cada ticket con la fecha en que
+ * se archivo, y las lecturas los ignoran. Borrar de verdad seria irreversible,
+ * y esto es dinero: si alguien se equivoca al pulsar, los datos siguen ahi.
+ */
+async function clearGroupSettlement(groupId) {
+  const ahora = new Date().toISOString();
+  const ref = groupRef(groupId);
+  if (!(await ref.get()).exists) return null;
+
+  const [gastos, pagos, tickets] = await Promise.all([
+    expensesRef(groupId).get(),
+    paymentsRef(groupId).get(),
+    db.collection(TICKETS).where('groupId', '==', groupId).get()
+  ]);
+
+  const lote = db.batch();
+  let n = 0;
+  for (const snap of [gastos, pagos, tickets]) {
+    snap.docs.forEach(d => {
+      if (d.data().archivedAt) return;
+      lote.update(d.ref, { archivedAt: ahora });
+      n++;
+    });
+  }
+  await lote.commit();
+
+  // Se queda desbloqueado: no hay nada que congelar.
+  await ref.update({ lockedAt: null });
+  await bumpGroupVersion(groupId);
+  return { archivados: n };
+}
+
 module.exports = {
   createTicket,
   getTicket,
@@ -588,5 +649,7 @@ module.exports = {
   releaseGroupMember,
   bumpGroupVersion,
   getGroupPulse,
-  setGroupTemplate
+  setGroupTemplate,
+  setGroupLocked,
+  clearGroupSettlement
 };

@@ -124,6 +124,7 @@ function pintar() {
   pintarGastos();
   pintarStats();
   pintarAvisoTickets();
+  pintarBloqueo();
 
   // El ticket acaba de cambiar de alto: hay que remedir para que la animación
   // de impresión no lo recorte, igual que en las demás pantallas.
@@ -300,6 +301,13 @@ function pintarTransferencias() {
   // El aviso ya no va apretado a la derecha del titulo: tiene su propia
   // franja debajo, con la cifra en grande y el motivo debajo en una linea
   // entera. Cuando no hay nada fuera del cuadre, desaparece.
+  // Abierto se llama "REPARTO ACTUAL": es una foto de como van las cuentas
+  // ahora mismo, no la cifra definitiva.
+  const tituloReparto = document.getElementById('repartoTitulo');
+  if (tituloReparto) {
+    tituloReparto.textContent = datos.bloqueado ? 'REPARTO' : 'REPARTO ACTUAL';
+  }
+
   const n = datos.ticketsAbiertos || 0;
   nota.classList.toggle('hidden', !n);
   if (n) {
@@ -316,24 +324,37 @@ function pintarTransferencias() {
       : '<div class="empty-line">Añade gastos y aquí saldrá el reparto</div>';
   }
 
+  // Con el reparto abierto, la tarjeta solo dice quien le debe cuanto a quien,
+  // y se actualiza sola con cada gasto. Ni recordatorios, ni colores, ni
+  // reloj: todavia no hay ninguna deuda que reclamar, porque la cifra puede
+  // cambiar en el proximo gasto. Todo eso llega al bloquear.
+  const bloqueado = !!(datos && datos.bloqueado);
+  const nivel = bloqueado ? nivelDeDeuda(segundosDeDeuda()) : '';
+
   datos.transfers.forEach(t => {
     const fila = document.createElement('div');
-    fila.className = 'tr-row' + (t.de === yo || t.a === yo ? ' is-mine' : '');
+    fila.className = 'tr-row' +
+      (t.de === yo || t.a === yo ? ' is-mine' : '') +
+      (nivel ? ' ' + nivel : '');
     fila.innerHTML =
       '<div class="tr-main">' +
         '<span class="tr-from">' + esc(t.de) + '</span>' +
         '<span class="tr-arrow">→</span>' +
         '<span class="tr-to">' + esc(t.a) + '</span>' +
-        etiquetaDias() +
+        (bloqueado ? relojDeuda() : '') +
         '<span class="tr-amount">' + eur(t.importe) + '</span>' +
       '</div>' +
-      '<div class="tr-actions">' +
-        '<button class="tr-btn tr-remind" type="button">Recordar</button>' +
-        '<button class="tr-btn tr-paid" type="button">Ya pagado</button>' +
-      '</div>';
+      (bloqueado
+        ? '<div class="tr-actions">' +
+            '<button class="tr-btn tr-remind" type="button">Recordar</button>' +
+            '<button class="tr-btn tr-paid" type="button">Ya pagado</button>' +
+          '</div>'
+        : '');
 
-    fila.querySelector('.tr-remind').addEventListener('click', () => recordar(t));
-    fila.querySelector('.tr-paid').addEventListener('click', () => marcarPagado(t));
+    if (bloqueado) {
+      fila.querySelector('.tr-remind').addEventListener('click', () => recordar(t));
+      fila.querySelector('.tr-paid').addEventListener('click', () => marcarPagado(t));
+    }
     cont.appendChild(fila);
   });
 
@@ -358,32 +379,74 @@ function pintarTransferencias() {
 }
 
 /**
- * Cuanto lleva la deuda parada, en formato de etiqueta.
+ * Cuanto tiempo lleva viva la deuda, y de que color va el canto.
  *
- * Se cuenta desde el ultimo movimiento del grupo: el ultimo gasto apuntado,
- * el ultimo ticket cerrado o el ultimo pago hecho. Mientras siguen entrando
- * gastos la deuda todavia esta cambiando y no tiene sentido reclamar nada;
- * en cuanto el grupo se queda quieto, los dias empiezan a contar.
+ * Se cuenta desde que se BLOQUEO el reparto, no desde el ultimo gasto.
+ * Mientras el reparto esta abierto las cifras todavia se mueven y no hay
+ * ninguna deuda que reclamar; en el momento en que se bloquea, lo que debe
+ * cada uno queda fijado y ahi empieza a correr el reloj.
  *
- * La escala, de menos a mas:
+ * La escala del canto, de menos a mas:
  *
- *     0 dias   nada          algo se ha movido hoy
- *     1-6      gris          normal, nadie se alarma
- *     7-13     naranja       ya lleva una semana
- *     14-29    rojo suave    dos semanas
- *     30+      rojo macizo   un mes
+ *     menos de 1 h   sin color    acaba de bloquearse
+ *     1 h            amarillo
+ *     1 dia          naranja
+ *     2 dias         rojo
+ *     3 dias         rojo intenso
+ *     5 dias         violeta
+ *     7 dias o mas   negro
  *
- * El color sube, pero sin insultar a nadie: es una cuenta entre amigos, no
- * una agencia de cobros. Y antes empezaba a los dos dias, con lo que en la
- * practica casi nunca se llegaba a ver.
+ * Sube, pero sin insultar a nadie: es una cuenta entre amigos, no una
+ * agencia de cobros.
  */
-function etiquetaDias() {
-  const d = +datos.diasQuieto || 0;
-  if (d < 1) return '';
-  const nivel = d >= 30 ? 'd3' : d >= 14 ? 'd2' : d >= 7 ? 'd1' : 'd0';
-  return '<span class="tr-days ' + nivel + '">' + d +
-    (d === 1 ? ' día' : ' días') + '</span>';
+const ESCALA_DEUDA = [
+  { desde: 7 * 24 * 3600, nivel: 'e6' },
+  { desde: 5 * 24 * 3600, nivel: 'e5' },
+  { desde: 3 * 24 * 3600, nivel: 'e4' },
+  { desde: 2 * 24 * 3600, nivel: 'e3' },
+  { desde: 1 * 24 * 3600, nivel: 'e2' },
+  { desde: 3600,          nivel: 'e1' }
+];
+
+/** Segundos que lleva bloqueado el reparto. 0 si no lo esta. */
+function segundosDeDeuda() {
+  if (!datos || !datos.bloqueadoDesde) return 0;
+  const t = new Date(datos.bloqueadoDesde).getTime();
+  if (isNaN(t)) return 0;
+  return Math.max(0, Math.floor((Date.now() - t) / 1000));
 }
+
+function nivelDeDeuda(seg) {
+  for (const p of ESCALA_DEUDA) if (seg >= p.desde) return p.nivel;
+  return '';
+}
+
+/** "45 min", "3 h", "2 días", "3 sem". Corto, que va dentro de la tarjeta. */
+function tiempoCorto(seg) {
+  if (seg < 60) return 'ahora';
+  const min = Math.floor(seg / 60);
+  if (min < 60) return min + ' min';
+  const h = Math.floor(min / 60);
+  if (h < 24) return h + ' h';
+  const d = Math.floor(h / 24);
+  if (d < 14) return d + (d === 1 ? ' día' : ' días');
+  const sem = Math.floor(d / 7);
+  return sem + ' sem';
+}
+
+/**
+ * El relojito de una tarjeta de reparto.
+ *
+ * Va entre el nombre de quien cobra y el importe, en gris flojo: es un dato
+ * de apoyo, no la informacion principal. Y no cambia el alto de la tarjeta.
+ */
+function relojDeuda() {
+  const seg = segundosDeDeuda();
+  if (!seg) return '';
+  return '<span class="tr-clock" title="Tiempo desde que se bloqueó el reparto">' +
+    '<span class="tr-clock-ico">\u25f7</span>' + tiempoCorto(seg) + '</span>';
+}
+
 
 /**
  * Resumen del viaje: lo que la gente quiere contar despues.
@@ -602,6 +665,99 @@ async function guardarPlantilla() {
     toast(e instanceof TypeError ? 'Sin conexión' : e.message);
   } finally {
     btn.disabled = false;
+  }
+}
+
+/**
+ * El boton de bloquear, y la papelera que solo sale bloqueado.
+ *
+ * Bloquear es lo que convierte "asi van las cuentas" en "esto es lo que hay
+ * que pagar". Mientras esta abierto no se puede reclamar nada porque la cifra
+ * cambia con cada gasto; al bloquear se congela, deja de entrar nada nuevo, y
+ * salen los recordatorios, los colores y el reloj.
+ */
+function pintarBloqueo() {
+  const btn = document.getElementById('lockBtn');
+  const papelera = document.getElementById('wipeBtn');
+  if (!btn) return;
+
+  const bloqueado = !!datos.bloqueado;
+  const hayAlgo = (datos.stats && datos.stats.apuntes) > 0;
+
+  // Sin nada apuntado no hay nada que bloquear.
+  btn.classList.toggle('hidden', !hayAlgo);
+  btn.classList.toggle('cerrado', bloqueado);
+  btn.textContent = bloqueado ? 'Desbloquear el reparto' : 'Bloquear el reparto';
+  btn.onclick = () => cambiarBloqueo(!bloqueado);
+
+  if (papelera) {
+    papelera.classList.toggle('hidden', !bloqueado || !hayAlgo);
+    papelera.onclick = liquidarReparto;
+  }
+
+  // Bloqueado no entra nada: los botones de anadir se apagan aqui tambien,
+  // aunque el servidor lo rechace igual. Ver un boton que no hace nada es
+  // peor que no verlo.
+  ['addTicketBtn', 'addExpenseBtn'].forEach(id => {
+    const b = document.getElementById(id);
+    if (!b) return;
+    b.disabled = bloqueado;
+    b.title = bloqueado ? 'Desbloquea el reparto para añadir gastos' : '';
+  });
+  const aviso = document.getElementById('lockedHint');
+  if (aviso) aviso.classList.toggle('hidden', !bloqueado);
+}
+
+async function cambiarBloqueo(quiero) {
+  const btn = document.getElementById('lockBtn');
+  btn.disabled = true;
+  try {
+    const r = await fetch('/api/groups/' + groupId + '/lock', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ locked: quiero })
+    });
+    if (!r.ok) throw new Error('No se ha podido cambiar');
+    toast(quiero
+      ? 'Reparto bloqueado — ya puedes reclamar'
+      : 'Reparto desbloqueado — vuelven a entrar gastos');
+    await cargar();
+  } catch (e) {
+    toast(e instanceof TypeError ? 'Sin conexión' : e.message);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+/**
+ * Liquidar: deja el grupo a cero para empezar otra vez.
+ *
+ * Se pregunta dos veces a proposito, y la segunda dice exactamente cuanto se
+ * archiva. No borra: lo que habia queda marcado como archivado y deja de
+ * contar, asi que un dedo torpe no destruye las cuentas de un viaje entero.
+ */
+async function liquidarReparto() {
+  const cuantos = datos.stats.apuntes || 0;
+  const sinPagar = datos.transfers.length;
+
+  if (sinPagar) {
+    if (!confirm('Todavía quedan ' + sinPagar +
+      (sinPagar === 1 ? ' pago pendiente' : ' pagos pendientes') + '.\n\n' +
+      '¿Seguro que quieres liquidar el reparto de todas formas?')) return;
+  }
+  if (!confirm('Se van a archivar ' + cuantos +
+    (cuantos === 1 ? ' apunte' : ' apuntes') + ' y todos los pagos.\n\n' +
+    'El grupo empieza de cero y la gente sigue dentro. ¿Continuar?')) return;
+
+  try {
+    const r = await fetch('/api/groups/' + groupId + '/reset', { method: 'POST' });
+    if (!r.ok) throw new Error('No se ha podido liquidar');
+    const { archivados } = await r.json();
+    toast('Reparto liquidado — ' + archivados + ' apuntes archivados');
+    desplegado.gastos = desplegado.abiertos = desplegado.cerrados = false;
+    await cargar();
+  } catch (e) {
+    toast(e instanceof TypeError ? 'Sin conexión' : e.message);
   }
 }
 

@@ -654,26 +654,6 @@ async function groupSummary(groupId, req_token) {
   }));
   const libres = group.members.filter(m => !m.taken).length;
 
-  // Cuanto lleva el grupo sin moverse. Mientras siguen entrando gastos, la
-  // deuda todavia esta cambiando y no tiene sentido reclamar nada; en cuanto
-  // el grupo se queda quieto, los dias empiezan a contar de verdad.
-  //
-  // De un ticket cuenta la fecha en que se CERRO, no en que se creo: hasta
-  // que no se cierra, lo que debe cada uno todavia puede cambiar y no hay
-  // ninguna deuda que reclamar. Un ticket escaneado hace diez dias y cerrado
-  // hoy no lleva diez dias sin pagarse: lleva cero.
-  const fechas = []
-    .concat(expenses.map(e => e.createdAt))
-    .concat(detalleTickets.map(t => t.closedAt || t.createdAt))
-    .concat(payments.map(p => p.createdAt))
-    .filter(Boolean)
-    .map(f => new Date(f).getTime())
-    .filter(n => !isNaN(n));
-  const ultimo = fechas.length ? Math.max.apply(null, fechas) : null;
-  const diasQuieto = ultimo
-    ? Math.max(0, Math.floor((Date.now() - ultimo) / 86400000))
-    : 0;
-
   const pagos = payments.map(p => ({ de: p.from, a: p.to, importe: p.amount }));
   const balances = settle.computeBalances(apuntes, pagos, group.members);
   const transfers = settle.minimalTransfers(balances);
@@ -696,10 +676,10 @@ async function groupSummary(groupId, req_token) {
     // admite a nadie mas.
     plazasLibres: libres,
     completo: libres === 0,
-    // Dias desde el ultimo movimiento del grupo. Es lo que convierte "Nerea
-    // debe 40 EUR" en "Nerea lleva 12 dias sin pagar 40 EUR".
-    diasQuieto,
-    ultimoMovimiento: ultimo ? new Date(ultimo).toISOString() : null,
+    // El reparto bloqueado: las cifras estan congeladas, no se pueden anadir
+    // gastos, y desde `bloqueadoDesde` corren los recordatorios y el reloj.
+    bloqueado: !!group.lockedAt,
+    bloqueadoDesde: group.lockedAt || null,
     // El easter egg: plantilla propia de este grupo para los recordatorios.
     plantilla: group.reminderTemplate || null,
     settled: settle.isSettled(balances)
@@ -772,6 +752,7 @@ app.post('/api/groups/:id/members', ruta(async (req, res) => {
 //  realidad.
 
 app.post('/api/groups/:id/expenses', ruta(async (req, res) => {
+  if (await grupoBloqueado(req.params.id)) return res.status(409).json(AVISO_BLOQUEADO);
   const group = await db.getGroup(req.params.id);
   if (!group) return res.status(404).json({ error: 'Grupo no encontrado' });
 
@@ -878,6 +859,9 @@ app.post('/api/tickets/:id/group', ruta(async (req, res) => {
   if (groupId && !(await db.getGroup(groupId))) {
     return res.status(404).json({ error: 'Grupo no encontrado' });
   }
+  if (groupId && await grupoBloqueado(groupId)) {
+    return res.status(409).json(AVISO_BLOQUEADO);
+  }
   const ticket = await db.setTicketGroup(req.params.id, groupId);
   if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
   const safe = Object.assign({}, ticket);
@@ -926,6 +910,35 @@ app.post('/api/groups/:id/release-member', ruta(async (req, res) => {
 }));
 
 
+
+/**
+ * Bloquear o desbloquear el reparto.
+ *
+ * Mientras esta abierto las deudas se recalculan con cada gasto y no tiene
+ * sentido reclamar nada. Al bloquear se congela el momento y empiezan los
+ * recordatorios, los colores del canto y el reloj.
+ */
+app.post('/api/groups/:id/lock', ruta(async (req, res) => {
+  const quiere = !!(req.body || {}).locked;
+  const g = await db.setGroupLocked(req.params.id, quiere);
+  if (!g) return res.status(404).json({ error: 'Grupo no encontrado' });
+  res.json({ ok: true, bloqueado: !!g.lockedAt, bloqueadoDesde: g.lockedAt || null });
+}));
+
+/**
+ * Liquidar el reparto y empezar de cero.
+ *
+ * Para cuando todo el mundo ha pagado: un viaje que acaba, un mes de piso que
+ * se cierra. No borra nada —marca lo que habia como archivado y las lecturas
+ * lo ignoran— porque esto es dinero y un boton mal pulsado no puede ser
+ * irreversible.
+ */
+app.post('/api/groups/:id/reset', ruta(async (req, res) => {
+  const r = await db.clearGroupSettlement(req.params.id);
+  if (!r) return res.status(404).json({ error: 'Grupo no encontrado' });
+  res.json({ ok: true, archivados: r.archivados });
+}));
+
 /** Latido del grupo: una lectura para saber si hay novedades. */
 app.get('/api/groups/:id/pulse', ruta(async (req, res) => {
   const p = await db.getGroupPulse(req.params.id);
@@ -948,6 +961,25 @@ app.post('/api/groups/:id/template', ruta(async (req, res) => {
   if (!g) return res.status(404).json({ error: 'Grupo no encontrado' });
   res.json({ ok: true, template: plantilla });
 }));
+
+
+/**
+ * Con el reparto bloqueado no entra nada nuevo.
+ *
+ * Es lo que hace que la cifra que ves sea la cifra que se paga: si alguien
+ * pudiera colar un gasto despues de bloquear, las deudas cambiarian por
+ * debajo mientras la gente ya se esta pasando el dinero.
+ */
+async function grupoBloqueado(groupId) {
+  if (!groupId) return false;
+  const g = await db.getGroup(groupId);
+  return !!(g && g.lockedAt);
+}
+
+const AVISO_BLOQUEADO = {
+  error: 'El reparto est\u00e1 bloqueado. Desbloqu\u00e9alo para a\u00f1adir gastos.',
+  code: 'REPARTO_BLOQUEADO'
+};
 
 /** Texto de la vista previa del grupo al pegarlo en WhatsApp. */
 function groupShareMeta(s) {
