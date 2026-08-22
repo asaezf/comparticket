@@ -310,6 +310,7 @@ const GROUPS = 'comparticket_groups';
 function groupRef(id) { return db.collection(GROUPS).doc(id); }
 function expensesRef(id) { return groupRef(id).collection('expenses'); }
 function paymentsRef(id) { return groupRef(id).collection('payments'); }
+function eventsRef(id) { return groupRef(id).collection('events'); }
 
 async function createGroup(id, name, members, creatorKey) {
   const group = {
@@ -617,6 +618,61 @@ async function clearGroupSettlement(groupId) {
   return { archivados: n };
 }
 
+
+/**
+ * Apunta algo que ha pasado en el grupo.
+ *
+ * Sin esto, lo unico que se sabia era que el contador de version habia
+ * cambiado: la pantalla se recargaba y ya. Con el diario se puede decir QUE
+ * ha pasado y QUIEN lo ha hecho, que es lo que convierte una recarga
+ * silenciosa en un aviso util.
+ *
+ * `actor` es el nombre dentro del grupo de quien lo provoco, y sirve para no
+ * avisarte de tus propias acciones. Puede venir vacio —una accion hecha desde
+ * un movil que todavia no ha elegido nombre— y entonces se avisa a todos.
+ */
+async function addGroupEvent(groupId, evento) {
+  if (!groupId || !evento || !evento.tipo) return null;
+  // El id lo pone Firestore. Aquí no hay nanoid —este fichero solo conoce
+  // firebase-admin— y los ids de todo lo demás llegan ya hechos desde
+  // server.js; un aviso no necesita un id con significado.
+  const ref = eventsRef(groupId).doc();
+  const doc = {
+    id: ref.id,
+    tipo: evento.tipo,
+    actor: evento.actor || null,
+    datos: evento.datos || {},
+    createdAt: new Date().toISOString()
+  };
+  try {
+    await ref.set(doc);
+  } catch (_) {
+    // Un aviso que no se puede guardar no puede tumbar la accion que lo
+    // provoco: el gasto ya esta apuntado, y eso es lo que importa.
+    return null;
+  }
+  return doc;
+}
+
+/**
+ * Los ultimos avisos del grupo, del mas antiguo al mas reciente.
+ *
+ * Se limita a unos pocos a proposito: esto alimenta una notificacion, no un
+ * historial. Quien quiera ver todo lo que ha pasado tiene las listas y el
+ * historial completo.
+ */
+async function getGroupEvents(groupId, limite) {
+  try {
+    const snap = await eventsRef(groupId)
+      .orderBy('createdAt', 'desc')
+      .limit(Math.min(+limite || 12, 40))
+      .get();
+    return snap.docs.map(d => d.data()).reverse();
+  } catch (_) {
+    return [];
+  }
+}
+
 module.exports = {
   createTicket,
   getTicket,
@@ -651,5 +707,7 @@ module.exports = {
   getGroupPulse,
   setGroupTemplate,
   setGroupLocked,
-  clearGroupSettlement
+  clearGroupSettlement,
+  addGroupEvent,
+  getGroupEvents
 };

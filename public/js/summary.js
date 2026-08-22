@@ -491,10 +491,17 @@ document.getElementById('closeBtn').addEventListener('click', async () => {
     toast(t.cantCloseUnassigned.replace('{x}', pre.pending.toFixed(2)));
     return;
   }
+  // Si el ticket va dentro de un grupo, se manda quién eres allí: el aviso de
+  // "ticket cerrado" que verán los demás lleva tu nombre, y a ti no te salta.
+  let quienSoy = null;
+  if (ticketData && ticketData.groupId) {
+    try { quienSoy = localStorage.getItem('ct_yo_' + ticketData.groupId) || null; } catch (_) {}
+  }
+
   const res = await fetch(`/api/tickets/${ticketId}/close`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ creatorKey: getCreatorKey() })
+    body: JSON.stringify({ creatorKey: getCreatorKey(), actor: quienSoy })
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));

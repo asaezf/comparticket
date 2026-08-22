@@ -125,6 +125,7 @@ function pintar() {
   pintarStats();
   pintarAvisoTickets();
   pintarBloqueo();
+  pintarAvisos();
 
   // El ticket acaba de cambiar de alto: hay que remedir para que la animación
   // de impresión no lo recorte, igual que en las demás pantallas.
@@ -599,6 +600,129 @@ function pintarStats() {
   });
 }
 
+// =========================================================================
+// AVISOS
+//
+// El grupo ya se refrescaba solo, pero en silencio: las cifras cambiaban
+// delante de ti sin decirte por que. Con el diario del servidor se puede
+// poner nombre a ese cambio.
+//
+// Dos reglas que evitan que esto se vuelva ruido:
+//
+//   1. No te avisas a ti mismo. El evento guarda quien lo provoco, y si eres
+//      tu no sale nada: acabas de hacerlo, ya lo sabes.
+//   2. La primera vez que abres el grupo no salta nada. Se marcan todos los
+//      eventos como vistos sin ensenarlos; si no, al entrar despues de un fin
+//      de semana te caerian doce avisos de golpe.
+// =========================================================================
+
+const VISTOS_KEY = 'ct_avisos_' + groupId;
+
+function eventosVistos() {
+  try { return new Set(JSON.parse(localStorage.getItem(VISTOS_KEY) || '[]')); }
+  catch (_) { return new Set(); }
+}
+
+function guardarVistos(ids) {
+  try {
+    // Un tope: esto es una memoria de "ya te lo he contado", no un historial.
+    localStorage.setItem(VISTOS_KEY, JSON.stringify(ids.slice(-60)));
+  } catch (_) {}
+}
+
+let primeraPasadaDeAvisos = true;
+
+/**
+ * Texto de cada tipo de aviso.
+ *
+ * Devuelve null cuando ese evento no te incumbe —un recordatorio entre otras
+ * dos personas, por ejemplo— y entonces no se ensena nada.
+ */
+function textoDelAviso(ev) {
+  const d = ev.datos || {};
+  const quien = ev.actor || 'Alguien';
+
+  switch (ev.tipo) {
+    case 'gasto-nuevo':
+      return { icono: '\uD83D\uDCB8', tono: 'normal',
+        titulo: quien + ' ha a\u00f1adido un gasto',
+        cuerpo: (d.nombre || 'Gasto') + ' \u00b7 ' + eur(d.importe || 0) };
+
+    case 'ticket-nuevo':
+      return { icono: '\uD83E\uDDFE', tono: 'normal',
+        titulo: 'Ticket nuevo en el grupo',
+        cuerpo: (d.nombre || 'Ticket') + ' \u00b7 ' + eur(d.importe || 0),
+        ir: d.ticketId ? '/claim.html?id=' + encodeURIComponent(d.ticketId) : null };
+
+    case 'ticket-cerrado':
+      return { icono: '\u2705', tono: 'ok',
+        titulo: 'Ticket cerrado',
+        cuerpo: (d.nombre || 'Ticket') + ' \u00b7 ya cuenta en el reparto',
+        ir: d.ticketId ? '/summary.html?id=' + encodeURIComponent(d.ticketId) : null };
+
+    case 'pago-hecho': {
+      // Solo interesa a los dos implicados: al resto no le cambia nada.
+      const mio = yo && (d.de === yo || d.a === yo);
+      if (!mio) return null;
+      return { icono: '\uD83E\uDD1D', tono: 'ok',
+        titulo: d.a === yo ? d.de + ' te ha pagado' : 'Pago anotado',
+        cuerpo: d.de + ' \u2192 ' + d.a + ' \u00b7 ' + eur(d.importe || 0) };
+    }
+
+    case 'recordatorio': {
+      // Es lo que pediste: solo si el pago te toca a ti.
+      if (!yo || (d.de !== yo && d.a !== yo)) return null;
+      if (d.de === yo) {
+        return { icono: '\u23F0', tono: 'aviso',
+          titulo: 'Te recuerdan un pago',
+          cuerpo: 'Le debes ' + eur(d.importe || 0) + ' a ' + d.a };
+      }
+      return { icono: '\u23F0', tono: 'normal',
+        titulo: 'Recordatorio enviado',
+        cuerpo: 'A ' + d.de + ', que te debe ' + eur(d.importe || 0) };
+    }
+
+    case 'reparto-bloqueado':
+      return { icono: '\uD83D\uDD12', tono: 'aviso',
+        titulo: 'Reparto bloqueado',
+        cuerpo: 'Las cifras quedan fijas y ya no entran gastos nuevos' };
+
+    case 'reparto-abierto':
+      return { icono: '\uD83D\uDD13', tono: 'normal',
+        titulo: 'Reparto desbloqueado',
+        cuerpo: 'Vuelven a entrar gastos y las cifras se recalculan' };
+
+    default:
+      return null;
+  }
+}
+
+function pintarAvisos() {
+  if (!datos || !Array.isArray(datos.eventos)) return;
+
+  const vistos = eventosVistos();
+  const nuevos = datos.eventos.filter(ev => ev && ev.id && !vistos.has(ev.id));
+  if (!nuevos.length) return;
+
+  // Todos pasan a vistos, se ensenen o no: uno que no te incumbe tampoco
+  // debe volver a evaluarse en el siguiente latido.
+  nuevos.forEach(ev => vistos.add(ev.id));
+  guardarVistos([...vistos]);
+
+  // Al abrir el grupo no salta nada: solo se toma nota de por donde vas.
+  if (primeraPasadaDeAvisos) { primeraPasadaDeAvisos = false; return; }
+
+  nuevos.forEach(ev => {
+    if (yo && ev.actor === yo) return;      // lo acabas de hacer tu
+    const a = textoDelAviso(ev);
+    if (!a) return;
+    Avisos.mostrar({
+      icono: a.icono, titulo: a.titulo, cuerpo: a.cuerpo, tono: a.tono,
+      alTocar: a.ir ? () => { location.href = a.ir; } : null
+    });
+  });
+}
+
 // --- El easter egg: plantilla de los recordatorios ------------------------
 
 const PLANTILLA_POR_DEFECTO =
@@ -715,7 +839,7 @@ async function cambiarBloqueo(quiero) {
     const r = await fetch('/api/groups/' + groupId + '/lock', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ locked: quiero })
+      body: JSON.stringify({ locked: quiero, actor: yo || null })
     });
     if (!r.ok) throw new Error('No se ha podido cambiar');
     toast(quiero
@@ -769,6 +893,16 @@ function recordar(t) {
   const texto = cuerpo + '\n\uD83D\uDC47\n' + location.origin + '/g/' + groupId;
   const url = 'https://wa.me/?text=' + encodeURIComponent(texto);
   window.open(url, '_blank', 'noopener');
+
+  // Y se deja constancia dentro del grupo. WhatsApp se abre igual aunque esto
+  // falle \u2014el recordatorio lo manda la persona, no la aplicaci\u00F3n\u2014 pero si
+  // llega, a quien se le reclama le sale el aviso al abrir el grupo en vez de
+  // enterarse solo por el chat.
+  fetch('/api/groups/' + groupId + '/remind', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ de: t.de, a: t.a, importe: t.importe, actor: yo || null })
+  }).catch(() => {});
 }
 
 async function marcarPagado(t) {
@@ -777,7 +911,7 @@ async function marcarPagado(t) {
     const r = await fetch('/api/groups/' + groupId + '/payments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: t.de, to: t.a, amount: t.importe })
+      body: JSON.stringify({ from: t.de, to: t.a, amount: t.importe, actor: yo || null })
     });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'No se ha podido anotar');
     toast('Pago anotado');
@@ -1167,7 +1301,7 @@ async function guardarGasto() {
     const r = await fetch('/api/groups/' + groupId + '/expenses', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description, amount, paidBy: pagadorSel, splitBetween: repartoSel })
+      body: JSON.stringify({ description, amount, paidBy: pagadorSel, splitBetween: repartoSel, actor: yo || null })
     });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'No se ha podido guardar');
     cerrarFormulario();

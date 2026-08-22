@@ -410,7 +410,18 @@ app.post('/api/tickets/:id/close', ruta(async (req, res) => {
   const updated = await db.setTicketStatus(req.params.id, 'closed');
   // Cerrar un ticket cambia el reparto de todo el grupo: las pantallas que
   // esten abiertas tienen que enterarse.
-  if (ticket.groupId) await db.bumpGroupVersion(ticket.groupId);
+  if (ticket.groupId) {
+    await db.addGroupEvent(ticket.groupId, {
+      tipo: 'ticket-cerrado',
+      actor: asText((req.body || {}).actor, 40) || ticket.payerName || null,
+      datos: {
+        ticketId: ticket.id,
+        nombre: ticket.restaurant || null,
+        importe: ticket.total || 0
+      }
+    });
+    await db.bumpGroupVersion(ticket.groupId);
+  }
   const { creatorKey: _k, ...safe } = updated;
   res.json(safe);
 }));
@@ -583,10 +594,15 @@ async function groupSummary(groupId, req_token) {
   const group = await db.getPublicGroup(groupId);
   if (!group) return null;
 
-  const [tickets, expenses, payments] = await Promise.all([
+  const [tickets, expenses, payments, eventos] = await Promise.all([
     db.getGroupTickets(groupId),
     db.getGroupExpenses(groupId),
-    db.getGroupPayments(groupId)
+    db.getGroupPayments(groupId),
+    // Los avisos viajan con el resumen y no en una peticion aparte: el
+    // navegador solo pide el resumen cuando el contador de version ha
+    // cambiado, o sea justo cuando puede haber algo que contar. Pedirlos por
+    // separado seria una lectura mas en cada latido, para nada.
+    db.getGroupEvents(groupId, 12)
   ]);
 
   const apuntes = [];
@@ -680,6 +696,9 @@ async function groupSummary(groupId, req_token) {
     // gastos, y desde `bloqueadoDesde` corren los recordatorios y el reloj.
     bloqueado: !!group.lockedAt,
     bloqueadoDesde: group.lockedAt || null,
+    // Lo ultimo que ha pasado en el grupo, para poder avisar de QUE ha
+    // cambiado en vez de recargar la pantalla en silencio.
+    eventos,
     // El easter egg: plantilla propia de este grupo para los recordatorios.
     plantilla: group.reminderTemplate || null,
     settled: settle.isSettled(balances)
@@ -786,6 +805,12 @@ app.post('/api/groups/:id/expenses', ruta(async (req, res) => {
     paidBy,
     splitBetween
   });
+  await db.addGroupEvent(req.params.id, {
+    tipo: 'gasto-nuevo',
+    actor: asText((req.body || {}).actor, 40) || gasto.paidBy,
+    datos: { nombre: gasto.description, importe: gasto.amount, pagador: gasto.paidBy }
+  });
+
   res.json(gasto);
 }));
 
@@ -840,6 +865,13 @@ app.post('/api/groups/:id/payments', ruta(async (req, res) => {
   const pago = await db.addGroupPayment(req.params.id, {
     id: nanoid(10), from, to, amount: +amount.toFixed(2), esperoDias
   });
+
+  await db.addGroupEvent(req.params.id, {
+    tipo: 'pago-hecho',
+    actor: asText((req.body || {}).actor, 40) || from,
+    datos: { de: from, a: to, importe: pago.amount }
+  });
+
   res.json(pago);
 }));
 
@@ -864,6 +896,19 @@ app.post('/api/tickets/:id/group', ruta(async (req, res) => {
   }
   const ticket = await db.setTicketGroup(req.params.id, groupId);
   if (!ticket) return res.status(404).json({ error: 'Ticket no encontrado' });
+
+  if (groupId) {
+    await db.addGroupEvent(groupId, {
+      tipo: 'ticket-nuevo',
+      actor: asText((req.body || {}).actor, 40) || ticket.payerName || null,
+      datos: {
+        ticketId: ticket.id,
+        nombre: ticket.restaurant || null,
+        importe: ticket.total || 0,
+        pagador: ticket.payerName || null
+      }
+    });
+  }
   const safe = Object.assign({}, ticket);
   delete safe.creatorKey;
   res.json(safe);
@@ -912,6 +957,37 @@ app.post('/api/groups/:id/release-member', ruta(async (req, res) => {
 
 
 /**
+ * Deja constancia de que alguien ha mandado un recordatorio.
+ *
+ * "Recordar" abre WhatsApp con el mensaje escrito y hasta ahora no tocaba el
+ * servidor para nada, así que a quien se le reclamaba el dinero no le
+ * constaba nada dentro de la aplicación: se enteraba solo si abría WhatsApp.
+ *
+ * Esto no manda nada por su cuenta —el mensaje lo sigue mandando la persona,
+ * y la app nunca escribe a nadie— solo lo apunta, para poder avisar dentro
+ * del grupo a quien va dirigido.
+ */
+app.post('/api/groups/:id/remind', ruta(async (req, res) => {
+  const grupo = await db.getGroup(req.params.id);
+  if (!grupo) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+  const de = asText((req.body || {}).de, 40);
+  const a = asText((req.body || {}).a, 40);
+  const importe = asNumber((req.body || {}).importe, { min: 0, max: 100000 });
+  if (!de || !a) {
+    return res.status(400).json({ error: 'Faltan datos del recordatorio', code: 'BAD_REMIND' });
+  }
+
+  await db.addGroupEvent(req.params.id, {
+    tipo: 'recordatorio',
+    actor: asText((req.body || {}).actor, 40) || null,
+    datos: { de, a, importe: importe === null ? 0 : +importe.toFixed(2) }
+  });
+  await db.bumpGroupVersion(req.params.id);
+  res.json({ ok: true });
+}));
+
+/**
  * Bloquear o desbloquear el reparto.
  *
  * Mientras esta abierto las deudas se recalculan con cada gasto y no tiene
@@ -922,6 +998,13 @@ app.post('/api/groups/:id/lock', ruta(async (req, res) => {
   const quiere = !!(req.body || {}).locked;
   const g = await db.setGroupLocked(req.params.id, quiere);
   if (!g) return res.status(404).json({ error: 'Grupo no encontrado' });
+
+  await db.addGroupEvent(req.params.id, {
+    tipo: quiere ? 'reparto-bloqueado' : 'reparto-abierto',
+    actor: asText((req.body || {}).actor, 40) || null,
+    datos: {}
+  });
+
   res.json({ ok: true, bloqueado: !!g.lockedAt, bloqueadoDesde: g.lockedAt || null });
 }));
 

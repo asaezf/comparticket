@@ -183,10 +183,15 @@ scanBtn.addEventListener('click', async () => {
     // sigue existiendo suelto y se puede asignar despues: no se pierde nada.
     if (grupoDestino && data.id) {
       try {
+        // Se manda quién eres dentro del grupo para que el aviso pueda decir
+        // "Nerea ha añadido un ticket" — y para no avisarte a ti mismo.
+        let quienSoy = null;
+        try { quienSoy = localStorage.getItem('ct_yo_' + grupoDestino) || null; } catch (_) {}
+
         await fetch('/api/tickets/' + data.id + '/group', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ groupId: grupoDestino })
+          body: JSON.stringify({ groupId: grupoDestino, actor: quienSoy })
         });
       } catch (_) {}
     }

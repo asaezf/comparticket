@@ -1,51 +1,28 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="comparTICKET">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="comparTICKET">
   <!--
-    Icono para instalar como acceso directo (pantalla de inicio, manifest.json,
-    apple-touch-icon).
+    Icono de la aplicación, diseñado por Álvaro. Se instala tal cual viene:
+    dos tickets superpuestos —el blanco delante, el negro detrás— con las
+    muescas laterales y el borde dentado, sobre el naranja de la marca.
 
-    Antes era la impresora completa sobre fondo crema: a 512 px se leía bien,
-    pero un icono de acceso directo vive casi siempre a 40-60 px, junto a
-    docenas de otros, y ahí la impresora se convertía en una mancha gris sin
-    forma reconocible.
+    Va sin esquinas redondeadas a propósito: el fondo llega hasta el borde y
+    es cada sistema el que recorta la forma que le toque (círculo en Android,
+    cuadrado redondeado en iOS). Redondearlo aquí dejaría un halo del color
+    del escritorio en las esquinas.
 
-    Este es más simple a propósito: fondo naranja de marca —un color que no
-    comparte ningún otro icono del móvil, así que se localiza sin leer nada—
-    y un solo ticket con el borde inferior dentado. Es la misma silueta que
-    usa el papel en toda la aplicación (ver .ticket-zigzag en style.css), para
-    que el icono y la pantalla que abre se reconozcan como la misma cosa.
+    El dibujo cabe dentro del círculo de seguridad que exige un icono
+    "maskable" (el 80% central), así que ningún recorte se come parte de los
+    tickets. Por eso el manifest lo declara "any maskable".
+
+    Los PNG de 192, 512 y 180 px que hay al lado salen de este mismo diseño:
+    Chrome usa los PNG para el diálogo de instalación.
   -->
-
-  <rect width="512" height="512" rx="114" fill="#FF6B35"/>
-
-  <!-- La sombra del ticket, un segundo papel apenas visible saliendo por
-       detrás: sugiere que hay más de un ticket sin ocupar espacio propio. -->
-  <rect x="146" y="108" width="230" height="290" rx="14" fill="#E85A2A"/>
-
-  <!-- El ticket -->
-  <path fill="#FEFEF8" d="
-    M 122 84
-    h 230
-    a 14 14 0 0 1 14 14
-    v 246
-    l -30.6 25.8 -30.6 -25.8 -30.6 25.8 -30.6 -25.8 -30.6 25.8 -30.6 -25.8 -30.6 25.8 -30.6 -25.8
-    v -246
-    a 14 14 0 0 1 14 -14
-    z"/>
-
-  <!-- Perforaciones en el margen izquierdo, como el papel de una impresora
-       térmica de verdad. -->
-  <circle cx="122" cy="182" r="14" fill="#FF6B35"/>
-  <circle cx="122" cy="256" r="14" fill="#FF6B35"/>
-
-  <!-- Cabecera del ticket -->
-  <rect x="160" y="140" width="156" height="22" rx="11" fill="#18181B"/>
-
-  <!-- Renglones -->
-  <g fill="#D4D4D8">
-    <rect x="160" y="196" width="156" height="16" rx="8"/>
-    <rect x="160" y="230" width="110" height="16" rx="8"/>
-  </g>
-
-  <!-- El importe, en el naranja de la marca -->
-  <rect x="160" y="264" width="80" height="16" rx="8" fill="#FF6B35"/>
+  <rect width="512" height="512" fill="#FF6B35"></rect>
+  <path fill="#18181B" d="M196 128 h184 v276 l-11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 z"></path>
+  <circle cx="380" cy="262" r="22" fill="#FF6B35"></circle>
+  <path fill="#FEFEF8" d="M132 96 h184 v276 l-11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 -11.5 12 -11.5 -12 z"></path>
+  <circle cx="132" cy="230" r="22" fill="#FF6B35"></circle>
+  <circle cx="316" cy="230" r="22" fill="#18181B"></circle>
+  <rect x="156" y="138" width="112" height="16" rx="8" fill="#18181B"></rect>
+  <rect x="156" y="286" width="88" height="14" rx="7" fill="#D4D4D8"></rect>
+  <rect x="156" y="318" width="124" height="14" rx="7" fill="#D4D4D8"></rect>
 </svg>
