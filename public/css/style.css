@@ -3374,3 +3374,81 @@ body.tiene-grupos .tutorial { display: none; }
    mientras no hay nadie elegido: en cuanto se toca uno desaparecen y el
    nombre se queda en el hueco de puntos de arriba. */
 .payer-picker { padding: 6px 0 2px; }
+
+/* =========================================================================
+   UN TICKET TE ESTA ESPERANDO
+   Alguien cena, sube la foto y el ticket se queda ahi. Sin esto los demas no
+   se enteraban —habia que abrir el historial y darse cuenta solo—, asi que
+   los tickets se quedaban a medias durante dias y el reparto no cerraba.
+   Sale arriba, donde se mira primero, y solo si falta TU marca.
+   ========================================================================= */
+.aviso-nuevo {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  margin: 10px 0 4px;
+  padding: 12px 14px;
+  border: 1.5px dashed var(--accent);
+  border-radius: var(--radius-sm);
+  background: rgba(255,107,53,.07);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  animation: avisoEntra .45s cubic-bezier(0.22, 0.61, 0.36, 1);
+  transition: transform .12s ease;
+}
+.aviso-nuevo:active { transform: scale(0.985); }
+
+@keyframes avisoEntra {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* El punto que late. Es lo unico que se mueve: en una pantalla con dinero,
+   una animacion grande da la sensacion de que algo va mal. */
+.an-punto {
+  width: 9px;
+  height: 9px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: avisoLate 1.8s ease-in-out infinite;
+}
+@keyframes avisoLate {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255,107,53,.55); }
+  70%      { box-shadow: 0 0 0 7px rgba(255,107,53,0); }
+}
+
+.an-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.an-tit {
+  font-family: var(--mono);
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--black);
+}
+.an-sub {
+  font-family: var(--sans);
+  font-size: 0.66rem;
+  color: var(--gray-500);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.an-ir {
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+/* La fila del ticket que te espera, dentro de la lista. En seis tickets
+   abiertos, saber cual es el tuyo ahorra abrirlos todos. */
+.item-row.te-espera .item-name { color: var(--accent); }
+.item-state.tuyo { background: var(--accent); color: #fff; }
+
+/* Y a la escala de la pantalla de grupo */
+.pantalla-grupo .an-tit { font-size: 0.84rem; }
+.pantalla-grupo .an-sub { font-size: 0.74rem; }
+.pantalla-grupo .an-ir  { font-size: 0.68rem; }

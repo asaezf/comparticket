@@ -123,6 +123,7 @@ function pintar() {
   pintarTickets();
   pintarGastos();
   pintarStats();
+  pintarAvisoTickets();
 
   // El ticket acaba de cambiar de alto: hay que remedir para que la animación
   // de impresión no lo recorte, igual que en las demás pantallas.
@@ -734,12 +735,66 @@ function fechaYHora(d) {
     { hour: '2-digit', minute: '2-digit' });
 }
 
+/**
+ * Los tickets que estan esperando TU marca.
+ *
+ * Alguien cena, sube la foto y el ticket se queda ahi. Sin esto, los demas
+ * no se enteraban: habia que abrir el historial y darse cuenta solo, asi que
+ * los tickets se quedaban a medias durante dias y el reparto no cerraba.
+ *
+ * Solo sale si falta tu marca, y desaparece en cuanto marcas. Si todavia no
+ * has dicho quien eres no se ensena: no se sabe de quien falta la marca.
+ */
+function ticketsQueTeEsperan() {
+  if (!yo) return [];
+  return datos.tickets.filter(t =>
+    t.status !== 'closed' && !(t.reparto && yo in t.reparto));
+}
+
+function pintarAvisoTickets() {
+  const caja = document.getElementById('avisoTickets');
+  if (!caja) return;
+
+  const pendientes = ticketsQueTeEsperan();
+  caja.classList.toggle('hidden', !pendientes.length);
+  if (!pendientes.length) { caja.innerHTML = ''; return; }
+
+  const uno = pendientes.length === 1;
+  const t = pendientes[0];
+
+  caja.innerHTML =
+    '<div class="an-punto"></div>' +
+    '<div class="an-txt">' +
+      '<span class="an-tit">' + (uno ? 'Un ticket te espera' : pendientes.length + ' tickets te esperan') + '</span>' +
+      '<span class="an-sub">' + (uno
+        ? esc(t.restaurant || 'Ticket') + ' \u00b7 ' + eur(t.total)
+        : 'todav\u00eda no has marcado lo tuyo') + '</span>' +
+    '</div>' +
+    '<span class="an-ir">' + (uno ? 'marcar' : 'ver') + '</span>';
+
+  caja.onclick = () => {
+    if (uno) {
+      location.href = '/claim.html?id=' + encodeURIComponent(t.id);
+      return;
+    }
+    // Con varios no se puede elegir por ti: se abre la lista y se senalan.
+    desplegado.abiertos = true;
+    pintar();
+    const lista = document.getElementById('openList');
+    if (lista) lista.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+}
+
 /** Una fila de ticket, clicable para entrar a su reparto. */
 function filaTicket(t) {
   const abierto = t.status !== 'closed';
   const fila = document.createElement('a');
   const est = abierto ? estadoTicket(t) : null;
-  fila.className = 'item-row' + (abierto ? ' is-open' : '') + (est && est.clase ? ' ' + est.clase : '');
+  // Si eres tu quien falta por marcar, la fila lo dice: en una lista de seis
+  // tickets abiertos, saber cual es el tuyo ahorra abrirlos todos.
+  const teEspera = abierto && yo && !(t.reparto && yo in t.reparto);
+  fila.className = 'item-row' + (abierto ? ' is-open' : '') +
+    (est && est.clase ? ' ' + est.clase : '') + (teEspera ? ' te-espera' : '');
   fila.href = '/summary.html?id=' + encodeURIComponent(t.id);
   const d = new Date(t.receiptDate || t.createdAt);
   const fecha = isNaN(d) ? '' : fechaYHora(d);
@@ -752,7 +807,12 @@ function filaTicket(t) {
       '<span class="is-who">Pagador: ' + esc(t.payerName || '\u2014') + '</span>' +
       '<span class="is-meta">' + fecha + '</span>' +
     '</div>' +
-    (est ? '<div class="item-tags">' + est.chips + '</div>' : '');
+    (est || teEspera
+      ? '<div class="item-tags">' +
+          (teEspera ? '<span class="item-state tuyo">falta tu marca</span>' : '') +
+          (est ? est.chips : '') +
+        '</div>'
+      : '');
   return fila;
 }
 
