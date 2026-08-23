@@ -2722,17 +2722,6 @@ input[type="file"] { display: none; }
   background: rgba(255,107,53,.05);
 }
 
-/* Subtitulo dentro de un apartado (OTROS GASTOS, TICKETS SIN CERRAR) */
-/* Aviso discreto dentro del historial, donde se buscarian las fotos */
-.soon-inline {
-  font-family: var(--sans);
-  font-size: 0.6rem;
-  font-style: italic;
-  color: var(--gray-400);
-  padding: 8px 2px 2px;
-  text-align: center;
-}
-
 /* Nombre ya cogido por otro movil. Se ve —para saber quien esta dentro— pero
    no se puede tocar: es lo que impide suplantar a alguien y quedarse con sus
    gastos. */
@@ -2968,7 +2957,6 @@ body.en-grupo .upload-area { padding-top: 6px; }
 .pantalla-grupo .stat-row { padding: 8px 2px; }
 .pantalla-grupo .stat-k { font-size: 0.78rem; }
 .pantalla-grupo .stat-v { font-size: 0.84rem; }
-.pantalla-grupo .soon-inline { font-size: 0.7rem; }
 .pantalla-grupo .tpl-panel textarea { font-size: 0.8rem; }
 .pantalla-grupo .tpl-preview { font-size: 0.74rem; }
 
