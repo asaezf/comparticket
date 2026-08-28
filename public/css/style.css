@@ -3099,6 +3099,31 @@ body.en-grupo .upload-area { padding-top: 6px; }
   margin-top: 2px;
 }
 
+/* El aviso de dinero que no encajo en ninguna linea del reparto fijado.
+   Mismo formato que .settle-note -cifra arriba, motivo debajo- pero en rojo:
+   a diferencia de los tickets sin cerrar, esto SI hace falta resolverlo a
+   mano, con el boton de recalcular. */
+.settle-note.is-warn {
+  border-left-color: var(--red);
+  background: var(--red-light);
+}
+.settle-note.is-warn .sn-amount { color: var(--red); }
+.sn-fix {
+  display: block;
+  margin-top: 7px;
+  padding: 7px 10px;
+  appearance: none;
+  border: 1.5px solid var(--red);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  color: var(--red);
+  font-family: var(--mono);
+  font-size: 0.64rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+.sn-fix:active { background: var(--red); color: #fff; }
+
 /* --- Las filas de dentro -----------------------------------------------
    Antes iban tres o cuatro datos seguidos separados por puntos, y en un
    movil se partian donde caia. Ahora quien pago va a la izquierda, el resto

@@ -673,9 +673,36 @@ async function groupSummary(groupId, req_token) {
   }));
   const libres = group.members.filter(m => !m.taken).length;
 
-  const pagos = payments.map(p => ({ de: p.from, a: p.to, importe: p.amount }));
+  const pagos = payments.map(p => ({ de: p.from, a: p.to, importe: p.amount, planEdgeId: p.planEdgeId || null }));
+  // Los saldos son SIEMPRE la verdad del momento -cuanto tiene cada uno que
+  // dar o recibir en total, contando todos los pagos. Esto se recalcula
+  // siempre y es correcto que asi sea: no es una asignacion de "quien paga a
+  // quien", es solo aritmetica.
   const balances = settle.computeBalances(apuntes, pagos, group.members);
-  const transfers = settle.minimalTransfers(balances);
+
+  let transfers, fueraDePlan = [];
+  if (group.lockedAt) {
+    // Bloqueado: el reparto -la lista concreta de quien le paga a quien- se
+    // fijo al bloquear (ver /api/groups/:id/lock) y no se recalcula mas.
+    // Cada pago descuenta de su propia linea; las demas no se enteran.
+    let plan = group.settlementPlan;
+    if (!plan) {
+      // Un grupo que ya estaba bloqueado ANTES de que existiera este plan
+      // congelado. Se genera uno ahora, con los saldos de este instante
+      // -que ya cuentan los pagos hechos hasta hoy- y se guarda: a partir
+      // de aqui tampoco se le reordena mas.
+      plan = settle.minimalTransfers(balances).map(t => Object.assign({ id: nanoid(10) }, t));
+      await db.setGroupSettlementPlan(groupId, plan);
+    }
+    const aplicado = settle.applyPlan(plan, pagos);
+    transfers = aplicado.pendientes;
+    fueraDePlan = aplicado.fueraDePlan;
+  } else {
+    // Abierto: las cifras se mueven con cada gasto que entra, todavia no hay
+    // ninguna deuda "real" que fijar.
+    transfers = settle.minimalTransfers(balances);
+  }
+
   const stats = settle.groupStats(apuntes);
 
   return {
@@ -685,6 +712,11 @@ async function groupSummary(groupId, req_token) {
     payments,
     balances,
     transfers,
+    // Pagos que no encajaron en ninguna linea del reparto congelado -por
+    // ejemplo, alguien pago de mas, o le pago a alguien con quien el plan no
+    // le habia emparejado. Se enseña aparte: nunca se reparte en silencio
+    // dentro de la deuda de otra persona.
+    fueraDePlan,
     stats,
     // Los tickets sin cerrar NO entran en el cuadre (ver arriba). Se informa
     // de cuántos son y de cuánto dinero hay dentro, para que se sepa que el
@@ -841,6 +873,17 @@ app.post('/api/groups/:id/payments', ruta(async (req, res) => {
     return res.status(400).json({ error: 'No puedes pagarte a ti mismo', code: 'SELF_PAYMENT' });
   }
 
+  // A que linea del reparto congelado descuenta este pago (ver
+  // Settle.applyPlan). Si no coincide con ninguna linea del plan actual del
+  // grupo -un cliente con la pantalla desactualizada, por ejemplo- se
+  // ignora sin más: el pago se sigue anotando igual, solo que se intentará
+  // encajar despues por (de, a) en vez de por este id.
+  let planEdgeId = asText((req.body || {}).planEdgeId, 20) || null;
+  if (planEdgeId) {
+    const enElPlan = (group.settlementPlan || []).some(e => e && e.id === planEdgeId);
+    if (!enElPlan) planEdgeId = null;
+  }
+
   // Cuanto llevaba parada la deuda que este pago salda: del ultimo movimiento
   // del grupo ANTES de este pago hasta ahora. Se calcula en este momento
   // porque despues es imposible: en cuanto entre otro gasto, el grupo vuelve
@@ -866,7 +909,7 @@ app.post('/api/groups/:id/payments', ruta(async (req, res) => {
   } catch (_) { /* si falla, el pago se registra igual: es un extra */ }
 
   const pago = await db.addGroupPayment(req.params.id, {
-    id: nanoid(10), from, to, amount: +amount.toFixed(2), esperoDias
+    id: nanoid(10), from, to, amount: +amount.toFixed(2), esperoDias, planEdgeId
   });
 
   await db.addGroupEvent(req.params.id, {
@@ -1044,10 +1087,26 @@ app.post('/api/groups/:id/remind', ruta(async (req, res) => {
  * Mientras esta abierto las deudas se recalculan con cada gasto y no tiene
  * sentido reclamar nada. Al bloquear se congela el momento y empiezan los
  * recordatorios, los colores del canto y el reloj.
+ *
+ * Tambien se congela EL REPARTO en si: la lista concreta de quien le paga a
+ * quien, con los saldos de este instante. A partir de aqui cada pago
+ * descuenta de su propia linea de esa lista -antes se recalculaba entera en
+ * cada pago, y eso reordenaba a quien le tocaba pagar a quien en 1 de cada 5
+ * grupos reales de mas de dos personas, aunque el dinero en si nunca se
+ * perdiera. Ver Settle.applyPlan en settle.js.
  */
 app.post('/api/groups/:id/lock', ruta(async (req, res) => {
   const quiere = !!(req.body || {}).locked;
-  const g = await db.setGroupLocked(req.params.id, quiere);
+
+  let plan = null;
+  if (quiere) {
+    const resumenActual = await groupSummary(req.params.id, null);
+    if (!resumenActual) return res.status(404).json({ error: 'Grupo no encontrado' });
+    plan = settle.minimalTransfers(resumenActual.balances)
+      .map(t => Object.assign({ id: nanoid(10) }, t));
+  }
+
+  const g = await db.setGroupLocked(req.params.id, quiere, plan);
   if (!g) return res.status(404).json({ error: 'Grupo no encontrado' });
 
   await db.addGroupEvent(req.params.id, {
@@ -1057,6 +1116,36 @@ app.post('/api/groups/:id/lock', ruta(async (req, res) => {
   });
 
   res.json({ ok: true, bloqueado: !!g.lockedAt, bloqueadoDesde: g.lockedAt || null });
+}));
+
+/**
+ * Recalcular el reparto a mano.
+ *
+ * El plan se queda fijo a proposito -es justo lo que evita que se reordene
+ * solo. Pero si alguien paga una cantidad que no coincide con ninguna linea,
+ * o le paga a alguien con quien el plan no le habia emparejado, ese dinero
+ * queda "fuera de plan" (`fueraDePlan` en el resumen) sin encajar en nada.
+ * Este boton SI genera un reparto nuevo desde los saldos de ahora mismo,
+ * pero solo cuando alguien lo pide a proposito, nunca por su cuenta.
+ */
+app.post('/api/groups/:id/replan', ruta(async (req, res) => {
+  const resumenActual = await groupSummary(req.params.id, null);
+  if (!resumenActual) return res.status(404).json({ error: 'Grupo no encontrado' });
+  if (!resumenActual.bloqueado) {
+    return res.status(400).json({ error: 'El grupo no esta bloqueado', code: 'NOT_LOCKED' });
+  }
+
+  const plan = settle.minimalTransfers(resumenActual.balances)
+    .map(t => Object.assign({ id: nanoid(10) }, t));
+  await db.setGroupSettlementPlan(req.params.id, plan);
+
+  await db.addGroupEvent(req.params.id, {
+    tipo: 'reparto-recalculado',
+    actor: asText((req.body || {}).actor, 40) || null,
+    datos: {}
+  });
+
+  res.json({ ok: true });
 }));
 
 /**

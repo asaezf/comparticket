@@ -413,6 +413,13 @@ async function addGroupPayment(groupId, payment) {
     from: payment.from,
     to: payment.to,
     amount: payment.amount,
+    // A que linea del reparto congelado (settlementPlan) descuenta este
+    // pago. Sin esto no habria forma de saber, mas adelante, cual de las
+    // lineas hay que dar por pagada -y Settle.applyPlan tendria que
+    // adivinarlo por (de, a), que falla si esa pareja tiene mas de una
+    // linea. Null en pagos de antes de que existiera el plan: esos se
+    // siguen encajando por (de, a) como hasta ahora.
+    planEdgeId: payment.planEdgeId || null,
     // Cuantos dias llevaba parada la deuda cuando este pago la salda.
     //
     // Se apunta AQUI, en el momento del pago, porque despues ya no se puede
@@ -570,11 +577,44 @@ async function setGroupTemplate(groupId, template) {
  *
  * Bloqueado no se pueden anadir gastos ni tickets. Es lo que hace que la cifra
  * que ves sea la cifra que se paga.
+ *
+ * Al bloquear tambien se congela EL REPARTO (`settlementPlan`, calculado ya
+ * en server.js con los saldos de este instante): la lista concreta de quien
+ * le paga a quien. A partir de aqui cada pago descuenta de su propia linea
+ * de esa lista, y las demas no se enteran —antes se recalculaba entero en
+ * cada pago, y eso reordenaba a quien le tocaba pagar a quien en 1 de cada 5
+ * grupos reales, aunque el dinero en si nunca se perdiera. Al desbloquear se
+ * borra: si se vuelve a bloquear, se genera uno nuevo con las cifras de ese
+ * momento.
  */
-async function setGroupLocked(groupId, bloqueado) {
+async function setGroupLocked(groupId, bloqueado, plan) {
   const ref = groupRef(groupId);
   if (!(await ref.get()).exists) return null;
-  await ref.update({ lockedAt: bloqueado ? new Date().toISOString() : null });
+  await ref.update({
+    lockedAt: bloqueado ? new Date().toISOString() : null,
+    settlementPlan: bloqueado ? (plan || []) : null
+  });
+  await bumpGroupVersion(groupId);
+  return (await ref.get()).data();
+}
+
+/**
+ * Reemplaza el reparto congelado por uno nuevo, calculado con los saldos de
+ * este momento.
+ *
+ * Dos usos, los dos con cuidado de no reordenar nada por sorpresa:
+ *   1) Un grupo que ya estaba bloqueado ANTES de que existiera este plan
+ *      congelado: la primera vez que se lee tras la actualizacion, se le
+ *      genera uno con las cifras de ese instante y se guarda aqui, para que
+ *      a partir de ahi tampoco se le reordene mas.
+ *   2) El boton de "recalcular reparto" a mano, para cuando algun pago no
+ *      encajo en ninguna linea del plan y ha quedado dinero suelto. Este SI
+ *      reordena, pero solo cuando alguien lo pide a proposito -nunca solo.
+ */
+async function setGroupSettlementPlan(groupId, plan) {
+  const ref = groupRef(groupId);
+  if (!(await ref.get()).exists) return null;
+  await ref.update({ settlementPlan: plan || [] });
   await bumpGroupVersion(groupId);
   return (await ref.get()).data();
 }
@@ -613,7 +653,7 @@ async function clearGroupSettlement(groupId) {
   await lote.commit();
 
   // Se queda desbloqueado: no hay nada que congelar.
-  await ref.update({ lockedAt: null });
+  await ref.update({ lockedAt: null, settlementPlan: null });
   await bumpGroupVersion(groupId);
   return { archivados: n };
 }
@@ -769,6 +809,7 @@ module.exports = {
   getGroupPulse,
   setGroupTemplate,
   setGroupLocked,
+  setGroupSettlementPlan,
   clearGroupSettlement,
   addGroupEvent,
   getGroupEvents,

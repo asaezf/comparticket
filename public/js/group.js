@@ -319,6 +319,20 @@ function pintarTransferencias() {
       : 'todav\u00eda fuera del reparto — quedan ' + n + ' tickets sin cerrar';
   }
 
+  // Dinero que no encajo en ninguna linea del reparto fijado -alguien pago
+  // de mas, o le pago a alguien con quien el plan no le habia emparejado.
+  // A diferencia del aviso de arriba, esto SI necesita que alguien lo
+  // resuelva a mano: por eso lleva su propio boton de recalcular.
+  const fuera = datos.fueraDePlan || [];
+  const notaFuera = document.getElementById('fueraDePlanNote');
+  if (notaFuera) {
+    notaFuera.classList.toggle('hidden', !fuera.length);
+    if (fuera.length) {
+      const total = fuera.reduce((s, f) => s + f.importe, 0);
+      document.getElementById('fueraDePlanAmount').textContent = eur(total);
+    }
+  }
+
   if (!datos.transfers.length) {
     cont.innerHTML = datos.stats.apuntes
       ? '<div class="all-settled">✓ Todo cuadrado, nadie debe nada</div>'
@@ -918,10 +932,38 @@ async function marcarPagado(t) {
     const r = await fetch('/api/groups/' + groupId + '/payments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: t.de, to: t.a, amount: t.importe, actor: yo || null })
+      // planEdgeId: a que linea del reparto congelado descuenta este pago.
+      // Con esto, el resto de lineas no se enteran ni se reordenan -ver
+      // Settle.applyPlan en settle.js.
+      body: JSON.stringify({ from: t.de, to: t.a, amount: t.importe, actor: yo || null, planEdgeId: t.id || null })
     });
     if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'No se ha podido anotar');
     toast('Pago anotado');
+    await cargar();
+  } catch (e) {
+    toast(e instanceof TypeError ? 'Sin conexión' : e.message);
+  }
+}
+
+/**
+ * Recalcula el reparto a mano.
+ *
+ * El reparto se queda fijo aposta desde que se bloquea el grupo -es lo que
+ * evita que se reordene solo con cada pago. Este botón SÍ genera uno nuevo
+ * con los saldos de ahora mismo, pero solo cuando alguien lo pide a
+ * propósito: por eso solo aparece cuando ha quedado dinero fuera de plan.
+ */
+async function recalcularReparto() {
+  if (!confirm('Esto va a rehacer la lista de "quién paga a quién" con las cifras de ahora mismo.\n\n' +
+    'Puede cambiar de pareja para alguna deuda que todavía esté pendiente. ¿Seguro?')) return;
+  try {
+    const r = await fetch('/api/groups/' + groupId + '/replan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ actor: yo || null })
+    });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'No se ha podido recalcular');
+    toast('Reparto recalculado');
     await cargar();
   } catch (e) {
     toast(e instanceof TypeError ? 'Sin conexión' : e.message);
@@ -1437,6 +1479,7 @@ function arrancarLatido() {
 }
 
 document.getElementById('repartoTitulo').addEventListener('click', tocarTituloReparto);
+document.getElementById('recalcularBtn').addEventListener('click', recalcularReparto);
 document.getElementById('tplText').addEventListener('input', refrescarPreview);
 document.getElementById('tplSave').addEventListener('click', guardarPlantilla);
 document.getElementById('tplReset').addEventListener('click', () => {

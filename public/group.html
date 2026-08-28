@@ -123,6 +123,16 @@
             <span class="sn-why" id="settleNoteWhy"></span>
           </div>
 
+          <!-- El reparto se fija al bloquear y ya no se reordena solo. Si
+               algun pago no encaja del todo -una cantidad rara, a otra
+               persona- se avisa aqui, aparte, en vez de repartirlo en
+               silencio dentro de la deuda de otra persona. -->
+          <div class="settle-note is-warn hidden" id="fueraDePlanNote">
+            <span class="sn-amount" id="fueraDePlanAmount"></span>
+            <span class="sn-why">no encaja del todo con el reparto fijado</span>
+            <button class="sn-fix" id="recalcularBtn" type="button">Recalcular reparto</button>
+          </div>
+
           <!-- Easter egg: tres toques en REPARTO. Se guarda en el grupo y no
                en el movil para que la vea todo el mundo; si cada uno tuviera
                la suya, el mismo grupo mandaria mensajes distintos. -->

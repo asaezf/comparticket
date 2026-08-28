@@ -170,6 +170,79 @@
   }
 
   /**
+   * Aplica los pagos ya hechos sobre un reparto YA CONGELADO -el que se
+   * decidió al bloquear el grupo, con minimalTransfers, una sola vez- sin
+   * recalcular nada más.
+   *
+   * Por qué hace falta esto: minimalTransfers(saldos) es correcto, pero para
+   * los mismos saldos casi siempre hay varias formas distintas de saldar a
+   * todos con el mínimo de pagos. Si se vuelve a llamar después de cada pago
+   * -con los saldos ya movidos-, puede aterrizar en una solución distinta a
+   * la de antes: alguien a quien nadie le debía nada de repente le debe a
+   * otra persona. Medido con datos: pasa en 1 de cada 5 grupos reales de más
+   * de dos personas. El dinero no se pierde -eso ya está probado aparte-
+   * pero la gente deja de fiarse en cuanto ve que "su" deuda cambia de
+   * dueño sin que ella haya hecho nada raro.
+   *
+   * `plan` es la lista fijada en su momento: [{ id, de, a, importe }, ...].
+   * `pagos` son las liquidaciones hechas desde entonces. Las que llevan
+   * `planEdgeId` descuentan de esa línea exacta. Las que no -pagos de antes
+   * de que existiera el plan, o alguien que pagó una cantidad que no
+   * coincide con ninguna línea- intentan encajar por (de, a) en la primera
+   * línea de esa pareja que aún tenga saldo; si tampoco encaja, se apartan
+   * en vez de reordenar ninguna otra línea por su cuenta.
+   *
+   * Devuelve { pendientes, fueraDePlan }:
+   *   pendientes   → el plan con lo ya pagado descontado, sin las líneas que
+   *                  ya llegaron a cero. Esto es lo que se enseña como "lo
+   *                  que queda por pagar".
+   *   fueraDePlan  → pagos que no se pudieron encajar en ninguna línea -por
+   *                  ejemplo, alguien pagó de más, o le pagó a alguien con
+   *                  quien el plan no le emparejaba. Se enseña aparte, nunca
+   *                  se absorbe en silencio dentro de otra deuda de otro.
+   */
+  function applyPlan(plan, pagos) {
+    const restante = {};
+    const porPareja = {};
+    (plan || []).forEach(e => {
+      if (!e || !e.id) return;
+      restante[e.id] = round2(+e.importe || 0);
+      const k = key(e.de) + '>' + key(e.a);
+      (porPareja[k] = porPareja[k] || []).push(e.id);
+    });
+
+    const fueraDePlan = [];
+
+    (pagos || []).forEach(p => {
+      if (!p) return;
+      const importe = round2(+p.importe || 0);
+      if (importe <= 0) return;
+
+      let id = (p.planEdgeId && (p.planEdgeId in restante)) ? p.planEdgeId : null;
+
+      if (!id) {
+        const candidatos = porPareja[key(p.de) + '>' + key(p.a)] || [];
+        id = candidatos.find(cid => restante[cid] > TOL) || null;
+      }
+
+      if (id) {
+        const usar = Math.min(restante[id], importe);
+        restante[id] = round2(restante[id] - usar);
+        const sobra = round2(importe - usar);
+        if (sobra > TOL) fueraDePlan.push({ de: p.de, a: p.a, importe: sobra });
+      } else {
+        fueraDePlan.push({ de: p.de, a: p.a, importe });
+      }
+    });
+
+    const pendientes = (plan || [])
+      .filter(e => e && e.id && restante[e.id] > TOL)
+      .map(e => Object.assign({}, e, { importe: restante[e.id] }));
+
+    return { pendientes, fueraDePlan };
+  }
+
+  /**
    * Cuánto dinero ha movido el grupo y quién ha adelantado más.
    * Sirve para la pantalla de resumen del viaje.
    */
@@ -192,6 +265,7 @@
     minimalTransfers,
     splitEqually,
     isSettled,
-    groupStats
+    groupStats,
+    applyPlan
   };
 });
