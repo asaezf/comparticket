@@ -3465,10 +3465,16 @@ body.en-grupo .upload-area { padding-top: 6px; }
   color: var(--gray-400);
   line-height: 1.35;
 }
-/* En iPhone no hay dialogo que abrir: el hueco solo informa, asi que no se
-   comporta como un boton. */
-.atajo-btn.solo-texto { cursor: default; }
-.atajo-btn.solo-texto:active { transform: none; border-color: var(--gray-300); }
+/* En iPhone no hay dialogo que abrir: el hueco solo informa, asi que no debe
+   parecer una tarjeta pulsable como las demas de la app -sin borde, sin
+   fondo, icono apagado- o la gente lo toca esperando que pase algo. */
+.atajo-btn.solo-texto {
+  cursor: default;
+  border-color: transparent;
+  background: transparent;
+}
+.atajo-btn.solo-texto:active { transform: none; }
+.atajo-btn.solo-texto svg { color: var(--gray-400); }
 
 /* La pista de "ábrelo en Safari", solo en iPhone. Fuera del botón y en un
    tono más discreto: es un caso de repuesto, no el paso principal. */

@@ -190,5 +190,35 @@ console.log('\n8. El aviso de Safari/WhatsApp existe en los 7 idiomas y no rompe
   }
 }
 
+console.log('\n9. En iPhone, tocar el aviso ya no se queda callado');
+{
+  // El primer intento de arreglo (seccion 5-6) dejaba el hueco visible y con
+  // el texto correcto, pero el "boton" seguia teniendo el mismo aspecto de
+  // tarjeta pulsable que el resto de la app -y al tocarlo no pasaba
+  // literalmente nada, porque no tenia ningun listener. Un colega probo en
+  // un iPhone real y lo confirmo: eso es justo lo que parece roto.
+  const upload = fs.readFileSync(path.join(PUB, 'js', 'upload.js'), 'utf8');
+  const html = fs.readFileSync(path.join(PUB, 'index.html'), 'utf8');
+  const css = fs.readFileSync(path.join(PUB, 'css', 'style.css'), 'utf8');
+
+  const bloqueIphone = upload.slice(upload.indexOf('if (esIphone()) {'), upload.indexOf('  // Android y escritorio'));
+  check('el bloque de iPhone engancha un click que SI hace algo',
+    /btn\.addEventListener\('click'/.test(bloqueIphone), true);
+  check('tocarlo llama a toast(), no se queda mudo',
+    /toast\(t\.addToHomeIos\)/.test(bloqueIphone), true);
+  check('existe la funcion toast en upload.js', /function toast\(msg\)/.test(upload), true);
+
+  check('el icono tiene id para poder cambiarlo por el de Compartir',
+    /id="atajoIcono"/.test(html), true);
+  check('en iPhone se cambia el icono de "+" por el de Compartir',
+    /atajoIcono[\s\S]{0,40}innerHTML/.test(bloqueIphone), true);
+
+  // La tarjeta de iPhone ya no debe tener pinta de tarjeta pulsable -sin eso,
+  // la gente la toca esperando que instale algo, como paso de verdad.
+  const bloqueSoloTexto = css.slice(css.indexOf('.atajo-btn.solo-texto {'), css.indexOf('.atajo-alt {'));
+  check('en iPhone no queda borde de tarjeta', /border-color:\s*transparent/.test(bloqueSoloTexto), true);
+  check('en iPhone no queda fondo de tarjeta', /background:\s*transparent/.test(bloqueSoloTexto), true);
+}
+
 console.log(`\n${pass} ok, ${fail} fallos\n`);
 process.exit(fail ? 1 : 0);

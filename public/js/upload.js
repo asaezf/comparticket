@@ -431,6 +431,15 @@ montarAjustes();
 
 let promesaDeInstalar = null;
 
+function toast(msg) {
+  const el = document.getElementById('toast');
+  if (!el) return;
+  el.textContent = msg;
+  el.classList.remove('hidden');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => el.classList.add('hidden'), 3200);
+}
+
 function yaEstaInstalada() {
   return window.matchMedia('(display-mode: standalone)').matches ||
          window.navigator.standalone === true;
@@ -452,11 +461,22 @@ function montarAtajo() {
   if (yaEstaInstalada()) { caja.classList.add('hidden'); return; }
 
   if (esIphone()) {
-    // Sin dialogo posible: se explica y se acabo.
+    // Sin dialogo posible: iOS no tiene ninguna API para disparar el
+    // instalado desde una pagina web, asi que aqui solo se explica.
     tit.textContent = t.addToHome;
     sub.textContent = t.addToHomeIos;
     btn.classList.add('solo-texto');
     caja.classList.remove('hidden');
+
+    // El icono de "+" invita a tocarlo como si fuera a instalar algo. Se
+    // cambia por el icono de Compartir -el mismo que hay que buscar en la
+    // barra del navegador- para que la gente lo reconozca alli.
+    const icono = document.getElementById('atajoIcono');
+    if (icono) {
+      icono.innerHTML = '<path d="M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83'
+        + 'L9.42 6.42 8 5l4-4 4 4z M20 10v11c0 1.1-.9 2-2 2H6c-1.11 0-2-.9-2-2'
+        + 'V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .9 2 2z"/>';
+    }
 
     // El enlace se comparte por WhatsApp, y ahi se abre dentro del propio
     // WhatsApp: un navegador aparte que en muchos casos no ofrece "Anadir a
@@ -465,6 +485,11 @@ function montarAtajo() {
     // JavaScript, asi que se avisa siempre.
     if (alt) alt.classList.remove('hidden');
     if (alt) alt.textContent = t.addToHomeIosAlt;
+
+    // Si aun asi lo tocan -el habito de "esto es un boton"-, que pase algo en
+    // vez de quedarse callado: antes no habia ningun listener aqui y tocarlo
+    // no hacia nada, lo cual parecia roto.
+    btn.addEventListener('click', () => toast(t.addToHomeIos));
     return;
   }
 
