@@ -119,9 +119,11 @@ const translations = {
     langLabel: 'IDIOMA',
     currencyLabel: 'MONEDA',
     currencyNote: 'Solo cambia cómo se escriben los importes: no los convierte',
-    addToHome: 'Añadir a la pantalla de inicio',
-    addToHomeSub: 'Para abrirla como una aplicación',
-    addToHomeIos: 'Toca «Compartir» y luego «Añadir a pantalla de inicio»',
+    addToHome: 'Instalar app',
+    addToHomeSub: 'Se añade como un icono más, en tu pantalla de inicio',
+    addToHomeIos: 'Toca Compartir y luego «Añadir a pantalla de inicio»',
+    addToHomeIosAlt: '¿No aparece la opción? Toca ⋯ arriba y elige «Abrir en Safari»',
+    horaSubido: 'subido',
     addToHomeDone: 'Ya la tienes en tu pantalla de inicio',
     tourNext: 'Siguiente',
     tourDone: 'Entendido',
@@ -282,9 +284,11 @@ const translations = {
     langLabel: 'LANGUAGE',
     currencyLabel: 'CURRENCY',
     currencyNote: 'Only changes how amounts are written: it does not convert them',
-    addToHome: 'Add to home screen',
-    addToHomeSub: 'To open it like an app',
-    addToHomeIos: 'Tap "Share", then "Add to Home Screen"',
+    addToHome: 'Install app',
+    addToHomeSub: 'It’s added as a regular icon on your home screen',
+    addToHomeIos: 'Tap Share, then "Add to Home Screen"',
+    addToHomeIosAlt: 'Don’t see it? Tap ⋯ at the top and choose "Open in Safari"',
+    horaSubido: 'uploaded',
     addToHomeDone: "It's already on your home screen",
     tourNext: 'Next',
     tourDone: 'Got it',
@@ -443,9 +447,11 @@ const translations = {
     langLabel: 'SPRÅK',
     currencyLabel: 'VALUTA',
     currencyNote: 'Endrer bare hvordan beløp skrives: det regnes ikke om',
-    addToHome: 'Legg til på hjemskjermen',
-    addToHomeSub: 'For å åpne den som en app',
-    addToHomeIos: 'Trykk «Del» og deretter «Legg til på Hjem-skjerm»',
+    addToHome: 'Installer appen',
+    addToHomeSub: 'Den legges til som et vanlig ikon på hjemskjermen',
+    addToHomeIos: 'Trykk Del og deretter «Legg til på Hjem-skjerm»',
+    addToHomeIosAlt: 'Ser du den ikke? Trykk ⋯ øverst og velg «Åpne i Safari»',
+    horaSubido: 'lastet opp',
     addToHomeDone: 'Du har den allerede på hjemskjermen',
     tourNext: 'Neste',
     tourDone: 'Skjønner',
@@ -604,9 +610,11 @@ const translations = {
     langLabel: 'JĘZYK',
     currencyLabel: 'WALUTA',
     currencyNote: 'Zmienia tylko zapis kwot: nie przelicza ich',
-    addToHome: 'Dodaj do ekranu głównego',
-    addToHomeSub: 'Żeby otwierać ją jak aplikację',
-    addToHomeIos: 'Dotknij „Udostępnij”, a potem „Do ekranu głównego”',
+    addToHome: 'Zainstaluj aplikację',
+    addToHomeSub: 'Dodaje się jako zwykła ikona na ekranie głównym',
+    addToHomeIos: 'Dotknij Udostępnij, a potem „Do ekranu głównego”',
+    addToHomeIosAlt: 'Nie widzisz opcji? Dotknij ⋯ u góry i wybierz „Otwórz w Safari”',
+    horaSubido: 'wgrano',
     addToHomeDone: 'Masz ją już na ekranie głównym',
     tourNext: 'Dalej',
     tourDone: 'Rozumiem',
@@ -765,9 +773,11 @@ const translations = {
     langLabel: 'LANGUE',
     currencyLabel: 'DEVISE',
     currencyNote: 'Change seulement l\'écriture des montants : aucune conversion',
-    addToHome: 'Ajouter à l\'écran d\'accueil',
-    addToHomeSub: 'Pour l\'ouvrir comme une application',
-    addToHomeIos: 'Touchez « Partager », puis « Sur l\'écran d\'accueil »',
+    addToHome: 'Installer l’appli',
+    addToHomeSub: 'Elle s’ajoute comme une icône normale sur l’écran d’accueil',
+    addToHomeIos: 'Touchez Partager, puis « Sur l’écran d’accueil »',
+    addToHomeIosAlt: 'Vous ne la voyez pas ? Touchez ⋯ en haut et choisissez « Ouvrir dans Safari »',
+    horaSubido: 'envoyé',
     addToHomeDone: 'Vous l\'avez déjà sur votre écran d\'accueil',
     tourNext: 'Suivant',
     tourDone: 'J\'ai compris',
@@ -926,9 +936,11 @@ const translations = {
     langLabel: 'LINGUA',
     currencyLabel: 'VALUTA',
     currencyNote: 'Cambia solo come si scrivono gli importi: non li converte',
-    addToHome: 'Aggiungi alla schermata Home',
-    addToHomeSub: 'Per aprirla come un\'app',
-    addToHomeIos: 'Tocca «Condividi» e poi «Aggiungi a Home»',
+    addToHome: 'Installa l’app',
+    addToHomeSub: 'Si aggiunge come un’icona normale nella schermata Home',
+    addToHomeIos: 'Tocca Condividi e poi «Aggiungi a Home»',
+    addToHomeIosAlt: 'Non la vedi? Tocca ⋯ in alto e scegli «Apri in Safari»',
+    horaSubido: 'caricato',
     addToHomeDone: 'Ce l\'hai già nella schermata Home',
     tourNext: 'Avanti',
     tourDone: 'Capito',
@@ -1087,9 +1099,11 @@ const translations = {
     langLabel: 'SPRACHE',
     currencyLabel: 'WÄHRUNG',
     currencyNote: 'Ändert nur die Schreibweise der Beträge: es wird nicht umgerechnet',
-    addToHome: 'Zum Startbildschirm hinzufügen',
-    addToHomeSub: 'Um sie wie eine App zu öffnen',
-    addToHomeIos: 'Tippe auf „Teilen“ und dann „Zum Home-Bildschirm“',
+    addToHome: 'App installieren',
+    addToHomeSub: 'Sie wird als normales Symbol auf dem Startbildschirm hinzugefügt',
+    addToHomeIos: 'Tippe auf Teilen und dann auf „Zum Home-Bildschirm“',
+    addToHomeIosAlt: 'Siehst du die Option nicht? Tippe oben auf ⋯ und wähle „In Safari öffnen“',
+    horaSubido: 'hochgeladen',
     addToHomeDone: 'Du hast sie schon auf dem Startbildschirm',
     tourNext: 'Weiter',
     tourDone: 'Verstanden',
@@ -1157,6 +1171,36 @@ function detectLang() {
 
 const lang = detectLang();
 const t = translations[lang];
+
+/**
+ * La fecha y la hora de un ticket, sin mezclar dos fuentes distintas.
+ *
+ * El papel puede traer fecha y hora, ninguna de las dos, o solo una. Elegir
+ * cada una por su lado —la fecha del papel si hay, si no la de cuando se
+ * escaneó; la hora del papel si hay, si no ninguna— escondía un fallo real:
+ * `receiptDate` es una fecha SIN hora ("2026-08-23"), y `new Date()` sobre
+ * ese texto la interpreta como medianoche UTC. En Madrid eso son las 2 de la
+ * madrugada — así que cualquier ticket con fecha pero sin hora (la mayoría:
+ * muchos papeles no imprimen la hora, o Gemini no la encuentra) enseñaba una
+ * hora fabricada de la nada. Comprobado: "2026-08-23" salía como "02:00".
+ *
+ * Aquí se elige un origen ENTERO: o la fecha y la hora vienen las dos del
+ * papel, o las dos vienen de cuando se escaneó — nunca una de cada.
+ */
+function fechaDelTicket(tk) {
+  if (tk && tk.receiptDate) {
+    // "YYYY-MM-DD" a mano, en local. `new Date("YYYY-MM-DD")` la interpreta
+    // como medianoche UTC, y en husos al oeste de Greenwich eso puede
+    // desplazar el DÍA que se ve un día hacia atrás.
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(tk.receiptDate);
+    const fecha = m ? new Date(+m[1], +m[2] - 1, +m[3]) : new Date(tk.receiptDate);
+    return { fecha, horaTexto: tk.receiptTime || null, delPapel: true };
+  }
+  const fecha = new Date((tk && tk.createdAt) || Date.now());
+  const horaTexto = isNaN(fecha) ? null
+    : fecha.toLocaleTimeString(lang === 'es' ? 'es-ES' : 'en-US', { hour: '2-digit', minute: '2-digit' });
+  return { fecha, horaTexto, delPapel: false };
+}
 
 /**
  * Termina la animación de "el ticket sale de la impresora" sin recortar nada.

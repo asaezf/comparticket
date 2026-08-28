@@ -534,14 +534,20 @@ async function loadTicket() {
     return;
   }
 
-  const d = new Date(ticketData.receiptDate || ticketData.createdAt);
+  // La fecha y la hora vienen del MISMO origen: las dos del papel, o las dos
+  // de cuando se escaneó. Antes se cogía la fecha del papel (si había) pero
+  // SIEMPRE se llamaba a toLocaleTimeString sobre ella — y una fecha sin hora
+  // ("2026-08-23") se interpreta como medianoche UTC, que en Madrid son las
+  // 2 de la madrugada. Cualquier ticket con fecha pero sin hora enseñaba esa
+  // hora fabricada. Ver fechaDelTicket() en i18n.js.
+  const { fecha: d, horaTexto, delPapel } = fechaDelTicket(ticketData);
   const storeEl = document.getElementById('ticketStore');
   if (storeEl) storeEl.textContent = (ticketData.restaurant || t.restaurant).toUpperCase();
-  document.getElementById('ticketDate').textContent =
-    d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
-      day: '2-digit', month: 'short', year: 'numeric'
-    }).toUpperCase() + ' | ' +
-    d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const fechaTxt = isNaN(d) ? '' : d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
+    day: '2-digit', month: 'short', year: 'numeric'
+  }).toUpperCase();
+  document.getElementById('ticketDate').textContent = !horaTexto ? fechaTxt
+    : fechaTxt + ' | ' + horaTexto + (delPapel ? '' : ' (' + t.horaSubido + ')');
 
   // Nombre recordado: para quien repite no hay ningún paso que dar.
   //

@@ -2981,27 +2981,48 @@ body.en-grupo .upload-area { padding-top: 6px; }
    movil. Ahora van en dos alturas, que es como se imprime un ticket de
    verdad: arriba el concepto y el dinero, debajo el detalle.
 
-   Y no llevan flecha ni "mostrar mas". Una fila con un total delante es algo
-   que se toca; el unico aviso que hace falta es que se hunda al pulsarla.
+   Al principio no llevaban ni flecha ni borde: solo se hundían al pulsarlas,
+   sin nada que las distinguiera en reposo. Tras un fin de semana de uso real
+   en un viaje, la gente las leía como líneas de información y no encontraba
+   que se pudieran tocar. Ahora tienen el mismo aspecto de tarjeta —borde de
+   puntos, fondo blanco— que ya usan "Escanear un ticket" y "Gasto sin
+   ticket" justo encima: es el idioma visual que esta pantalla ya usa para
+   decir "esto se toca", así que se aplica también aquí en vez de inventar
+   uno nuevo. Y un chevron que gira, que es la señal más reconocible de
+   "esto se despliega" que existe.
    ========================================================================= */
 .sec-head {
   display: block;
   width: 100%;
   appearance: none;
-  border: none;
-  background: none;
-  padding: 10px 4px 9px;
+  border: 1.5px dashed var(--gray-300);
+  background: #fff;
+  padding: 10px 12px 9px;
   margin: 2px 0 2px;
   text-align: left;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-sm);
   -webkit-tap-highlight-color: transparent;
-  transition: background .16s ease, transform .12s ease;
+  transition: background .16s ease, transform .12s ease, border-color .16s ease;
 }
 .sec-head:active {
   background: rgba(0,0,0,.045);
   transform: scale(0.985);
+  border-color: var(--accent);
 }
+
+/* El chevron. Gira desde el estado —lo pone group.js según desplegado[]— y
+   no desde una regla de CSS: es lo que ya usa esta misma pantalla para el
+   candado del reparto, y ahí getComputedStyle demostró no ser de fiar para
+   comprobar que una rotación por clase se estuviera aplicando de verdad. */
+.sh-chev {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+  color: var(--gray-400);
+  transition: transform .18s ease, color .16s ease;
+}
+.sec-head.abierta .sh-chev { color: var(--accent); }
 
 .sh-line {
   display: flex;
@@ -3010,6 +3031,11 @@ body.en-grupo .upload-area { padding-top: 6px; }
   gap: 12px;
 }
 .sh-line-b { margin-top: 3px; }
+
+/* La suma y el chevron van juntos: si el chevron fuera un tercer hijo suelto
+   de .sh-line, el space-between los repartiría a los tres por igual y el
+   chevron se separaría de la cifra a la que acompaña. */
+.sh-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
 .sh-title {
   font-family: var(--mono);
@@ -3127,6 +3153,7 @@ body.en-grupo .upload-area { padding-top: 6px; }
 .pantalla-grupo .sh-what  { font-size: 0.74rem; }
 .pantalla-grupo .sh-count { font-size: 0.72rem; }
 .pantalla-grupo .sec-head { padding: 12px 6px 11px; }
+.pantalla-grupo .sh-chev  { width: 16px; height: 16px; }
 .pantalla-grupo .is-who   { font-size: 0.78rem; }
 .pantalla-grupo .is-meta  { font-size: 0.72rem; }
 .pantalla-grupo .item-state { font-size: 0.64rem; padding: 4px 9px; }
@@ -3442,6 +3469,18 @@ body.en-grupo .upload-area { padding-top: 6px; }
    comporta como un boton. */
 .atajo-btn.solo-texto { cursor: default; }
 .atajo-btn.solo-texto:active { transform: none; border-color: var(--gray-300); }
+
+/* La pista de "ábrelo en Safari", solo en iPhone. Fuera del botón y en un
+   tono más discreto: es un caso de repuesto, no el paso principal. */
+.atajo-alt {
+  margin-top: 6px;
+  padding: 0 2px;
+  font-family: var(--sans);
+  font-size: 0.6rem;
+  line-height: 1.4;
+  color: var(--gray-400);
+  font-style: italic;
+}
 
 /* =========================================================================
    IDIOMA Y MONEDA

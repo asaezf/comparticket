@@ -958,11 +958,21 @@ function pintarFold(btnId, clave, total, importe, unidad) {
   const b = document.getElementById(btnId);
   if (!b) return;
 
-  // La cabecera entera es el interruptor. No lleva flecha ni "mostrar mas":
-  // una fila con un total delante es algo que se toca, y basta con que se
-  // hunda al pulsarla para que se note que responde.
-  b.classList.toggle('abierta', !!desplegado[clave]);
+  // La cabecera entera es el interruptor: se toca donde se está mirando.
+  // Antes no llevaba ni borde ni flecha, solo se hundía al pulsarla — y tras
+  // un fin de semana de uso real nadie encontraba que estas secciones se
+  // pudieran tocar. Ahora tiene el mismo aspecto de tarjeta que ya usan los
+  // botones de añadir, y un chevron que gira.
+  const abierta = !!desplegado[clave];
+  b.classList.toggle('abierta', abierta);
   b.onclick = () => { desplegado[clave] = !desplegado[clave]; pintar(); };
+
+  // El giro lo pone el estado y no una regla del CSS: es lo mismo que ya se
+  // hizo con este chevron la primera vez —getComputedStyle no demostró ser
+  // de fiar aquí para comprobar que una rotación por clase se aplicaba de
+  // verdad— así que se mantiene el mismo criterio.
+  const chev = b.querySelector('.sh-chev');
+  if (chev) chev.style.transform = abierta ? 'rotate(180deg)' : 'rotate(0deg)';
 
   // Cerrada o abierta, la cabecera dice siempre lo mismo: cuanto suma y
   // cuantos son. Son las dos preguntas que se hacen de un vistazo, y "79,00
@@ -1027,9 +1037,22 @@ function estadoTicket(t) {
  * La hora importa mas de lo que parece: en un viaje se cena dos veces en el
  * mismo sitio, y con solo el dia los dos tickets se confunden.
  */
-function fechaYHora(d) {
-  return fmtFecha(d) + ' ' + d.toLocaleTimeString('es-ES',
-    { hour: '2-digit', minute: '2-digit' });
+/**
+ * Fecha y hora de un ticket, para las filas del grupo.
+ *
+ * Antes tomaba una Date ya construida con `receiptDate || createdAt` y
+ * llamaba a toLocaleTimeString sin mirar si esa Date tenía hora de verdad.
+ * `receiptDate` es una fecha SIN hora ("2026-08-23"): interpretada como
+ * medianoche UTC, en Madrid son las 2 de la madrugada. Cualquier ticket con
+ * fecha pero sin hora en el papel —la mayoría— enseñaba esa hora fabricada.
+ * Ahora recibe el ticket entero y usa fechaDelTicket() (i18n.js), que nunca
+ * inventa una hora que no viene de ningún lado.
+ */
+function fechaYHora(tk) {
+  const { fecha: d, horaTexto, delPapel } = fechaDelTicket(tk);
+  if (isNaN(d)) return '';
+  if (!horaTexto) return fmtFecha(d);
+  return fmtFecha(d) + ' ' + horaTexto + (delPapel ? '' : ' (' + t.horaSubido + ')');
 }
 
 /**
@@ -1070,14 +1093,13 @@ function pintarAvisoTickets() {
     a.className = 'pend-row';
     // Va directo a marcar: es lo unico que hay que hacer con el.
     a.href = '/claim.html?id=' + encodeURIComponent(t.id);
-    const d = new Date(t.receiptDate || t.createdAt);
     a.innerHTML =
       '<div class="pend-main">' +
         '<span class="pend-name">' + esc(t.restaurant || 'Ticket') + '</span>' +
         '<span class="pend-amount">' + eur(t.total) + '</span>' +
       '</div>' +
       '<div class="pend-sub">' +
-        '<span>' + (isNaN(d) ? '' : fechaYHora(d)) + '</span>' +
+        '<span>' + fechaYHora(t) + '</span>' +
         '<span class="pend-ir">marcar lo m\u00edo \u2192</span>' +
       '</div>';
     lista.appendChild(a);
@@ -1101,8 +1123,7 @@ function filaTicket(t) {
   // pantalla se entra al ticket igual que se entraba desde aqui. Asi no hace
   // falta un boton de "ver todos" estorbando en cada seccion.
   fila.href = '/historial.html?grupo=' + encodeURIComponent(groupId);
-  const d = new Date(t.receiptDate || t.createdAt);
-  const fecha = isNaN(d) ? '' : fechaYHora(d);
+  const fecha = fechaYHora(t);
   fila.innerHTML =
     '<div class="item-main">' +
       '<span class="item-name">' + esc(t.restaurant || 'Ticket') + '</span>' +

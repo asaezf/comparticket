@@ -447,6 +447,7 @@ function montarAtajo() {
 
   const tit = document.getElementById('atajoTitulo');
   const sub = document.getElementById('atajoSub');
+  const alt = document.getElementById('atajoAlt');
 
   if (yaEstaInstalada()) { caja.classList.add('hidden'); return; }
 
@@ -456,6 +457,14 @@ function montarAtajo() {
     sub.textContent = t.addToHomeIos;
     btn.classList.add('solo-texto');
     caja.classList.remove('hidden');
+
+    // El enlace se comparte por WhatsApp, y ahi se abre dentro del propio
+    // WhatsApp: un navegador aparte que en muchos casos no ofrece "Anadir a
+    // pantalla de inicio", o si la ofrece el acceso directo sigue abriendo
+    // dentro de WhatsApp. No hay forma fiable de detectar eso desde
+    // JavaScript, asi que se avisa siempre.
+    if (alt) alt.classList.remove('hidden');
+    if (alt) alt.textContent = t.addToHomeIosAlt;
     return;
   }
 

@@ -119,7 +119,16 @@
            En Android el navegador avisa cuando se puede instalar y entonces
            sale el boton. En iPhone no hay forma de provocarlo —Apple no da
            esa API—, asi que alli se ensenan las instrucciones y ya esta.
-           Si la aplicacion ya esta instalada, no se ensena nada. -->
+           Si la aplicacion ya esta instalada, no se ensena nada.
+
+           Y una linea mas, solo en iPhone: el enlace se comparte por
+           WhatsApp, y ahi se abre dentro del propio WhatsApp —un navegador
+           aparte que en muchos casos no ofrece "Anadir a pantalla de
+           inicio", o si la ofrece el acceso directo sigue abriendo dentro
+           de WhatsApp en vez de como aplicacion independiente. No hay forma
+           fiable de detectar eso desde JavaScript, asi que se avisa
+           siempre: mejor decirlo de mas que dejar a alguien buscando una
+           opcion que no va a encontrar. -->
       <div class="atajo hidden" id="atajo">
         <button class="atajo-btn" id="atajoBtn" type="button">
           <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
@@ -128,6 +137,7 @@
             <span class="atajo-sub" id="atajoSub"></span>
           </span>
         </button>
+        <div class="atajo-alt hidden" id="atajoAlt"></div>
       </div>
 
       <!-- Idioma y moneda. Al final de la pagina a proposito: se toca una vez

@@ -29,18 +29,19 @@ async function loadData() {
   ticketData = await tRes.json();
   claimsData = await cRes.json();
 
-  const d = new Date(ticketData.receiptDate || ticketData.createdAt);
   // Title: restaurant name + address if available
   const titleParts = [(ticketData.restaurant || t.restaurant).toUpperCase()];
   if (ticketData.address) titleParts.push(ticketData.address);
   document.getElementById('ticketTitle').textContent = titleParts.join('\n');
-  // Date: use extracted time if available, otherwise omit time
-  const datePart = d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
+
+  // La fecha y la hora vienen del MISMO origen: las dos del papel, o las dos
+  // de cuando se escaneó. Ver fechaDelTicket() en i18n.js.
+  const { fecha: d, horaTexto: timePart, delPapel } = fechaDelTicket(ticketData);
+  const datePart = isNaN(d) ? '' : d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
     day: '2-digit', month: 'short', year: 'numeric'
   }).toUpperCase();
-  const timePart = ticketData.receiptTime || null;
-  document.getElementById('ticketDate').textContent =
-    timePart ? `${datePart}  ${timePart}` : datePart;
+  document.getElementById('ticketDate').textContent = !timePart ? datePart
+    : `${datePart}  ${timePart}${delPapel ? '' : ' (' + t.horaSubido + ')'}`;
 
   document.getElementById('ticketTotal').textContent = Money.formatEUR(ticketData.total, lang);
 
@@ -688,11 +689,13 @@ async function generateImage() {
       text(ticketData.address, W / 2, y, 'center');
       y += 14;
     }
-    const d = new Date(ticketData.receiptDate || ticketData.createdAt);
+    // Misma regla que en la cabecera: fecha y hora del mismo origen.
+    const { fecha: dImg, horaTexto: horaImg, delPapel: delPapelImg } = fechaDelTicket(ticketData);
     font('400 10px "Space Mono", monospace'); fill(GRAY);
-    const datePart = d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US',
+    const datePart = isNaN(dImg) ? '' : dImg.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US',
       { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
-    text(ticketData.receiptTime ? `${datePart}   ${ticketData.receiptTime}` : datePart, W / 2, y, 'center');
+    text(!horaImg ? datePart
+      : `${datePart}   ${horaImg}${delPapelImg ? '' : ' (' + t.horaSubido + ')'}`, W / 2, y, 'center');
     y += 24;
 
     if (on) drawDash(ctx, P, y, W - P, y);

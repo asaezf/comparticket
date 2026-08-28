@@ -8,6 +8,8 @@
   <meta name="description" content="Todos los gastos del grupo en un sitio, y quién le paga a quién al final.">
 
   <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="comparTICKET">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
   <!-- Vista previa al compartir. El servidor la rellena con el nombre del
@@ -203,7 +205,7 @@
           <button class="sec-head" id="foldExpenses" type="button">
             <span class="sh-line">
               <span class="sh-title">OTROS GASTOS</span>
-              <span class="sh-sum" id="totalExpenses"></span>
+              <span class="sh-right"><span class="sh-sum" id="totalExpenses"></span><svg class="sh-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></span>
             </span>
             <span class="sh-line sh-line-b">
               <span class="sh-what">sin ticket</span>
@@ -217,7 +219,7 @@
           <button class="sec-head" id="foldOpen" type="button">
             <span class="sh-line">
               <span class="sh-title">TICKETS ABIERTOS</span>
-              <span class="sh-sum" id="totalOpen"></span>
+              <span class="sh-right"><span class="sh-sum" id="totalOpen"></span><svg class="sh-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></span>
             </span>
             <span class="sh-line sh-line-b">
               <span class="sh-what">fuera del reparto</span>
@@ -231,7 +233,7 @@
           <button class="sec-head" id="foldClosed" type="button">
             <span class="sh-line">
               <span class="sh-title">HISTORIAL DE TICKETS</span>
-              <span class="sh-sum" id="totalClosed"></span>
+              <span class="sh-right"><span class="sh-sum" id="totalClosed"></span><svg class="sh-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></span>
             </span>
             <span class="sh-line sh-line-b">
               <span class="sh-what">cerrados</span>
@@ -245,7 +247,7 @@
           <button class="sec-head" id="foldStats" type="button">
             <span class="sh-line">
               <span class="sh-title">RESUMEN</span>
-              <span class="sh-sum" id="totalStats"></span>
+              <span class="sh-right"><span class="sh-sum" id="totalStats"></span><svg class="sh-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.41 8.59 12 13.17l4.59-4.58L18 10l-6 6-6-6z"/></svg></span>
             </span>
             <span class="sh-line sh-line-b">
               <span class="sh-what">del grupo</span>

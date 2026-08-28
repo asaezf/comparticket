@@ -31,16 +31,18 @@ async function loadTicket() {
   if (!res.ok) return window.location.href = '/';
   ticketData = await res.json();
 
-  const d = new Date(ticketData.receiptDate || ticketData.createdAt);
   document.getElementById('ticketTitle').textContent =
     (ticketData.restaurant || t.restaurant).toUpperCase();
-  // La hora sale de receiptTime (lo que pone el ticket). Antes se derivaba de
-  // la fecha, que no lleva hora, así que siempre mostraba 00:00.
-  const datePart = d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
+  // La fecha y la hora vienen del MISMO origen: las dos del papel, o las dos
+  // de cuando se escaneó. Ver fechaDelTicket() en i18n.js — antes se cogía
+  // la fecha del papel por un lado y la hora por otro, sin comprobar que
+  // vinieran juntas.
+  const { fecha: d, horaTexto, delPapel } = fechaDelTicket(ticketData);
+  const datePart = isNaN(d) ? '' : d.toLocaleDateString(lang === 'es' ? 'es-ES' : 'en-US', {
     day: '2-digit', month: 'short', year: 'numeric'
   }).toUpperCase();
-  document.getElementById('ticketDate').textContent =
-    ticketData.receiptTime ? `${datePart}  ${ticketData.receiptTime}` : datePart;
+  document.getElementById('ticketDate').textContent = !horaTexto ? datePart
+    : `${datePart}  ${horaTexto}${delPapel ? '' : ' (' + t.horaSubido + ')'}`;
 
   // Arranca el contador de ids por encima del mayor que ya exista.
   nextItemId = ticketData.items.reduce((m, i) => Math.max(m, +i.id || 0), 0);

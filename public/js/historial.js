@@ -69,6 +69,13 @@ function construirApuntes() {
       importe: +t.total || 0,
       pagador: t.payerName || '',
       cuando: t.receiptDate || t.closedAt || t.createdAt,
+      // Para ordenar y agrupar basta con "cuando". Para pintar la hora hace
+      // falta el ticket original: receiptDate por sí sola no lleva hora, y
+      // fechaDelTicket() (i18n.js) necesita saber si el papel la traía o no
+      // para no fabricar una que no existe.
+      receiptDate: t.receiptDate || null,
+      receiptTime: t.receiptTime || null,
+      createdAt: t.closedAt || t.createdAt,
       fotos: t.fotos || 0,
       // Un ticket lleva a su reparto; si sigue abierto, a marcarlo.
       destino: t.status === 'closed'
@@ -232,10 +239,25 @@ function filaApunte(a) {
   el.className = 'hist-row hist-' + a.tipo;
   if (a.destino) el.href = a.destino;
 
-  const d = new Date(a.cuando);
-  const fecha = isNaN(d) ? '' : d.toLocaleDateString('es-ES',
-    { day: '2-digit', month: 'short' }).toUpperCase() + ' ' +
-    d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  // Un gasto suelto solo tiene createdAt —una fecha y hora reales, sin
+  // ambigüedad—. Un ticket puede tener receiptDate sin receiptTime, y ahí
+  // hacía falta cuidado: "2026-08-23" sin hora se interpretaba como
+  // medianoche UTC, que en Madrid son las 2 de la madrugada. Un ticket con
+  // fecha pero sin hora en el papel —la mayoría— enseñaba esa hora
+  // fabricada. fechaDelTicket() (i18n.js) nunca inventa una hora así.
+  let fecha = '';
+  if (a.tipo === 'suelto') {
+    const d = new Date(a.cuando);
+    fecha = isNaN(d) ? '' : d.toLocaleDateString('es-ES',
+      { day: '2-digit', month: 'short' }).toUpperCase() + ' ' +
+      d.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+  } else {
+    const { fecha: d, horaTexto, delPapel } = fechaDelTicket(a);
+    if (!isNaN(d)) {
+      fecha = d.toLocaleDateString('es-ES', { day: '2-digit', month: 'short' }).toUpperCase();
+      if (horaTexto) fecha += ' ' + horaTexto + (delPapel ? '' : ' (' + t.horaSubido + ')');
+    }
+  }
 
   const etiqueta = a.tipo === 'suelto' ? 'gasto suelto'
                  : a.tipo === 'abierto' ? 'sin cerrar' : 'cerrado';
