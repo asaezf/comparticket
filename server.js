@@ -686,15 +686,28 @@ async function groupSummary(groupId, req_token) {
     // fijo al bloquear (ver /api/groups/:id/lock) y no se recalcula mas.
     // Cada pago descuenta de su propia linea; las demas no se enteran.
     let plan = group.settlementPlan;
+    let planAt = group.settlementPlanAt;
     if (!plan) {
       // Un grupo que ya estaba bloqueado ANTES de que existiera este plan
       // congelado. Se genera uno ahora, con los saldos de este instante
       // -que ya cuentan los pagos hechos hasta hoy- y se guarda: a partir
       // de aqui tampoco se le reordena mas.
+      planAt = new Date().toISOString();
       plan = settle.minimalTransfers(balances).map(t => Object.assign({ id: nanoid(10) }, t));
       await db.setGroupSettlementPlan(groupId, plan);
     }
-    const aplicado = settle.applyPlan(plan, pagos);
+
+    // Solo se intentan encajar contra el plan los pagos hechos DESDE que
+    // ese plan se genero. Los de antes ya estan metidos en los saldos con
+    // los que se calculo -si tambien se probaran contra el, un pago que ya
+    // conto para llegar a esas cifras volveria a aparecer como "fuera de
+    // plan" una segunda vez, aunque el dinero ya estuviera bien contado.
+    const pagosDesdeElPlan = planAt
+      ? payments.filter(p => !p.createdAt || p.createdAt >= planAt)
+        .map(p => ({ de: p.from, a: p.to, importe: p.amount, planEdgeId: p.planEdgeId || null }))
+      : pagos;
+
+    const aplicado = settle.applyPlan(plan, pagosDesdeElPlan);
     transfers = aplicado.pendientes;
     fueraDePlan = aplicado.fueraDePlan;
   } else {

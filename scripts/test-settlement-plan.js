@@ -161,6 +161,38 @@ console.log('\n3. Qué tipos de problemas podía causar esta solución, y que qu
       r.pendientes.map(x => x.importe), [40, 25]);
   }
 
+  // (f) Fallo real encontrado probando esto en producción: tras "Recalcular
+  // reparto", un pago que había quedado fuera de plan bajo el plan VIEJO
+  // seguía apareciendo como fuera de plan bajo el plan NUEVO -aunque ese
+  // dinero YA estaba contado en los saldos con los que se generó el plan
+  // nuevo. No perdía ni movía dinero, pero era un eco confuso: parecía que
+  // seguía sin encajar cuando en realidad ya había encajado al recalcular.
+  // server.js lo arregla filtrando: solo se prueban contra el plan actual
+  // los pagos hechos DESDE que ese plan se generó (settlementPlanAt).
+  {
+    const planViejo = [{ id: 'v1', de: 'A', a: 'D', importe: 100 }];
+    const pagoRaroBajoElViejo = { de: 'A', a: 'B', importe: 30, createdAt: '2026-01-01T10:00:00.000Z' };
+
+    // Bajo el plan viejo, ese pago sí quedaba fuera de plan -correcto.
+    const bajoElViejo = S.applyPlan(planViejo, [pagoRaroBajoElViejo]);
+    ok('  bajo el plan viejo, el pago raro sale como fuera de plan',
+      bajoElViejo.fueraDePlan.length === 1);
+
+    // Al recalcular, el plan nuevo ya sale de saldos que restan ese pago
+    // -aquí simplemente se simula con otro plan de ejemplo. Lo importante:
+    // el pago es de ANTES de settlementPlanAt del plan nuevo, así que
+    // server.js no debe ni intentar encajarlo contra él.
+    const planNuevo = [{ id: 'n1', de: 'A', a: 'D', importe: 70 }];
+    const settlementPlanAt = '2026-01-02T00:00:00.000Z';   // el replan fue despues
+    const pagosDesdeElPlanNuevo = [pagoRaroBajoElViejo].filter(p => p.createdAt >= settlementPlanAt);
+
+    const bajoElNuevo = S.applyPlan(planNuevo, pagosDesdeElPlanNuevo);
+    check('  tras recalcular, ese mismo pago (anterior al plan nuevo) ya no reaparece',
+      bajoElNuevo.fueraDePlan, []);
+    check('  y la línea del plan nuevo sigue entera, sin descontar nada que no le tocaba',
+      bajoElNuevo.pendientes[0].importe, 70);
+  }
+
   // (d) Pagos de ANTES de que existiera este sistema -sin planEdgeId
   // porque no existía la columna todavía- tienen que seguir encajando por
   // (de, a), o todos los grupos que ya estaban bloqueados se romperían.
@@ -246,13 +278,19 @@ console.log('\n5. El resto de la fontanería está conectada');
   ok('db.js exporta setGroupSettlementPlan', /setGroupSettlementPlan,/.test(dbSrc));
   ok('addGroupPayment guarda planEdgeId', /planEdgeId: payment\.planEdgeId/.test(dbSrc));
   ok('setGroupLocked congela settlementPlan al bloquear', /settlementPlan: bloqueado \? \(plan/.test(dbSrc));
+  ok('setGroupLocked guarda settlementPlanAt (para no re-evaluar pagos previos)',
+    /settlementPlanAt: bloqueado \? ahora : null/.test(dbSrc));
+  ok('setGroupSettlementPlan también actualiza settlementPlanAt al recalcular',
+    /settlementPlan: plan \|\| \[\], settlementPlanAt: new Date/.test(dbSrc));
   ok('desbloquear borra el plan (si no, un re-bloqueo heredaría uno viejo)',
-    /lockedAt: bloqueado \? new Date\(\)\.toISOString\(\) : null/.test(dbSrc));
+    /lockedAt: bloqueado \? ahora : null/.test(dbSrc));
   ok('liquidar el grupo también borra el plan', /lockedAt: null, settlementPlan: null/.test(dbSrc));
 
   const srv = fs.readFileSync(path.join(RAIZ, 'server.js'), 'utf8');
   ok('el endpoint de bloquear calcula el plan antes de guardar',
     /plan = settle\.minimalTransfers\(resumenActual\.balances\)/.test(srv));
+  ok('groupSummary filtra los pagos por settlementPlanAt antes de aplicarlos al plan',
+    /p\.createdAt >= planAt/.test(srv));
   ok('existe la ruta de recalcular a mano', /\/api\/groups\/:id\/replan/.test(srv));
   ok('recalcular exige que el grupo esté bloqueado',
     /NOT_LOCKED/.test(srv));

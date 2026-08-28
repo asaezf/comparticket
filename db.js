@@ -590,9 +590,15 @@ async function setGroupTemplate(groupId, template) {
 async function setGroupLocked(groupId, bloqueado, plan) {
   const ref = groupRef(groupId);
   if (!(await ref.get()).exists) return null;
+  const ahora = new Date().toISOString();
   await ref.update({
-    lockedAt: bloqueado ? new Date().toISOString() : null,
-    settlementPlan: bloqueado ? (plan || []) : null
+    lockedAt: bloqueado ? ahora : null,
+    settlementPlan: bloqueado ? (plan || []) : null,
+    // Desde cuando vale este plan. Los pagos de ANTES de esta fecha ya
+    // estan reflejados en los saldos con los que se calculo -si tambien se
+    // intentaran encajar contra el plan, un pago que ya conto para llegar a
+    // estas cifras volveria a aparecer como "fuera de plan" por segunda vez.
+    settlementPlanAt: bloqueado ? ahora : null
   });
   await bumpGroupVersion(groupId);
   return (await ref.get()).data();
@@ -614,7 +620,7 @@ async function setGroupLocked(groupId, bloqueado, plan) {
 async function setGroupSettlementPlan(groupId, plan) {
   const ref = groupRef(groupId);
   if (!(await ref.get()).exists) return null;
-  await ref.update({ settlementPlan: plan || [] });
+  await ref.update({ settlementPlan: plan || [], settlementPlanAt: new Date().toISOString() });
   await bumpGroupVersion(groupId);
   return (await ref.get()).data();
 }
@@ -653,7 +659,7 @@ async function clearGroupSettlement(groupId) {
   await lote.commit();
 
   // Se queda desbloqueado: no hay nada que congelar.
-  await ref.update({ lockedAt: null, settlementPlan: null });
+  await ref.update({ lockedAt: null, settlementPlan: null, settlementPlanAt: null });
   await bumpGroupVersion(groupId);
   return { archivados: n };
 }
