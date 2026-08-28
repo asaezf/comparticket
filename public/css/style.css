@@ -3431,9 +3431,9 @@ body.en-grupo .upload-area { padding-top: 6px; }
 
 /* =========================================================================
    ACCESO DIRECTO EN LA PANTALLA DEL MOVIL
-   En Android el navegador avisa cuando se puede instalar y entonces sale el
-   boton. En iPhone no hay forma de provocarlo, asi que alli el mismo hueco
-   se limita a explicar los dos toques que hay que dar.
+   Un boton fijo, "Descargar como app", siempre visible -nunca depende de
+   que el navegador decida avisar por su cuenta. Al tocarlo se abren las
+   dos opciones (iPhone / Android) y cada una explica o dispara lo suyo.
    ========================================================================= */
 .atajo { margin-top: 14px; }
 .atajo-btn {
@@ -3465,19 +3465,54 @@ body.en-grupo .upload-area { padding-top: 6px; }
   color: var(--gray-400);
   line-height: 1.35;
 }
-/* En iPhone no hay dialogo que abrir: el hueco solo informa, asi que no debe
-   parecer una tarjeta pulsable como las demas de la app -sin borde, sin
-   fondo, icono apagado- o la gente lo toca esperando que pase algo. */
-.atajo-btn.solo-texto {
-  cursor: default;
-  border-color: transparent;
-  background: transparent;
-}
-.atajo-btn.solo-texto:active { transform: none; }
-.atajo-btn.solo-texto svg { color: var(--gray-400); }
 
-/* La pista de "ábrelo en Safari", solo en iPhone. Fuera del botón y en un
-   tono más discreto: es un caso de repuesto, no el paso principal. */
+/* Las dos opciones, una al lado de la otra. Misma tarjeta que el boton de
+   arriba -las dos son de verdad pulsables, las dos deben parecerlo. */
+.atajo-elegir {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+.atajo-sistema {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 12px 8px;
+  appearance: none;
+  border: 1.5px dashed var(--gray-300);
+  border-radius: var(--radius-sm);
+  background: #fff;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  color: var(--black);
+  transition: border-color .15s ease, transform .12s ease;
+}
+.atajo-sistema:active { transform: scale(0.97); border-color: var(--accent); }
+.atajo-sistema svg { width: 22px; height: 22px; }
+.atajo-sistema .atajo-android { color: #3DDC84; }
+
+/* Las instrucciones (iPhone) o el aviso de repuesto (Android sin dialogo
+   del navegador). Solo informa, no se toca: fondo suave y sin borde, para
+   no confundirlo con las tarjetas de arriba que si hacen algo. */
+.atajo-explica {
+  margin-top: 8px;
+  padding: 11px 12px;
+  border-radius: var(--radius-sm);
+  background: var(--gray-100);
+}
+.atajo-explica-fila {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+.atajo-explica-fila svg { width: 18px; height: 18px; flex-shrink: 0; color: var(--gray-500); margin-top: 1px; }
+
+/* La pista de "ábrelo en Safari", solo en iPhone. Un tono mas discreto
+   todavia: es un caso de repuesto, no el paso principal. */
 .atajo-alt {
   margin-top: 6px;
   padding: 0 2px;

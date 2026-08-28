@@ -420,13 +420,25 @@ montarAjustes();
 // =========================================================================
 // ACCESO DIRECTO EN LA PANTALLA DEL MOVIL
 //
-// En Android el navegador avisa con `beforeinstallprompt` cuando se puede
-// instalar, y entonces se ensena el boton: al tocarlo sale el dialogo del
-// sistema. En iPhone eso NO existe —Apple no da ninguna API para provocarlo—
-// asi que alli lo unico posible es explicar los dos toques que hay que dar.
+// Antes el boton dependia de que el navegador avisara por su cuenta
+// (`beforeinstallprompt`, solo en Android/escritorio, y no siempre llega)
+// o de adivinar el telefono por el user-agent. Las dos formas fallaban en
+// silencio: si el aviso no llegaba, o si alguien tocaba algo que resulto
+// no tener ningun listener enganchado, no pasaba nada y parecia roto.
 //
-// Y si ya esta instalada no se ensena nada: la aplicacion se abre en modo
-// standalone, y ofrecer instalar algo que ya tienes solo confunde.
+// Ahora "Descargar como app" es un boton fijo, siempre visible salvo que
+// ya este instalada. Al tocarlo se abren las dos opciones y es la propia
+// persona quien elige su telefono:
+//   - iPhone: se explica. iOS no tiene ninguna API para disparar el
+//     instalado desde una pagina web -ni en Safari ni en ningun otro
+//     navegador del sistema, todos corren sobre el mismo motor por
+//     obligacion de Apple. Es una limitacion permanente, no de este
+//     codigo.
+//   - Android: si el navegador ya ha avisado que se puede instalar, se
+//     dispara el dialogo real de un toque. Si todavia no ha avisado -pasa,
+//     por ejemplo, si ya se cerro el aviso una vez-, se explica el camino
+//     manual por el menu del navegador, igual que en iPhone: nunca se deja
+//     el toque sin respuesta.
 // =========================================================================
 
 let promesaDeInstalar = null;
@@ -445,73 +457,70 @@ function yaEstaInstalada() {
          window.navigator.standalone === true;
 }
 
-function esIphone() {
-  return /iphone|ipad|ipod/i.test(navigator.userAgent) && !window.MSStream;
+const ICONO_COMPARTIR = '<path d="M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83'
+  + 'L9.42 6.42 8 5l4-4 4 4z M20 10v11c0 1.1-.9 2-2 2H6c-1.11 0-2-.9-2-2'
+  + 'V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .9 2 2z"/>';
+const ICONO_MENU = '<path d="M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2z'
+  + 'm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2'
+  + ' 2 2 2-.9 2-2-.9-2-2-2z"/>';
+
+function mostrarExplicacion(iconoSvg, texto, conPistaWhatsapp) {
+  const explica = document.getElementById('atajoExplica');
+  const icono = document.getElementById('atajoIcono');
+  const instr = document.getElementById('atajoInstrucciones');
+  const alt = document.getElementById('atajoAlt');
+  if (!explica || !icono || !instr) return;
+  icono.innerHTML = iconoSvg;
+  instr.textContent = texto;
+  document.getElementById('atajoElegir').classList.add('hidden');
+  explica.classList.remove('hidden');
+  if (alt) {
+    if (conPistaWhatsapp) { alt.textContent = t.addToHomeIosAlt; alt.classList.remove('hidden'); }
+    else alt.classList.add('hidden');
+  }
 }
 
 function montarAtajo() {
   const caja = document.getElementById('atajo');
-  const btn = document.getElementById('atajoBtn');
-  if (!caja || !btn) return;
-
-  const tit = document.getElementById('atajoTitulo');
-  const sub = document.getElementById('atajoSub');
-  const alt = document.getElementById('atajoAlt');
+  const abrir = document.getElementById('atajoAbrir');
+  const elegir = document.getElementById('atajoElegir');
+  const btnIos = document.getElementById('atajoElegirIos');
+  const btnAndroid = document.getElementById('atajoElegirAndroid');
+  if (!caja || !abrir || !elegir || !btnIos || !btnAndroid) return;
 
   if (yaEstaInstalada()) { caja.classList.add('hidden'); return; }
 
-  if (esIphone()) {
-    // Sin dialogo posible: iOS no tiene ninguna API para disparar el
-    // instalado desde una pagina web, asi que aqui solo se explica.
-    tit.textContent = t.addToHome;
-    sub.textContent = t.addToHomeIos;
-    btn.classList.add('solo-texto');
-    caja.classList.remove('hidden');
+  document.getElementById('atajoTitulo').textContent = t.addToHome;
+  caja.classList.remove('hidden');
 
-    // El icono de "+" invita a tocarlo como si fuera a instalar algo. Se
-    // cambia por el icono de Compartir -el mismo que hay que buscar en la
-    // barra del navegador- para que la gente lo reconozca alli.
-    const icono = document.getElementById('atajoIcono');
-    if (icono) {
-      icono.innerHTML = '<path d="M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83'
-        + 'L9.42 6.42 8 5l4-4 4 4z M20 10v11c0 1.1-.9 2-2 2H6c-1.11 0-2-.9-2-2'
-        + 'V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .9 2 2z"/>';
-    }
-
-    // El enlace se comparte por WhatsApp, y ahi se abre dentro del propio
-    // WhatsApp: un navegador aparte que en muchos casos no ofrece "Anadir a
-    // pantalla de inicio", o si la ofrece el acceso directo sigue abriendo
-    // dentro de WhatsApp. No hay forma fiable de detectar eso desde
-    // JavaScript, asi que se avisa siempre.
-    if (alt) alt.classList.remove('hidden');
-    if (alt) alt.textContent = t.addToHomeIosAlt;
-
-    // Si aun asi lo tocan -el habito de "esto es un boton"-, que pase algo en
-    // vez de quedarse callado: antes no habia ningun listener aqui y tocarlo
-    // no hacia nada, lo cual parecia roto.
-    btn.addEventListener('click', () => toast(t.addToHomeIos));
-    return;
-  }
-
-  // Android y escritorio: el boton solo aparece si el navegador dice que se
-  // puede instalar. Sin eso, tocarlo no haria nada.
+  // El navegador puede avisar en cualquier momento desde que carga la
+  // pagina, se llegue a elegir Android o no: hay que estar escuchando ya.
   window.addEventListener('beforeinstallprompt', (e) => {
     e.preventDefault();
     promesaDeInstalar = e;
-    tit.textContent = t.addToHome;
-    sub.textContent = t.addToHomeSub;
-    caja.classList.remove('hidden');
   });
-
-  btn.addEventListener('click', async () => {
-    if (!promesaDeInstalar) return;
-    promesaDeInstalar.prompt();
-    try { await promesaDeInstalar.userChoice; } catch (_) {}
-    promesaDeInstalar = null;
-    caja.classList.add('hidden');
-  });
-
   window.addEventListener('appinstalled', () => caja.classList.add('hidden'));
+
+  abrir.addEventListener('click', () => {
+    elegir.classList.toggle('hidden');
+    document.getElementById('atajoExplica').classList.add('hidden');
+  });
+
+  btnIos.addEventListener('click', () => {
+    mostrarExplicacion(ICONO_COMPARTIR, t.addToHomeIos, true);
+  });
+
+  btnAndroid.addEventListener('click', async () => {
+    if (promesaDeInstalar) {
+      const p = promesaDeInstalar;
+      promesaDeInstalar = null;
+      elegir.classList.add('hidden');
+      p.prompt();
+      try { await p.userChoice; } catch (_) {}
+      return;
+    }
+    mostrarExplicacion(ICONO_MENU, t.addToHomeAndroidManual, false);
+  });
 }
 
 montarAtajo();

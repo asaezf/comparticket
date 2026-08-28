@@ -115,29 +115,41 @@
         <div id="misGruposLista"></div>
       </div>
 
-      <!-- Acceso directo en la pantalla del movil.
-           En Android el navegador avisa cuando se puede instalar y entonces
-           sale el boton. En iPhone no hay forma de provocarlo —Apple no da
-           esa API—, asi que alli se ensenan las instrucciones y ya esta.
-           Si la aplicacion ya esta instalada, no se ensena nada.
-
-           Y una linea mas, solo en iPhone: el enlace se comparte por
-           WhatsApp, y ahi se abre dentro del propio WhatsApp —un navegador
-           aparte que en muchos casos no ofrece "Anadir a pantalla de
-           inicio", o si la ofrece el acceso directo sigue abriendo dentro
-           de WhatsApp en vez de como aplicacion independiente. No hay forma
-           fiable de detectar eso desde JavaScript, asi que se avisa
-           siempre: mejor decirlo de mas que dejar a alguien buscando una
-           opcion que no va a encontrar. -->
+      <!-- Acceso directo en la pantalla del movil. Siempre un boton fijo,
+           "Descargar como app": nunca depende de que el navegador decida
+           avisar por su cuenta -eso fallaba en silencio mas de lo que
+           deberia. Al tocarlo se abren las dos opciones, iPhone o Android,
+           y cada una explica o dispara lo que corresponda.
+           Si la aplicacion ya esta instalada, no se ensena nada. -->
       <div class="atajo hidden" id="atajo">
-        <button class="atajo-btn" id="atajoBtn" type="button">
-          <svg id="atajoIcono" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <button class="atajo-btn" id="atajoAbrir" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
           <span class="atajo-txt">
             <span class="atajo-tit" id="atajoTitulo"></span>
-            <span class="atajo-sub" id="atajoSub"></span>
           </span>
         </button>
-        <div class="atajo-alt hidden" id="atajoAlt"></div>
+
+        <div class="atajo-elegir hidden" id="atajoElegir">
+          <button class="atajo-sistema" id="atajoElegirIos" type="button">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.71,19.5C17.88,20.74 17,21.95 15.66,21.97C14.32,22 13.89,21.18 12.37,21.18C10.84,21.18 10.37,21.95 9.1,22C7.79,22.05 6.8,20.68 5.96,19.47C4.25,17 2.94,12.45 4.7,9.39C5.57,7.87 7.13,6.91 8.82,6.88C10.1,6.86 11.32,7.75 12.11,7.75C12.89,7.75 14.37,6.68 15.92,6.84C16.57,6.87 18.39,7.1 19.56,8.82C19.47,8.88 17.39,10.1 17.41,12.63C17.44,15.65 20.06,16.66 20.09,16.67C20.06,16.74 19.67,18.11 18.71,19.5M13,3.5C13.73,2.67 14.94,2.04 15.94,2C16.07,3.17 15.6,4.35 14.9,5.19C14.21,6.04 13.07,6.7 11.95,6.61C11.8,5.46 12.36,4.26 13,3.5Z"/></svg>
+            <span>iPhone</span>
+          </button>
+          <button class="atajo-sistema" id="atajoElegirAndroid" type="button">
+            <svg class="atajo-android" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M7 10.2a5 5 0 0 1 10 0V15a1.3 1.3 0 0 1-1.3 1.3H8.3A1.3 1.3 0 0 1 7 15z" fill="currentColor"/>
+              <path d="M8.3 6.6 6.7 4.7M15.7 6.6l1.6-1.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+            </svg>
+            <span>Android</span>
+          </button>
+        </div>
+
+        <div class="atajo-explica hidden" id="atajoExplica">
+          <div class="atajo-explica-fila">
+            <svg id="atajoIcono" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"></svg>
+            <span class="atajo-sub" id="atajoInstrucciones"></span>
+          </div>
+          <div class="atajo-alt hidden" id="atajoAlt"></div>
+        </div>
       </div>
 
       <!-- Idioma y moneda. Al final de la pagina a proposito: se toca una vez

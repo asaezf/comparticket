@@ -190,34 +190,68 @@ console.log('\n8. El aviso de Safari/WhatsApp existe en los 7 idiomas y no rompe
   }
 }
 
-console.log('\n9. En iPhone, tocar el aviso ya no se queda callado');
+console.log('\n9. Un boton fijo "Descargar como app", con las dos opciones siempre a mano');
 {
-  // El primer intento de arreglo (seccion 5-6) dejaba el hueco visible y con
-  // el texto correcto, pero el "boton" seguia teniendo el mismo aspecto de
-  // tarjeta pulsable que el resto de la app -y al tocarlo no pasaba
-  // literalmente nada, porque no tenia ningun listener. Un colega probo en
-  // un iPhone real y lo confirmo: eso es justo lo que parece roto.
+  // Segunda vuelta de este mismo fallo: la primera correccion (secciones
+  // 5-6-8) hacia que el aviso de iPhone no se quedara mudo, pero de paso
+  // se perdio el boton comodo y directo que Android SI tenia -porque ese
+  // boton dependia por completo de esIphone() para decidir que enseñar, y
+  // solo aparecia si el navegador avisaba con beforeinstallprompt. Ahora
+  // ninguna de las dos rutas depende de adivinar nada: hay un boton fijo,
+  // "Descargar como app", que abre las dos opciones y la persona elige.
   const upload = fs.readFileSync(path.join(PUB, 'js', 'upload.js'), 'utf8');
   const html = fs.readFileSync(path.join(PUB, 'index.html'), 'utf8');
   const css = fs.readFileSync(path.join(PUB, 'css', 'style.css'), 'utf8');
 
-  const bloqueIphone = upload.slice(upload.indexOf('if (esIphone()) {'), upload.indexOf('  // Android y escritorio'));
-  check('el bloque de iPhone engancha un click que SI hace algo',
-    /btn\.addEventListener\('click'/.test(bloqueIphone), true);
-  check('tocarlo llama a toast(), no se queda mudo',
-    /toast\(t\.addToHomeIos\)/.test(bloqueIphone), true);
-  check('existe la funcion toast en upload.js', /function toast\(msg\)/.test(upload), true);
+  check('ya no queda deteccion de iPhone por user-agent',
+    /function esIphone/.test(upload), false);
 
-  check('el icono tiene id para poder cambiarlo por el de Compartir',
-    /id="atajoIcono"/.test(html), true);
-  check('en iPhone se cambia el icono de "+" por el de Compartir',
-    /atajoIcono[\s\S]{0,40}innerHTML/.test(bloqueIphone), true);
+  // El boton de abrir y las dos opciones existen siempre en el HTML, no
+  // los crea codigo condicional: quien sea que entre los ve los dos.
+  check('existe el boton fijo "Descargar como app"', /id="atajoAbrir"/.test(html), true);
+  check('la opcion de iPhone existe siempre en el HTML', /id="atajoElegirIos"/.test(html), true);
+  check('la opcion de Android existe siempre en el HTML', /id="atajoElegirAndroid"/.test(html), true);
+  check('tocar el boton fijo abre el selector de sistema',
+    /abrir\.addEventListener\('click'[\s\S]{0,80}elegir\.classList\.toggle/.test(upload), true);
 
-  // La tarjeta de iPhone ya no debe tener pinta de tarjeta pulsable -sin eso,
-  // la gente la toca esperando que instale algo, como paso de verdad.
-  const bloqueSoloTexto = css.slice(css.indexOf('.atajo-btn.solo-texto {'), css.indexOf('.atajo-alt {'));
-  check('en iPhone no queda borde de tarjeta', /border-color:\s*transparent/.test(bloqueSoloTexto), true);
-  check('en iPhone no queda fondo de tarjeta', /background:\s*transparent/.test(bloqueSoloTexto), true);
+  // iPhone: explica con el icono de Compartir y la pista de WhatsApp.
+  const bloqueIos = upload.slice(upload.indexOf("btnIos.addEventListener"), upload.indexOf('btnAndroid.addEventListener'));
+  check('elegir iPhone muestra el icono de Compartir',
+    /ICONO_COMPARTIR/.test(bloqueIos), true);
+  check('elegir iPhone muestra la pista de WhatsApp',
+    /mostrarExplicacion\(ICONO_COMPARTIR, t\.addToHomeIos, true\)/.test(bloqueIos), true);
+
+  // Android: si el navegador YA avisco que se puede instalar, se dispara
+  // el dialogo real -el mismo camino comodo y directo de siempre.
+  const bloqueAndroid = upload.slice(upload.indexOf('btnAndroid.addEventListener'), upload.indexOf('montarAtajo();'));
+  check('elegir Android comprueba si hay dialogo ya disponible',
+    /if \(promesaDeInstalar\)/.test(bloqueAndroid), true);
+  check('elegir Android dispara el dialogo real si esta disponible',
+    /p\.prompt\(\)/.test(bloqueAndroid), true);
+  // Y si el navegador TODAVIA no ha avisado, no se queda callado: explica
+  // el camino manual, igual que iPhone -nunca un toque sin respuesta.
+  check('elegir Android sin dialogo disponible explica el camino manual',
+    /ICONO_MENU[\s\S]{0,40}addToHomeAndroidManual/.test(bloqueAndroid), true);
+
+  // El bloque que explica (sea iPhone o Android) no debe parecer una
+  // tarjeta pulsable: solo informa, no se toca.
+  const inicioExplica = css.indexOf('.atajo-explica {');
+  const reglaExplica = css.slice(inicioExplica, css.indexOf('}', inicioExplica));
+  check('el bloque de explicacion no tiene borde de tarjeta', /border\s*:/.test(reglaExplica), false);
+  check('el bloque de explicacion usa fondo suave, no blanco de tarjeta',
+    /background:\s*var\(--gray-100\)/.test(reglaExplica), true);
+
+  // Las dos opciones si deben parecer pulsables -las dos hacen algo real.
+  const bloqueSistema = css.slice(css.indexOf('.atajo-sistema {'), css.indexOf('.atajo-sistema:active'));
+  check('las opciones de elegir sistema tienen pinta de tarjeta pulsable',
+    /border:\s*1\.5px dashed/.test(bloqueSistema), true);
+
+  check('el nuevo aviso de Android existe en los 7 idiomas', (() => {
+    const i18n = fs.readFileSync(path.join(PUB, 'js', 'i18n.js'), 'utf8');
+    const translations = new Function(
+      i18n.slice(0, i18n.indexOf('function detectLang')) + '; return translations;')();
+    return Object.keys(translations).every(l => !!translations[l].addToHomeAndroidManual);
+  })(), true);
 }
 
 console.log(`\n${pass} ok, ${fail} fallos\n`);
