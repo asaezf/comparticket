@@ -90,8 +90,48 @@ console.log('\n3. Las etiquetas se sustituyen de verdad en el HTML');
   check('og:description sustituido', out.includes('para saber cuánto le debes'), true);
   check('el emoji sobrevive al escapado', out.includes('💸'), true);
   check('title de la pestaña sustituido', out.includes('<title>MERCADONA · 84,50 €</title>'), true);
-  check('la imagen de marca sigue puesta', out.includes('<meta property="og:image" content="/og.png">'), true);
+  check('la imagen de marca sigue puesta, con URL absoluta',
+    out.includes('<meta property="og:image" content="https://comparticket.vercel.app/og-v2.png">'), true);
   check('el HTML no se ha roto', out.includes('</html>') && out.includes('id="itemsList"'), true);
+}
+
+console.log('\n5. El banner nuevo, listo de verdad para desplegarse en WhatsApp');
+{
+  // Fallo real de la version anterior: og:image llevaba una URL relativa
+  // ("/og.png"). El protocolo Open Graph pide una URL absoluta, y varios
+  // rastreadores de vista previa -WhatsApp entre ellos- no la resuelven bien
+  // si falta el dominio: la tarjeta sencillamente no aparece.
+  const PAGINAS = ['index', 'ticket', 'claim', 'summary', 'group', 'new-group', 'historial'];
+  for (const p of PAGINAS) {
+    const html = fs.readFileSync(path.join(__dirname, '..', 'public', p + '.html'), 'utf8');
+    check(`${p}.html: og:image es una URL absoluta (https://...)`,
+      /<meta property="og:image" content="https:\/\/comparticket\.vercel\.app\/og-v2\.png">/.test(html), true);
+    check(`${p}.html: og:image:secure_url tambien puesto`,
+      /<meta property="og:image:secure_url" content="https:\/\/comparticket\.vercel\.app\/og-v2\.png">/.test(html), true);
+    check(`${p}.html: og:url puesto (antes no existia)`,
+      /<meta property="og:url" content="https:\/\/comparticket\.vercel\.app\/?">/.test(html), true);
+    check(`${p}.html: ya no queda ninguna referencia al og.png antiguo`,
+      /content="\/og\.png"/.test(html), false);
+  }
+
+  // El fichero de verdad: tamano correcto (1200x630, lo que WhatsApp lee) y
+  // un peso que no le va a hacer descartar la imagen.
+  const b = fs.readFileSync(path.join(__dirname, '..', 'public', 'og-v2.png'));
+  const ancho = b.readUInt32BE(16), alto = b.readUInt32BE(20);
+  check('og-v2.png mide 1200x630', [ancho, alto], [1200, 630]);
+  check('es un PNG de verdad', b.slice(1, 4).toString(), 'PNG');
+  check('pesa menos de 300 KB (el limite prudente para WhatsApp)', b.length < 300 * 1024, true);
+
+  // El servidor pone el og:url dinamico -al enlace exacto compartido, no al
+  // sitio en general- en las dos rutas reales de compartir. Se prueba con la
+  // misma logica que usa server.js, sin necesitar Firebase.
+  const srv = fs.readFileSync(path.join(__dirname, '..', 'server.js'), 'utf8');
+  check('existe el dominio fijo para las URLs absolutas',
+    /const DOMINIO = 'https:\/\/comparticket\.vercel\.app'/.test(srv), true);
+  check('/t/:id pone su propio og:url, con el id del ticket',
+    /og:url" content="\$\{DOMINIO\}\/t\/\$\{escAttr\(req\.params\.id\)\}/.test(srv), true);
+  check('/g/:id pone su propio og:url, con el id del grupo',
+    /og:url" content="\$\{DOMINIO\}\/g\/\$\{escAttr\(req\.params\.id\)\}/.test(srv), true);
 }
 
 console.log('\n4. Comillas en el nombre del sitio no rompen la etiqueta');

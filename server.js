@@ -12,6 +12,12 @@ const settle = require('./settle');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Dominio fijo, para las etiquetas Open Graph que necesitan URL absoluta
+// (og:url, og:image). No se deriva de la petición porque detrás del proxy de
+// Vercel eso da problemas sin "trust proxy" puesto -mas vale un dominio fijo
+// que uno mal adivinado.
+const DOMINIO = 'https://comparticket.vercel.app';
+
 // Middleware
 app.use(express.json({ limit: '1mb' }));
 
@@ -507,6 +513,12 @@ app.get('/t/:id', ruta(async (req, res) => {
   } catch (_) {
     return res.status(500).send('No se ha podido cargar la página');
   }
+
+  // og:url siempre al enlace exacto que se ha compartido -no al sitio en
+  // general-, se encuentre o no el ticket: es lo que WhatsApp/Facebook usan
+  // para no mezclar la vista previa de dos enlaces distintos.
+  html = html.replace(/<meta property="og:url" content="[^"]*">/,
+    `<meta property="og:url" content="${DOMINIO}/t/${escAttr(req.params.id)}">`);
 
   let ticket = null;
   try { ticket = await db.getPublicTicket(req.params.id); } catch (_) {}
@@ -1252,6 +1264,11 @@ app.get('/g/:id', ruta(async (req, res) => {
   } catch (_) {
     return res.status(500).send('No se ha podido cargar la p\u00e1gina');
   }
+
+  // og:url al enlace exacto del grupo, se encuentre o no: es lo que
+  // WhatsApp/Facebook usan para no mezclar la vista previa de dos enlaces.
+  html = html.replace(/<meta property="og:url" content="[^"]*">/,
+    `<meta property="og:url" content="${DOMINIO}/g/${escAttr(req.params.id)}">`);
 
   let s = null;
   try { s = await groupSummary(req.params.id); } catch (_) {}
