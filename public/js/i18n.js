@@ -125,7 +125,7 @@ const translations = {
     addToHomeIosAlt: '¿No aparece la opción? Toca ⋯ arriba y elige «Abrir en Safari»',
     addToHomeAndroidManual: 'Abre el menú ⋮ de tu navegador y toca «Instalar aplicación» o «Añadir a pantalla de inicio»',
     compartirApp: 'Compartir app',
-    compartirAppTexto: 'Divide la cuenta sin discutir 🧾 Haz una foto del ticket y que cada uno marque lo que ha tomado.',
+    compartirAppTexto: 'Divide cuentas y facturas en segundos sin calculadora. Escanea · comparte · marca. Pruébalo ya 👇',
     horaSubido: 'subido',
     addToHomeDone: 'Ya la tienes en tu pantalla de inicio',
     tourNext: 'Siguiente',
