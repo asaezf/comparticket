@@ -11,6 +11,7 @@ document.getElementById('cameraBtnText').textContent = t.cameraLabel || 'Cámara
 document.getElementById('galleryBtnText').textContent = t.galleryLabel || 'Galería';
 const addHint = document.getElementById('addHintText');
 if (addHint) addHint.textContent = t.addMore;
+document.getElementById('compartirAppTxt').textContent = t.compartirApp;
 
 const cameraBtn = document.getElementById('cameraBtn');
 const galleryBtn = document.getElementById('galleryBtn');
@@ -524,6 +525,28 @@ function montarAtajo() {
 }
 
 montarAtajo();
+
+// =========================================================================
+// COMPARTIR LA APP (no un ticket ni un grupo -la app en si, para que llegue
+// a mas gente). Solo en la portada, arriba a la derecha.
+//
+// Mismo patron que "compartir grupo" y "compartir ticket": si el telefono
+// tiene el compartir nativo se usa ese -en WhatsApp entre otros, eso es lo
+// que hace que salga el enlace con su vista previa (og:title/og:description/
+// og:image, ya puestos en el <head>). Sin eso, se copia el mensaje entero al
+// portapapeles en vez de dejar a alguien sin nada que pegar.
+// =========================================================================
+document.getElementById('compartirAppBtn').addEventListener('click', () => {
+  const url = location.origin;
+  const texto = t.compartirAppTexto;
+  if (navigator.share) {
+    navigator.share({ title: 'comparTICKET', text: texto, url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(texto + '\n' + url)
+      .then(() => toast(t.copied || '¡Copiado!'))
+      .catch(() => toast(url));
+  }
+});
 
 // El navegador no ofrece instalar la aplicacion si no hay un service worker
 // registrado. El nuestro no cachea nada a proposito —ver public/sw.js—: aqui

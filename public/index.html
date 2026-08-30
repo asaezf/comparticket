@@ -43,7 +43,14 @@
       <div class="top-bar-title" style="font-size:0.88rem;font-weight:800;letter-spacing:0.02em;">
         <span style="font-weight:400;opacity:0.6;">compar</span><span>TICKET</span>
       </div>
-      <div style="width:36px;"></div>
+      <!-- Compartir la APP en si -no un ticket ni un grupo-, para que llegue a
+           mas gente. Solo en la portada, arriba a la derecha: el icono es el
+           mismo que el de "compartir grupo" en group.html, para que se lea
+           como el mismo gesto en toda la app. -->
+      <button class="top-bar-btn top-bar-btn-labeled" id="compartirAppBtn" type="button">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83L9.42 6.42 8 5l4-4 4 4zm4 5v11c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .89 2 2z"/></svg>
+        <span id="compartirAppTxt"></span>
+      </button>
     </div>
 
     <!-- Upload area -->
@@ -222,7 +229,7 @@
     </div>
 
     <div class="home-indicator"></div>
-    <div class="easter-egg">desarrollado por A.Sáez.F</div>
+    <div class="easter-egg">desarrollado por A.S.F</div>
   </div>
 
   <div class="toast hidden" id="toast"></div>

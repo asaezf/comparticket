@@ -147,6 +147,28 @@ body {
 .top-bar-btn:hover { background: rgba(0,0,0,0.06); }
 .top-bar-btn svg { width: 22px; height: 22px; fill: currentColor; }
 
+/* El de "Compartir app" de la portada: mismo boton redondo, pero con el
+   nombre debajo del icono en la fuente de ticket, en pequeno -para que se
+   entienda de un vistazo que comparte la app y no otra cosa. Por eso no
+   puede medir 36px fijos como el resto: crece lo que el texto pida. */
+.top-bar-btn-labeled {
+  width: auto;
+  height: auto;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: var(--radius-xs);
+}
+.top-bar-btn-labeled svg { width: 18px; height: 18px; }
+.top-bar-btn-labeled span {
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  color: var(--gray-500);
+  white-space: nowrap;
+}
+
 /* =============================================
    PRINTER ASSEMBLY — more 3D
    ============================================= */
