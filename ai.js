@@ -192,10 +192,17 @@ async function callGemini(model, parts) {
   const candidate = response.candidates && response.candidates[0];
   const finishReason = candidate && candidate.finishReason;
   const usage = response.usageMetadata || {};
+
+  // Los tokens en caché se cobran a ~10% del precio normal. El prompt de
+  // sistema son ~1.500 tokens idénticos en cada llamada, así que es el
+  // candidato natural — pero hasta ahora no se registraba, y sin este número
+  // no hay forma de saber si el descuento se está aplicando ya o no.
+  const cached = usage.cachedContentTokenCount || 0;
+
   console.log(
     `[ai] ${model} finish=${finishReason || 'n/a'} ` +
     `in=${usage.promptTokenCount || 0} out=${usage.candidatesTokenCount || 0} ` +
-    `thoughts=${usage.thoughtsTokenCount || 0}`
+    `thoughts=${usage.thoughtsTokenCount || 0} cache=${cached}`
   );
 
   // A truncated answer is the long-receipt failure: surface it by name instead
@@ -237,6 +244,16 @@ async function callGemini(model, parts) {
     err.code = 'NO_ITEMS';
     throw err;
   }
+
+  // Consumo de esta llamada, para poder decidir con datos y no a ojo qué
+  // conviene optimizar. No cambia nada de lo que se le pide al modelo.
+  result.uso = {
+    modelo: model,
+    entrada: usage.promptTokenCount || 0,
+    salida: usage.candidatesTokenCount || 0,
+    pensamiento: usage.thoughtsTokenCount || 0,
+    enCache: cached
+  };
   return result;
 }
 
@@ -277,9 +294,14 @@ async function extractItemsFromImages(images) {
   // Try primary model with retries, then fallback
   const ATTEMPTS = 3;
   let lastError;
+  const empezado = Date.now();
   for (let attempt = 0; attempt < ATTEMPTS; attempt++) {
     try {
-      return await callGemini(PRIMARY_MODEL, parts);
+      const ok = await callGemini(PRIMARY_MODEL, parts);
+      ok.uso.intentos = attempt + 1;
+      ok.uso.conRespaldo = false;
+      ok.uso.ms = Date.now() - empezado;
+      return ok;
     } catch (err) {
       lastError = err;
       if (!isRetryable(err)) throw err; // Non-retryable error — bail out
@@ -292,10 +314,17 @@ async function extractItemsFromImages(images) {
     }
   }
 
-  // All retries exhausted — try fallback model
-  console.log(`[ai] Cayendo a ${FALLBACK_MODEL}...`);
+  // All retries exhausted — try fallback model.
+  // OJO: el respaldo cuesta 6x la entrada y 5x la salida. Si esto sale a
+  // menudo en los registros, pesa más que cualquier optimización del esquema
+  // — y hasta ahora no quedaba constancia de cuándo pasaba.
+  console.log(`[ai] Cayendo a ${FALLBACK_MODEL} (el caro) tras ${ATTEMPTS} intentos...`);
   try {
-    return await callGemini(FALLBACK_MODEL, parts);
+    const ok = await callGemini(FALLBACK_MODEL, parts);
+    ok.uso.intentos = ATTEMPTS + 1;
+    ok.uso.conRespaldo = true;
+    ok.uso.ms = Date.now() - empezado;
+    return ok;
   } catch (fallbackErr) {
     console.error('[ai] El modelo de respaldo también falló:', fallbackErr.message);
     throw lastError; // Surface the original failure, it's more informative

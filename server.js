@@ -276,6 +276,10 @@ app.post('/api/tickets', rateLimit({ windowMs: 60_000, max: 8 }), handleUpload, 
       receiptDate: extracted.date,
       receiptTime: extracted.time,
       address: extracted.address,
+      // Consumo de la IA en esta lectura. Va dentro del mismo documento, así
+      // que NO cuesta ninguna escritura extra. Sirve para saber con datos
+      // reales qué conviene optimizar y cuánto cuesta cada ticket.
+      uso: extracted.uso || null,
       creatorKey
     });
 

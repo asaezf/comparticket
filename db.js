@@ -53,6 +53,11 @@ async function createTicket(id, items, total, imagePath, meta = {}) {
     payerName: null,
     expectedParticipants: null,
     creatorKey: meta.creatorKey || null,
+    // Qué consumió la IA al leer este ticket: modelo, tokens de entrada y
+    // salida, cuántos venían de caché, si hubo reintentos y si hizo falta el
+    // modelo caro. Viaja dentro del mismo documento, así que no añade ni una
+    // escritura. Sin estos datos, optimizar el coste sería adivinar.
+    uso: meta.uso || null,
     status: 'draft',
     createdAt: new Date().toISOString()
   };
@@ -781,9 +786,26 @@ async function getTicketPhotos(ticketId) {
   }
 }
 
+/**
+ * Tickets creados a partir de una fecha, para el panel de gasto de IA.
+ *
+ * Solo lo usa `scripts/panel-ia.js` desde la terminal: la app nunca llama
+ * aquí, así que no añade coste al uso normal. Cuesta una lectura por ticket
+ * del periodo, y con mirarlo una vez por semana sobra.
+ */
+async function listTicketsSince(iso) {
+  const snap = await db.collection(TICKETS)
+    .where('createdAt', '>=', iso)
+    .orderBy('createdAt', 'desc')
+    .limit(2000)
+    .get();
+  return snap.docs.map(d => d.data());
+}
+
 module.exports = {
   createTicket,
   getTicket,
+  listTicketsSince,
   getPublicTicket,
   verifyCreatorKey,
   updateTicketItems,
