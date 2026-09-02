@@ -81,6 +81,14 @@
           <div class="who-block" id="whoBlock">
             <div class="who-label" id="whoLabel">¿QUIÉN ERES?</div>
             <div class="who-pills" id="whoPills"></div>
+            <!-- Sin cuentas, ser "tu" en un grupo es un dato de ESTE
+                 navegador. Esto es la via para llevartelo a otro movil, y el
+                 aviso de cuando esa sesion corre peligro de perderse. -->
+            <button class="who-link" id="enlacePersonalBtn" type="button">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3.9 12c0-1.71 1.39-3.1 3.1-3.1h4V7H7c-2.76 0-5 2.24-5 5s2.24 5 5 5h4v-1.9H7c-1.71 0-3.1-1.39-3.1-3.1zM8 13h8v-2H8v2zm9-6h-4v1.9h4c1.71 0 3.1 1.39 3.1 3.1s-1.39 3.1-3.1 3.1h-4V17h4c2.76 0 5-2.24 5-5s-2.24-5-5-5z"/></svg>
+              <span>Mi enlace para otro móvil</span>
+            </button>
+            <div class="aviso-sesion hidden" id="avisoSesion"></div>
           </div>
 
           <!-- Tu saldo, en grande: es lo primero que quiere ver cualquiera -->

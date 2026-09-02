@@ -1063,13 +1063,36 @@ app.post('/api/groups/:id/claim-member', ruta(async (req, res) => {
   res.json({ ok: true, name: r.name });
 }));
 
+/**
+ * Soltar un nombre del grupo.
+ *
+ * Dos formas de hacerlo:
+ *   - Con tu testigo: sueltas TU nombre. Es el caso normal.
+ *   - Con la clave del creador del grupo: sueltas el de cualquiera. Es la via
+ *     de rescate para cuando alguien pierde su testigo -borro datos del
+ *     navegador, cambio de movil, o Safari le limpio el almacenamiento- y su
+ *     nombre se queda cogido por un testigo que ya no tiene nadie. Sin esto no
+ *     habia ninguna manera de recuperarlo, salvo entrar a la base de datos a
+ *     mano.
+ */
 app.post('/api/groups/:id/release-member', ruta(async (req, res) => {
   const memberId = asText((req.body || {}).memberId, 40);
   const token = asText((req.body || {}).token, 80);
-  if (!memberId || !token) {
+  const creatorKey = asText((req.body || {}).creatorKey, 40);
+
+  let forzar = false;
+  if (creatorKey) {
+    forzar = await db.verifyGroupKey(req.params.id, creatorKey);
+    if (!forzar) {
+      return res.status(403).json({ error: 'Clave del grupo no válida', code: 'BAD_KEY' });
+    }
+  }
+
+  if (!memberId || (!token && !forzar)) {
     return res.status(400).json({ error: 'Faltan datos', code: 'BAD_CLAIM' });
   }
-  const r = await db.releaseGroupMember(req.params.id, memberId, token);
+
+  const r = await db.releaseGroupMember(req.params.id, memberId, token, forzar);
   if (!r.ok) {
     return res.status(r.code === 'NOT_YOURS' ? 403 : 404)
       .json({ error: 'No se puede soltar ese nombre', code: r.code });

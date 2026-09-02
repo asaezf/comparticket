@@ -514,7 +514,22 @@ async function claimGroupMember(groupId, memberId, token) {
 }
 
 /** Suelta una identidad: solo puede hacerlo el movil que la cogio. */
-async function releaseGroupMember(groupId, memberId, token) {
+/**
+ * Suelta un nombre del grupo.
+ *
+ * Normalmente solo puede soltarlo quien lo tiene cogido, presentando su
+ * testigo. Pero sin cuentas de usuario ese testigo vive en el localStorage de
+ * UN navegador concreto, y ahi se pierde con mas facilidad de la que parece:
+ * borrar datos de navegacion, cambiar de movil, entrar desde otro navegador,
+ * o —en iPhone— que Safari limpie solo el almacenamiento de un sitio que
+ * llevas dias sin abrir. Cuando eso pasa, el nombre se queda cogido por un
+ * testigo que ya no tiene nadie, y su dueno real no puede volver a cogerlo.
+ *
+ * Por eso `forzar`: quien creo el grupo (y solo quien tiene su clave) puede
+ * soltar el nombre de otro para desatascarlo. Es la unica via de recuperacion
+ * que existe sin montar cuentas.
+ */
+async function releaseGroupMember(groupId, memberId, token, forzar) {
   const ref = groupRef(groupId);
   return db.runTransaction(async (tx) => {
     const snap = await tx.get(ref);
@@ -524,7 +539,7 @@ async function releaseGroupMember(groupId, memberId, token) {
     const miembros = (g.members || []).slice();
     const i = miembros.findIndex(m => m.id === memberId);
     if (i < 0) return { ok: false, code: 'NO_MEMBER' };
-    if (miembros[i].claimedBy && miembros[i].claimedBy !== token) {
+    if (!forzar && miembros[i].claimedBy && miembros[i].claimedBy !== token) {
       return { ok: false, code: 'NOT_YOURS' };
     }
     const limpio = Object.assign({}, miembros[i]);

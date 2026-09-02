@@ -40,6 +40,34 @@ function miTestigo() {
   }
 }
 
+/**
+ * El enlace personal: /g/<grupo>?tok=<testigo>
+ *
+ * Sin cuentas, el testigo vive en el localStorage de UN navegador. Cambiar de
+ * movil, usar otro navegador en el ordenador o abrir el enlace desde dentro de
+ * WhatsApp —que en iPhone tiene su propio almacenamiento, aparte del de
+ * Safari— significa llegar sin testigo y encontrarte tu propio nombre cogido.
+ *
+ * Con esto, quien quiera llevarse su identidad a otro sitio se manda su enlace
+ * personal y listo. El testigo se copia al almacenamiento local y se quita de
+ * la barra de direcciones enseguida: si se queda ahi, acaba pegado en algun
+ * chat sin querer, y quien lo abra pasa a ser esa persona.
+ */
+(function adoptarTestigoDeLaUrl() {
+  const tok = params.get('tok');
+  if (!tok) return;
+  try { localStorage.setItem(TOK_KEY, tok); } catch (_) {}
+  try {
+    const limpia = location.pathname + location.hash;
+    history.replaceState(null, '', limpia);
+  } catch (_) {}
+})();
+
+// La clave de quien creo el grupo, si este movil es el que lo creo. Es lo que
+// permite desatascar el nombre de otra persona que perdio su testigo.
+let claveDeCreador = '';
+try { claveDeCreador = localStorage.getItem('gk_' + groupId) || ''; } catch (_) {}
+
 let datos = null;      // lo último que devolvió /summary
 let yo = leerYo();
 
@@ -169,11 +197,15 @@ function pintarQuienEres() {
     const b = document.createElement('button');
     b.type = 'button';
     b.className = 'who-pill' + (m.name === yo ? ' active' : '') + (deOtro ? ' taken' : '');
-    b.disabled = deOtro;
     b.textContent = m.name;
-    if (deOtro) b.title = 'Ya lo está usando otra persona';
+    // Cogido por otro sigue sin poder elegirse, pero YA NO es un botón muerto:
+    // antes estaba deshabilitado y tocarlo no hacía nada, y la causa más
+    // probable —que seas tú mismo desde otro móvil o navegador— no se contaba
+    // en ningún sitio. Ahora se explica, y si este móvil creó el grupo, se
+    // ofrece soltarlo.
+    if (deOtro) b.title = 'Ya lo está usando otra persona — tócalo para saber más';
 
-    b.addEventListener('click', () => elegirse(m));
+    b.addEventListener('click', () => (deOtro ? nombreCogido(m) : elegirse(m)));
     cont.appendChild(b);
   });
 
@@ -186,6 +218,54 @@ function pintarQuienEres() {
   if (!yo && datos.completo) {
     document.getElementById('whoLabel').textContent = 'GRUPO COMPLETO';
   }
+
+  pintarAvisoSesion();
+}
+
+/**
+ * El aviso de que esta sesión puede perderse, y cómo llevársela.
+ *
+ * Sin cuentas, ser "tú" en un grupo es un dato guardado en ESTE navegador. Se
+ * pierde al borrar datos de navegación, al cambiar de móvil, o —el caso más
+ * común de todos— al haber entrado desde el navegador de dentro de WhatsApp,
+ * que guarda las cosas aparte del navegador de verdad. Nada de eso borra el
+ * grupo (eso vive en el servidor), pero sí deja a la persona sin su nombre.
+ *
+ * Se avisa en dos casos: cuando el navegador directamente no deja guardar
+ * nada, y cuando se ha entrado desde un navegador embebido. La detección del
+ * embebido no es fiable al 100% —no hay forma de que lo sea desde JavaScript—
+ * así que el aviso está redactado para que tampoco moleste si se equivoca.
+ */
+function pintarAvisoSesion() {
+  const caja = document.getElementById('avisoSesion');
+  if (!caja) return;
+
+  let hayAlmacen = true;
+  try {
+    localStorage.setItem('ct_probe', '1');
+    localStorage.removeItem('ct_probe');
+  } catch (_) { hayAlmacen = false; }
+
+  const ua = navigator.userAgent || '';
+  const embebido = /WhatsApp|FBAN|FBAV|Instagram|Line\//i.test(ua);
+
+  if (!hayAlmacen) {
+    caja.textContent = 'Este navegador no deja guardar la sesión, así que no ' +
+      'podrás coger un nombre. Prueba a abrir el enlace en Chrome o Safari, ' +
+      'y sin modo incógnito.';
+    caja.classList.remove('hidden');
+    return;
+  }
+
+  if (embebido && !yo) {
+    caja.textContent = 'Estás dentro del navegador de otra app. Guarda su ' +
+      'propia sesión aparte, así que si ya cogiste tu nombre desde fuera, aquí ' +
+      'no te reconocerá. Mejor abre el enlace en tu navegador normal.';
+    caja.classList.remove('hidden');
+    return;
+  }
+
+  caja.classList.add('hidden');
 }
 
 /** Coge (o suelta) una identidad del grupo para este móvil. */
@@ -216,12 +296,85 @@ async function elegirse(m) {
     });
     if (!r.ok) {
       const err = await r.json().catch(() => ({}));
+      if (err.code === 'TAKEN') return nombreCogido(m);
       return toast(err.error || 'No se ha podido elegir ese nombre');
     }
     guardarYo(m.name);
     await cargar();
   } catch (_) {
     toast('Sin conexión. Inténtalo de nuevo.');
+  }
+}
+
+/**
+ * Qué hacer cuando el nombre que quieres ya está cogido.
+ *
+ * Antes solo salía un "ya lo está usando otra persona" y se acababa ahí. Pero
+ * la causa más probable, con diferencia, no es que otro te lo haya quitado:
+ * eres tú mismo desde otro móvil, otro navegador, o desde dentro de WhatsApp
+ * —que en iPhone guarda las cosas aparte de Safari—. Y si además borraste los
+ * datos del navegador, el nombre se quedó cogido por un testigo que ya no
+ * tiene nadie y no había forma de recuperarlo.
+ *
+ * Así que aquí se explica la causa real y se ofrece la salida: tu enlace
+ * personal si todavía tienes acceso desde el otro sitio, o que quien creó el
+ * grupo lo suelte.
+ */
+function nombreCogido(m) {
+  const puedoRescatar = !!claveDeCreador;
+  const explicacion =
+    m.name + ' ya está cogido en este grupo.\n\n' +
+    'Lo más normal es que seas tú mismo desde otro móvil, otro navegador, o ' +
+    'desde el navegador de dentro de WhatsApp: cada uno guarda su propia ' +
+    'sesión, así que este no te reconoce.\n\n' +
+    (puedoRescatar
+      ? '¿Lo suelto para que puedas cogerlo aquí? (puedes hacerlo porque este ' +
+        'móvil creó el grupo)'
+      : 'Si eres tú y no puedes volver al sitio donde lo cogiste, pídele a ' +
+        'quien creó el grupo que lo suelte desde su móvil.');
+
+  if (!puedoRescatar) return alert(explicacion);
+  if (!confirm(explicacion)) return;
+  rescatarNombre(m);
+}
+
+/** Suelta el nombre de otra persona, con la clave de quien creó el grupo. */
+async function rescatarNombre(m) {
+  try {
+    const r = await fetch('/api/groups/' + groupId + '/release-member', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ memberId: m.id, creatorKey: claveDeCreador })
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      return toast(err.error || 'No se ha podido soltar ese nombre');
+    }
+    toast(m.name + ' queda libre');
+    await cargar();
+  } catch (_) {
+    toast('Sin conexión. Inténtalo de nuevo.');
+  }
+}
+
+/**
+ * Tu enlace personal, para llevarte tu nombre a otro móvil o navegador sin
+ * perderlo. Se manda uno a sí mismo y se abre allí.
+ */
+function copiarEnlacePersonal() {
+  const testigo = miTestigo();
+  if (!testigo || !yo) {
+    return toast('Primero elige quién eres en el grupo');
+  }
+  const url = location.origin + '/g/' + groupId + '?tok=' + encodeURIComponent(testigo);
+  const aviso = 'Tu enlace personal como ' + yo + ' — ábrelo en tu otro móvil ' +
+    'para seguir siendo tú allí. No lo pegues en el grupo: quien lo abra pasa a ser tú.';
+  if (navigator.share) {
+    navigator.share({ title: 'Mi enlace de ' + datos.group.name, text: aviso, url }).catch(() => {});
+  } else {
+    navigator.clipboard.writeText(url)
+      .then(() => toast('Enlace personal copiado — no lo pegues en el grupo'))
+      .catch(() => toast(url));
   }
 }
 
@@ -1480,6 +1633,7 @@ function arrancarLatido() {
 
 document.getElementById('repartoTitulo').addEventListener('click', tocarTituloReparto);
 document.getElementById('recalcularBtn').addEventListener('click', recalcularReparto);
+document.getElementById('enlacePersonalBtn').addEventListener('click', copiarEnlacePersonal);
 document.getElementById('tplText').addEventListener('input', refrescarPreview);
 document.getElementById('tplSave').addEventListener('click', guardarPlantilla);
 document.getElementById('tplReset').addEventListener('click', () => {

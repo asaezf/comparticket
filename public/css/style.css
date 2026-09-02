@@ -2301,8 +2301,45 @@ input[type="file"] { display: none; }
 
 /* Una vez sabes quién eres, el selector estorba: se queda pequeño y aparte. */
 .who-block.picked .who-pill:not(.active) { display: none; }
-.who-block.picked { display: flex; align-items: center; gap: 10px; }
+.who-block.picked { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .who-block.picked .who-label { margin-bottom: 0; }
+
+/* Tu enlace personal, para llevarte tu nombre a otro móvil. Solo tiene
+   sentido cuando ya has elegido quién eres, así que hasta entonces no está. */
+.who-block:not(.picked) .who-link { display: none; }
+.who-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: auto;
+  padding: 4px 8px;
+  appearance: none;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: var(--mono);
+  font-size: 0.56rem;
+  font-weight: 700;
+  color: var(--gray-500);
+}
+.who-link svg { width: 13px; height: 13px; }
+.who-link:active { color: var(--accent); }
+
+/* El aviso de que esta sesión puede perderse (navegador embebido, o sin
+   almacenamiento). Ocupa su propia línea entera: es una explicación, no una
+   etiqueta suelta. */
+.aviso-sesion {
+  flex-basis: 100%;
+  margin-top: 8px;
+  padding: 9px 11px;
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  background: rgba(255,107,53,.07);
+  font-family: var(--sans);
+  font-size: 0.63rem;
+  line-height: 1.45;
+  color: var(--gray-700);
+}
 
 /* --- Tu saldo, en grande -------------------------------------------------
    Es lo primero que quiere ver cualquiera al abrir el grupo: ¿debo o me
