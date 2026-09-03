@@ -29,3 +29,7 @@ Thumbs.db
 
 # Vercel
 .vercel
+
+# Bytecode de Python: es de la maquina de cada uno, no del proyecto.
+__pycache__/
+*.pyc
