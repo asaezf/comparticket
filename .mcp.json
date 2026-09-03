@@ -9,10 +9,8 @@
       "url": "https://mcp.context7.com/mcp"
     },
     "firebase": {
-      "command": "npx",
+      "command": "C:\\Users\\ALVARO\\AppData\\Roaming\\npm\\firebase.cmd",
       "args": [
-        "-y",
-        "firebase-tools@latest",
         "mcp",
         "--only",
         "firestore"
