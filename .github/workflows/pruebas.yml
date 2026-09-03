@@ -6,8 +6,9 @@
 # grupo o la lectura de un ticket se ve en el propio push, no cuando alguien lo
 # sufre en un viaje.
 #
-# No hace falta ni base de datos ni clave de IA: todas las pruebas del runner
-# son de lógica pura y de ficheros del repositorio.
+# No hace falta ni base de datos ni clave de IA. Sí hacen falta las
+# dependencias: dos suites cargan server.js y ai.js, que arrastran dotenv y
+# @google/genai. Sin `npm ci` esas dos revientan (y así fue la primera vez).
 name: pruebas
 
 on:
@@ -23,4 +24,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: npm
+      - run: npm ci
       - run: npm test
