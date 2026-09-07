@@ -247,13 +247,33 @@ function renderPeople() {
     });
 
     if (!p.confirmed) row.classList.add('is-picking');
+
+    // Reclamar solo tiene sentido con la cuenta ya cerrada —antes la cifra
+    // aún puede cambiar—, solo lo ve quien puso el dinero, y nunca sale
+    // sobre su propia línea.
+    const puedeReclamar = ticketData.status === 'closed' && !p.isPayer && soyElPagador();
+
     row.innerHTML = `
       <div class="person-head">
         <div class="person-name">${esc(p.name)}${p.isPayer ? `<span class="person-tag">${t.payer}</span>` : ''}${p.confirmed ? '' : `<span class="person-tag picking">${esc(t.stillPicking)}</span>`}</div>
-        <span class="person-amount">${Money.formatEUR(p.total, lang)}</span>
+        ${puedeReclamar ? `<button type="button" class="person-remind">${esc(t.remind)}</button>` : ''}
+        <button type="button" class="person-amount" title="${esc(t.copied)}">${Money.formatEUR(p.total, lang)}</button>
       </div>
       <div class="person-items">${lines.join('')}</div>
     `;
+
+    // La cifra copia el importe pelado: es donde la gente se equivoca al
+    // teclearla a mano en el banco.
+    row.querySelector('.person-amount').addEventListener('click', e => {
+      e.stopPropagation();
+      copiarImporte(p.total);
+    });
+    const btnRec = row.querySelector('.person-remind');
+    if (btnRec) btnRec.addEventListener('click', e => {
+      e.stopPropagation();
+      reclamar(p.name, p.total);
+    });
+
     list.appendChild(row);
   });
 
@@ -825,6 +845,69 @@ function toast(msg) {
   el.textContent = msg;
   el.classList.remove('hidden');
   setTimeout(() => el.classList.add('hidden'), 2500);
+}
+
+/* ============================================================
+   PAGAR: copiar el importe y reclamar por WhatsApp
+   ============================================================
+   La app no puede mover dinero —eso exige licencia bancaria— pero sí puede
+   quitar los dos pasos donde la gente se atasca: teclear la cifra a mano en
+   el banco, y acordarse de reclamar. */
+
+/** Lo que va al portapapeles: el número pelado, sin símbolo de moneda, porque
+ *  muchos formularios de banco no lo aceptan. */
+function importeParaPegar(n) {
+  return Money.formatEUR(n, lang).replace(/[^0-9.,]/g, '').trim();
+}
+
+/** Copiar el importe de un toque. Es donde más se equivoca la gente: mandar
+ *  124 € en vez de 12,40 € pasa, y deshacerlo es un marrón. */
+function copiarImporte(valor) {
+  const texto = importeParaPegar(valor);
+  const hecho = () => toast(texto + ' · ' + t.copied);
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(hecho).catch(() => copiarAPelo(texto, hecho));
+  } else {
+    copiarAPelo(texto, hecho);
+  }
+}
+
+/** Respaldo para navegadores sin portapapeles moderno. */
+function copiarAPelo(texto, hecho) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = texto;
+    ta.setAttribute('readonly', '');
+    ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    hecho();
+  } catch (_) {}
+}
+
+/** ¿Soy yo quien puso el dinero? Solo esa persona tiene a quién reclamar. */
+function soyElPagador() {
+  const pagador = (ticketData.payerName || '').trim().toLowerCase();
+  if (!pagador) return false;
+  let yo = '';
+  try { yo = (localStorage.getItem('ct_claim_' + ticketId) || '').trim().toLowerCase(); } catch (_) {}
+  if (yo) return yo === pagador;
+  // Sin nombre guardado vale la llave de creador: quien escaneó suele pagar.
+  try { return !!localStorage.getItem('ck_' + ticketId); } catch (_) { return false; }
+}
+
+/** Abre WhatsApp con el mensaje ya escrito. El recordatorio lo manda la
+ *  persona, no la aplicación: aquí solo se le ahorra teclearlo. */
+function reclamar(nombre, importe) {
+  const sitio = (ticketData.restaurant || '').trim() || t.theBill;
+  const cuerpo = String(t.remindMsg)
+    .split('{nombre}').join(nombre)
+    .split('{sitio}').join(sitio)
+    .split('{importe}').join(Money.formatEUR(importe, lang));
+  const texto = cuerpo + '\n\u{1F447}\n' + location.origin + '/t/' + ticketId;
+  window.open('https://wa.me/?text=' + encodeURIComponent(texto), '_blank', 'noopener');
 }
 
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }

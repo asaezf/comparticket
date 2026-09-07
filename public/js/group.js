@@ -519,6 +519,10 @@ function pintarTransferencias() {
           '</div>'
         : '');
 
+    // La cifra copia el importe pelado, listo para pegar en el banco: es
+    // donde la gente se equivoca al teclearlo a mano.
+    fila.querySelector('.tr-amount').addEventListener('click', () => copiarImporte(t.importe));
+
     if (bloqueado) {
       fila.querySelector('.tr-remind').addEventListener('click', () => recordar(t));
       fila.querySelector('.tr-paid').addEventListener('click', () => marcarPagado(t));
@@ -1060,6 +1064,16 @@ async function liquidarReparto() {
 }
 
 /** Mensaje ya escrito para WhatsApp. La app no cobra: solo recuerda. */
+/** Lo que va al portapapeles: el número pelado, sin símbolo de moneda, porque
+ *  muchos formularios de banco no lo aceptan. */
+function copiarImporte(valor) {
+  const texto = eur(valor).replace(/[^0-9.,]/g, '').trim();
+  const hecho = () => toast(texto + ' · copiado');
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(texto).then(hecho).catch(() => {});
+  }
+}
+
 function recordar(t) {
   // Si el grupo tiene mensaje propio se usa ese. El enlace va en su linea,
   // debajo, para que el dedo apunte a el.

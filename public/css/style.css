@@ -1137,6 +1137,45 @@ body {
   white-space: nowrap;
 }
 
+/* La cifra ahora es un botón: al tocarla copia el importe pelado, listo para
+   pegarlo en el banco. Se mantiene EXACTAMENTE con el mismo aspecto que
+   tenía como texto —sin fondo, sin borde, sin subrayado— porque no debe
+   competir con nada; solo responde al tacto. */
+.person-amount {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.person-amount:active {
+  opacity: 0.45;
+}
+
+/* "Recordar": solo lo ve quien puso el dinero, y solo con la cuenta cerrada.
+   Discreto a propósito —es una acción social, no una alarma— pero con el
+   naranja de la marca para que se encuentre. */
+.person-remind {
+  margin-left: auto;
+  margin-right: 10px;
+  padding: 3px 10px;
+  font-family: inherit;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--orange);
+  background: none;
+  border: 1px solid var(--orange);
+  border-radius: 999px;
+  cursor: pointer;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+.person-remind:active {
+  background: var(--orange);
+  color: #fff;
+}
+
 .person-items {
   padding-left: 6px;
   margin-top: 2px;
@@ -2460,6 +2499,9 @@ input[type="file"] { display: none; }
 .tr-arrow { color: var(--accent); font-weight: 800; }
 .tr-row.is-done .tr-arrow { color: var(--gray-400); }
 .tr-amount { margin-left: auto; font-size: 0.8rem; }
+/* Al tocarla copia el importe, listo para pegar en el banco. */
+.tr-amount { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.tr-amount:active { opacity: 0.45; }
 .tr-from, .tr-to { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 32%; }
 
 .tr-actions { display: flex; gap: 6px; margin-top: 7px; }
