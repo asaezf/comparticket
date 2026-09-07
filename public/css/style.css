@@ -2163,11 +2163,81 @@ input[type="file"] { display: none; }
   -webkit-tap-highlight-color: transparent;
 }
 .unit-pill:active { transform: scale(0.95); }
-.unit-pill .up-num {
-  display: inline-block;
-  font-weight: 800;
-  font-size: 0.78rem;
+/* La píldora vacía tiene que seguir ocupando sitio y pareciendo "rellenable".
+   Sin el número dentro, el alto lo fija esta altura mínima, no el contenido. */
+.unit-pill {
+  position: relative;
+  min-height: 34px;
 }
+/* Al pasar el dedo o el ratón, la casilla se despierta: el borde se tiñe del
+   naranja de la marca. Es la señal de "esto se pulsa" que antes daba el
+   número. */
+.unit-pill:not(.mine):not(.theirs):not(.shared):hover {
+  border-color: var(--orange);
+  background: #FFF8F4;
+}
+
+/* EL DESTELLO DEL PRECIO.
+   Al marcar una unidad, su precio surge grande en el centro de la píldora y
+   se desvanece enseguida, dejando paso al visto o al nombre. Dura poco a
+   propósito: no es información permanente —el precio ya está en la cabecera
+   de la línea— sino la respuesta a "¿qué acabo de hacer?".
+   Va en currentColor, así que se lee sobre el negro de "mío" y sobre el
+   ámbar de "compartido" sin tener que saber cuál es. */
+.up-price {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--mono);
+  font-size: 0.9rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: currentColor;
+  pointer-events: none;
+  animation: up-price-pop 0.66s cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
+}
+@keyframes up-price-pop {
+  0%   { opacity: 0; transform: scale(0.3); }
+  26%  { opacity: 1; transform: scale(1.22); }
+  52%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.86); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .up-price { animation: up-price-fade 0.5s linear forwards; }
+  @keyframes up-price-fade { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
+}
+
+/* EL CONTADOR DE LA LÍNEA.
+   "tú: 3 · 7,50 €" en cuanto marcas algo. Es la red de seguridad: aunque
+   alguien lea mal las casillas, aquí ve el número y se corrige solo, en el
+   sitio, antes de que el error llegue a la cuenta. */
+.ci-mine {
+  font-family: var(--mono);
+  font-size: 0.62rem;
+  font-weight: 700;
+  color: var(--orange);
+  white-space: nowrap;
+  margin-left: auto;
+  opacity: 0;
+  transform: translateY(-2px);
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.ci-mine.on { opacity: 1; transform: none; }
+.ci-mine:empty { display: none; }
+
+/* La pista, una sola vez y bajo el primer artículo con varias unidades. */
+.ci-hint {
+  margin-top: 7px;
+  font-family: var(--mono);
+  font-size: 0.6rem;
+  font-weight: 500;
+  color: var(--gray-500);
+  letter-spacing: 0.01em;
+}
+
+
 .unit-pill .up-body {
   display: flex;
   flex-direction: column;

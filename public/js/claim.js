@@ -702,6 +702,7 @@ function renderItems() {
   const list = document.getElementById('itemsList');
   list.innerHTML = '';
   const others = otherClaimants();
+  let pistaPuesta = false;
 
   ticketData.items.forEach(item => {
     const qty = Math.max(1, item.quantity || 1);
@@ -713,6 +714,7 @@ function renderItems() {
     header.className = 'ci-head';
     header.innerHTML = `
       <div class="ci-name">${esc(item.name)}</div>
+      <div class="ci-mine"></div>
       <div class="ci-price">${Money.formatEUR(item.unitPrice, lang)}${esc(t.perUnit)}</div>
     `;
 
@@ -732,8 +734,20 @@ function renderItems() {
 
     row.appendChild(header);
     row.appendChild(unitsWrap);
+
+    // La pista va UNA sola vez, bajo el primer artículo que tenga varias
+    // unidades. Repetirla en cada línea sería ruido; ahí es donde hace falta.
+    if (qty > 1 && !pistaPuesta) {
+      pistaPuesta = true;
+      const pista = document.createElement('div');
+      pista.className = 'ci-hint';
+      pista.textContent = t.tapEachOne;
+      row.appendChild(pista);
+    }
+
     list.appendChild(row);
     refreshPills(row, item, others);
+    refrescarMio(row, item);
   });
 
   // Esta es la pantalla donde más dolía el recorte: con un ticket largo la
@@ -785,8 +799,58 @@ function stopBeat(pill) {
 }
 
 function pillInner(item, u, others) {
-  // Always show unit number — cleaner and consistent
-  return `<span class="up-num">${u + 1}</span><span class="up-body"></span>`;
+  // La píldora libre va VACÍA, a propósito.
+  //
+  // Antes llevaba dentro el número de unidad (1, 2, 3…). Ese número no le
+  // servía de nada a nadie —da igual si te tomaste la cerveza nº3 o la nº5—
+  // y en cambio hacía un daño real: seis números en fila se leen como una
+  // escala, así que quien se había tomado tres cervezas pulsaba SOLO el 3,
+  // pagaba una, y dejaba las otras cinco sin reclamar. La cuenta no cuadraba
+  // y nadie entendía por qué.
+  //
+  // Vacía y con el borde discontinuo se lee por lo que es: una casilla por
+  // llenar. Y al pulsarla, el precio asoma un instante (ver destelloDePrecio)
+  // para dejar claro que cada casilla es UNA unidad con SU precio.
+  return `<span class="up-body"></span>`;
+}
+
+/**
+ * El precio surge grande dentro de la píldora y se desvanece enseguida,
+ * dejando paso al nombre o al visto.
+ *
+ * Es el momento en que se entiende la pantalla entera: ves que ese toque
+ * concreto te ha costado 2,50 €. Solo al MARCAR —al desmarcar no hay nada
+ * que enseñar— y solo si el artículo tiene más de una unidad, que es donde
+ * estaba la confusión.
+ */
+function destelloDePrecio(pill, item) {
+  if ((item.quantity || 1) < 2) return;
+  const previo = pill.querySelector('.up-price');
+  if (previo) previo.remove();
+  const flash = document.createElement('span');
+  flash.className = 'up-price';
+  flash.textContent = Money.formatEUR(item.unitPrice, lang);
+  pill.appendChild(flash);
+  flash.addEventListener('animationend', () => flash.remove());
+  // Por si la animación no llega a dispararse (movimiento reducido, pestaña
+  // en segundo plano): que no se quede pegado para siempre.
+  setTimeout(() => flash.remove(), 1200);
+}
+
+/**
+ * Cuántas unidades llevo de este artículo y cuánto suman.
+ *
+ * Es la red de seguridad de todo lo anterior: aunque alguien lea mal las
+ * casillas, aquí ve "tú: 3 · 7,50 €" y se corrige solo, en el sitio, antes
+ * de que el error llegue a la cuenta.
+ */
+function refrescarMio(row, item) {
+  const marca = row.querySelector('.ci-mine');
+  if (!marca) return;
+  const n = (myUnits[item.id] || new Set()).size;
+  if (!n) { marca.textContent = ''; marca.classList.remove('on'); return; }
+  marca.textContent = `${t.mineBadge}: ${n} · ${Money.formatEUR(n * item.unitPrice, lang)}`;
+  marca.classList.add('on');
 }
 
 function refreshPills(row, item, othersMap) {
@@ -842,7 +906,12 @@ function onPillClick(e) {
   // Refresh this row
   const row = pill.closest('.claim-row-v2');
   const item = ticketData.items.find(i => String(i.id) === String(itemId));
-  if (row && item) refreshPills(row, item);
+  if (row && item) {
+    refreshPills(row, item);
+    refrescarMio(row, item);
+    // Solo al marcar: al desmarcar no hay precio que enseñar.
+    if (!wasMine) destelloDePrecio(pill, item);
+  }
   update();
 
   // Al marcar una unidad que ya tiene alguien, decir en el momento con quién
