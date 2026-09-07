@@ -829,12 +829,27 @@ function destelloDePrecio(pill, item) {
   if (previo) previo.remove();
   const flash = document.createElement('span');
   flash.className = 'up-price';
-  flash.textContent = Money.formatEUR(item.unitPrice, lang);
+  // Solo la cifra, SIN el simbolo del euro. El euro ya esta en la cabecera de
+  // la linea, y repetirlo aqui dentro -en una casilla de 42 px- solo mete
+  // ruido en el instante que tiene que leerse de un vistazo.
+  flash.textContent = Money.formatEUR(item.unitPrice, lang)
+    .replace(/\s*[€$£]\s*/g, '')
+    .replace(/\s*(kr|zł)\s*/gi, '')
+    .trim();
   pill.appendChild(flash);
-  flash.addEventListener('animationend', () => flash.remove());
+  // `morphing` es lo que retrasa la entrada del visto (ver el CSS): sin esto
+  // el visto y el precio saldrian a la vez, que es justo lo que no se
+  // entendia. Se quita al terminar para que un segundo toque vuelva a
+  // animar desde cero.
+  pill.classList.add('morphing');
+  const limpiar = () => {
+    flash.remove();
+    pill.classList.remove('morphing');
+  };
+  flash.addEventListener('animationend', limpiar);
   // Por si la animación no llega a dispararse (movimiento reducido, pestaña
   // en segundo plano): que no se quede pegado para siempre.
-  setTimeout(() => flash.remove(), 1200);
+  setTimeout(limpiar, 1200);
 }
 
 /**
@@ -907,10 +922,13 @@ function onPillClick(e) {
   const row = pill.closest('.claim-row-v2');
   const item = ticketData.items.find(i => String(i.id) === String(itemId));
   if (row && item) {
+    // El destello va ANTES de repintar, y el orden importa: es quien pone la
+    // clase `morphing`, y el visto tiene que nacer ya con ella puesta para
+    // que le entre el retardo. Al reves funciona por como encadena el
+    // navegador, pero depende de un detalle que nadie ve al leerlo.
+    if (!wasMine) destelloDePrecio(pill, item);
     refreshPills(row, item);
     refrescarMio(row, item);
-    // Solo al marcar: al desmarcar no hay precio que enseñar.
-    if (!wasMine) destelloDePrecio(pill, item);
   }
   update();
 
