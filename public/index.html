@@ -39,28 +39,31 @@
 <body>
   <div class="page">
 
-    <!-- Top bar -->
-    <div class="top-bar">
-      <div style="width:36px;"></div>
-      <div class="top-bar-title" style="font-size:0.88rem;font-weight:800;letter-spacing:0.02em;">
-        <span style="font-weight:400;opacity:0.6;">compar</span><span>TICKET</span>
+    <!-- Barra superior. El logo pasa a la izquierda y a la derecha van los dos
+         gestos que no son "escanear": los ajustes y compartir la app. Antes
+         los ajustes vivían al final de la página, ocupando media pantalla;
+         ahora se abren desde la tuerca y devuelven ese espacio al titular. -->
+    <div class="top-bar top-bar-portada">
+      <div class="brand-logo">
+        <span class="bl-compar">compar</span><span class="bl-ticket">TICKET</span>
       </div>
-      <!-- Compartir la APP en si -no un ticket ni un grupo-, para que llegue a
-           mas gente. Solo en la portada, arriba a la derecha: el icono es el
-           mismo que el de "compartir grupo" en group.html, para que se lea
-           como el mismo gesto en toda la app. -->
-      <button class="top-bar-btn top-bar-btn-labeled" id="compartirAppBtn" type="button">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83L9.42 6.42 8 5l4-4 4 4zm4 5v11c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .89 2 2z"/></svg>
-        <span id="compartirAppTxt"></span>
-      </button>
+      <div class="top-acciones">
+        <button class="top-bar-btn top-bar-btn-labeled" id="ajustesBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58a.49.49 0 0 0 .12-.61l-1.92-3.32a.49.49 0 0 0-.59-.22l-2.39.96a7.03 7.03 0 0 0-1.62-.94l-.36-2.54a.48.48 0 0 0-.48-.41h-3.84a.48.48 0 0 0-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96a.48.48 0 0 0-.59.22L2.74 8.87a.48.48 0 0 0 .12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58a.49.49 0 0 0-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32a.49.49 0 0 0-.12-.61l-2.01-1.58zM12 15.6A3.6 3.6 0 1 1 12 8.4a3.6 3.6 0 0 1 0 7.2z"/></svg>
+          <span id="ajustesTxt"></span>
+        </button>
+        <!-- Compartir la APP en si -no un ticket ni un grupo-, para que llegue
+             a mas gente. El icono es el mismo que el de "compartir grupo" en
+             group.html, para que se lea como el mismo gesto en toda la app. -->
+        <button class="top-bar-btn top-bar-btn-labeled" id="compartirAppBtn" type="button">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 5l-1.42 1.42-1.59-1.59V16h-1.98V4.83L9.42 6.42 8 5l4-4 4 4zm4 5v11c0 1.1-.9 2-2 2H6c-1.1 0-2-.9-2-2V10c0-1.11.89-2 2-2h3v2H6v11h12V10h-3V8h3c1.1 0 2 .89 2 2z"/></svg>
+          <span id="compartirAppTxt"></span>
+        </button>
+      </div>
     </div>
 
-    <!-- Upload area -->
-    <!-- Solo visible al llegar desde un grupo: dice a que grupo va este
-         ticket y deja volver sin escanear nada. -->
-    <!-- Volver al grupo. Antes era una barra naranja entera que competia con
-         los dos botones de escanear, que es a lo que se ha venido. Ahora solo
-         la flecha es el boton; el texto de al lado dice a donde vuelves. -->
+    <!-- Solo visible al llegar desde un grupo: dice a que grupo va este ticket
+         y deja volver sin escanear nada. -->
     <div class="volver-fila hidden" id="volverGrupo">
       <a class="volver-flecha" id="volverGrupoLink" href="/" aria-label="Volver al grupo">
         <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/></svg>
@@ -69,9 +72,30 @@
     </div>
 
     <div class="upload-area" id="uploadArea">
-      <div class="via-label" id="viaSueltaLabel">DIVIDE UNA CUENTA</div>
+
+      <!-- EL TITULAR. La portada no tenia ninguno: abria con una etiqueta de
+           categoria ("DIVIDE UNA CUENTA") que no decia que era esto ni en que
+           se diferencia de las demas. La tercera linea, en naranja, es la que
+           marca la diferencia. -->
+      <h1 class="hero-tit">
+        <span id="heroA"></span><br>
+        <span id="heroB"></span><br>
+        <span class="hero-acento" id="heroC"></span>
+      </h1>
+      <p class="hero-sub" id="heroSub"></p>
+
+      <!-- LOS TRES PASOS, como lineas de un ticket. Lo que hace la aplicacion,
+           antes de pedir nada. -->
+      <div class="pasos">
+        <div class="paso"><span class="paso-n">1</span><span class="paso-t" id="paso1"></span></div>
+        <hr class="dash-sep">
+        <div class="paso"><span class="paso-n">2</span><span class="paso-t" id="paso2"></span></div>
+        <hr class="dash-sep">
+        <div class="paso"><span class="paso-n">3</span><span class="paso-t" id="paso3"></span></div>
+      </div>
+
       <div class="upload-btns-row">
-        <button class="upload-option" id="cameraBtn" type="button">
+        <button class="upload-option upload-primaria" id="cameraBtn" type="button">
           <div class="upload-option-icon">
             <svg viewBox="0 0 24 24"><path d="M12 15.2a3.2 3.2 0 1 0 0-6.4 3.2 3.2 0 0 0 0 6.4z"/><path d="M9 2 7.17 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2h-3.17L15 2H9zm3 15c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5z"/></svg>
           </div>
@@ -84,124 +108,132 @@
           <span id="galleryBtnText"></span>
         </button>
       </div>
-      <div class="upload-title" id="uploadTitle"></div>
-      <div class="upload-sub" id="uploadSub"></div>
 
-      <!-- El paso a paso ya no va escrito aqui: lo da el tutorial guiado,
-           que solo sale la primera vez (ver tour.js, al final del fichero). -->
+      <!-- El arma: es lo unico que la competencia no puede copiar sin rehacer
+           su producto entero. -->
+      <div class="sello">
+        <svg class="sello-check" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z"/></svg>
+        <span class="sello-txt">
+          <span class="sello-a" id="selloA"></span>
+          <span class="sello-b" id="selloB"></span>
+        </span>
+      </div>
 
-      <!-- Segunda via, con el mismo peso visual que la primera: un grupo que
-           acumula gastos durante todo un viaje y al final dice quien paga a
-           quien. Antes era un enlace pequeno que no se distinguia de un texto
-           mas, y nadie lo encontraba. -->
       <hr class="dash-sep via-sep">
 
-      <div class="via-label" id="viaGrupoLabel">O LLEVA LAS CUENTAS DE UN GRUPO</div>
+      <!-- LOS GRUPOS, en dos estados.
+           Sin grupos todavia: una pregunta y un enlace, para no competir con
+           escanear -ese empate visual era lo que hacia que la portada se
+           leyera como la de un Tricount-.
+           Con grupos ya guardados: la pregunta sobra, asi que la linea pasa a
+           decir cuantos hay y abre la lista. -->
+      <div class="grupo-linea" id="grupoLinea">
+        <svg class="gl-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        <span class="gl-preg" id="grupoPreg"></span>
+        <button class="gl-enlace" id="groupCta" type="button"><span id="groupCtaText"></span></button>
+      </div>
 
-      <button class="group-cta" id="groupCta" type="button">
-        <svg class="gc-people" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
-        <span id="groupCtaText">Crear un grupo</span>
-        <svg class="gc-pig" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><ellipse cx="13" cy="12.6" rx="7.4" ry="5.4"/><path d="M9.4 7.6 11.9 4.9 13.1 8.4Z"/><ellipse cx="5.1" cy="13" rx="2.7" ry="2.3"/><rect x="8.4" y="17.2" width="2.3" height="2.8" rx="1.1"/><rect x="14.6" y="17.2" width="2.3" height="2.8" rx="1.1"/><rect x="11.2" y="8" width="5.2" height="1.5" rx=".75" fill="#FFFEF8"/><circle cx="9.1" cy="11.4" r=".95" fill="#FFFEF8"/></svg>
-      </button>
-
-      <div class="group-cta-sub" id="groupCtaSub">Para un viaje o un piso compartido…</div>
-
-      <!-- Los grupos en los que ya has entrado desde ESTE movil.
-           Sin cuentas de usuario, un grupo desaparecia al cerrar la pestana:
-           o tenias el enlace guardado o lo habias perdido. El enlace sigue
-           siendo la llave, pero ya no hay que buscarlo en WhatsApp cada vez.
-
-           Va como segundo boton igual que el de crear, y no como una lista
-           colgando debajo: asi cabe en pantalla sin bajar, y la lista solo
-           ocupa sitio cuando se pide. -->
-      <button class="group-cta group-cta-b hidden" id="verGruposCta" type="button">
-        <svg class="gc-people" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/><circle cx="18.5" cy="17" r="2.2"/></svg>
-        <span id="verGruposTexto">Ver mis grupos</span>
+      <button class="grupo-linea grupo-linea-btn hidden" id="verGruposCta" type="button">
+        <svg class="gl-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/><circle cx="18.5" cy="17" r="2.2"/></svg>
+        <span class="gl-enlace" id="verGruposTexto"></span>
         <span class="gc-badge" id="verGruposCuantos"></span>
+        <svg class="gl-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>
       </button>
 
       <div class="my-groups hidden" id="misGrupos">
         <div id="misGruposLista"></div>
       </div>
+    </div>
 
-      <!-- Acceso directo en la pantalla del movil. Siempre un boton fijo,
-           "Descargar como app": nunca depende de que el navegador decida
-           avisar por su cuenta -eso fallaba en silencio mas de lo que
-           deberia. Al tocarlo se abren las dos opciones, iPhone o Android,
-           y cada una explica o dispara lo que corresponda.
-           Si la aplicacion ya esta instalada, no se ensena nada. -->
-      <div class="atajo hidden" id="atajo">
-        <button class="atajo-btn" id="atajoAbrir" type="button">
-          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
-          <span class="atajo-txt">
-            <span class="atajo-tit" id="atajoTitulo"></span>
-          </span>
+    <!-- ==========================================================
+         AJUSTES. Todo lo que se toca una vez y no se vuelve: idioma,
+         moneda, avisos, instalar la app y la firma. Antes ocupaba el
+         final de la portada; ahora vive detras de la tuerca.
+         ========================================================== -->
+    <div class="hoja-velo" id="ajustesVelo"></div>
+    <div class="hoja" id="ajustesPanel" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo">
+      <div class="hoja-asa"></div>
+      <div class="hoja-cab">
+        <span class="hoja-tit" id="hojaTitulo"></span>
+        <button class="hoja-cerrar" id="ajustesCerrar" type="button" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
         </button>
-
-        <div class="atajo-elegir hidden" id="atajoElegir">
-          <button class="atajo-sistema" id="atajoElegirIos" type="button">
-            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.71,19.5C17.88,20.74 17,21.95 15.66,21.97C14.32,22 13.89,21.18 12.37,21.18C10.84,21.18 10.37,21.95 9.1,22C7.79,22.05 6.8,20.68 5.96,19.47C4.25,17 2.94,12.45 4.7,9.39C5.57,7.87 7.13,6.91 8.82,6.88C10.1,6.86 11.32,7.75 12.11,7.75C12.89,7.75 14.37,6.68 15.92,6.84C16.57,6.87 18.39,7.1 19.56,8.82C19.47,8.88 17.39,10.1 17.41,12.63C17.44,15.65 20.06,16.66 20.09,16.67C20.06,16.74 19.67,18.11 18.71,19.5M13,3.5C13.73,2.67 14.94,2.04 15.94,2C16.07,3.17 15.6,4.35 14.9,5.19C14.21,6.04 13.07,6.7 11.95,6.61C11.8,5.46 12.36,4.26 13,3.5Z"/></svg>
-            <span>iPhone</span>
-          </button>
-          <button class="atajo-sistema" id="atajoElegirAndroid" type="button">
-            <svg class="atajo-android" viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M7 10.2a5 5 0 0 1 10 0V15a1.3 1.3 0 0 1-1.3 1.3H8.3A1.3 1.3 0 0 1 7 15z" fill="currentColor"/>
-              <path d="M8.3 6.6 6.7 4.7M15.7 6.6l1.6-1.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-            </svg>
-            <span>Android</span>
-          </button>
-        </div>
-
-        <div class="atajo-explica hidden" id="atajoExplica">
-          <div class="atajo-explica-fila">
-            <svg id="atajoIcono" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"></svg>
-            <span class="atajo-sub" id="atajoInstrucciones"></span>
-          </div>
-          <div class="atajo-alt hidden" id="atajoAlt"></div>
-        </div>
       </div>
 
-      <!-- Idioma y moneda. Al final de la pagina a proposito: se toca una vez
-           y no se vuelve, asi que no puede quitarle sitio a lo que si se usa
-           todos los dias. -->
-      <div class="ajustes">
-        <label class="ajuste">
-          <span class="ajuste-lbl" id="lblIdioma">IDIOMA</span>
-          <select id="selIdioma">
-            <option value="es">Espa&#241;ol</option>
-            <option value="en">English</option>
-            <option value="fr">Fran&#231;ais</option>
-            <option value="it">Italiano</option>
-            <option value="de">Deutsch</option>
-            <option value="no">Norsk</option>
-            <option value="pl">Polski</option>
-          </select>
-        </label>
-        <label class="ajuste">
-          <span class="ajuste-lbl" id="lblMoneda">MONEDA</span>
-          <select id="selMoneda">
-            <option value="EUR">EUR &#8364;</option>
-            <option value="USD">USD $</option>
-            <option value="GBP">GBP &#163;</option>
-            <option value="DKK">DKK kr</option>
-            <option value="NOK">NOK kr</option>
-          </select>
-        </label>
-        <div class="ajuste-nota" id="notaMoneda"></div>
+      <div class="hoja-cuerpo">
+        <div class="ajustes">
+          <label class="ajuste">
+            <span class="ajuste-lbl" id="lblIdioma">IDIOMA</span>
+            <select id="selIdioma">
+              <option value="es">Espa&#241;ol</option>
+              <option value="en">English</option>
+              <option value="fr">Fran&#231;ais</option>
+              <option value="it">Italiano</option>
+              <option value="de">Deutsch</option>
+              <option value="no">Norsk</option>
+              <option value="pl">Polski</option>
+            </select>
+          </label>
+          <label class="ajuste">
+            <span class="ajuste-lbl" id="lblMoneda">MONEDA</span>
+            <select id="selMoneda">
+              <option value="EUR">EUR &#8364;</option>
+              <option value="USD">USD $</option>
+              <option value="GBP">GBP &#163;</option>
+              <option value="DKK">DKK kr</option>
+              <option value="NOK">NOK kr</option>
+            </select>
+          </label>
+          <div class="ajuste-nota" id="notaMoneda"></div>
 
-        <!-- Silenciar los avisos del grupo.
-             La campana se tacha cuando están silenciados: se ve de un
-             vistazo en qué estado está, sin tener que leer nada. -->
-        <button class="ajuste-campana" id="btnCampana" type="button">
-          <svg class="campana-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-            <path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-1.7 1.7a1 1 0 0 0 .7 1.3h14a1 1 0 0 0 .7-1.3L18 16z"/>
-            <line class="campana-tacha" x1="3.5" y1="3.5" x2="20.5" y2="20.5"
-                  stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
-          </svg>
-          <span class="campana-txt" id="txtCampana"></span>
-        </button>
+          <!-- Silenciar los avisos del grupo. La campana se tacha cuando estan
+               silenciados: se ve de un vistazo en que estado esta. -->
+          <button class="ajuste-campana" id="btnCampana" type="button">
+            <svg class="campana-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+              <path d="M12 22a2 2 0 0 0 2-2h-4a2 2 0 0 0 2 2zm6-6v-5a6 6 0 0 0-5-5.91V4a1 1 0 0 0-2 0v1.09A6 6 0 0 0 6 11v5l-1.7 1.7a1 1 0 0 0 .7 1.3h14a1 1 0 0 0 .7-1.3L18 16z"/>
+              <line class="campana-tacha" x1="3.5" y1="3.5" x2="20.5" y2="20.5"
+                    stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+            </svg>
+            <span class="campana-txt" id="txtCampana"></span>
+          </button>
+        </div>
+
+        <!-- Acceso directo en la pantalla del movil. Siempre un boton fijo:
+             nunca depende de que el navegador decida avisar por su cuenta,
+             que fallaba en silencio mas de lo que deberia. -->
+        <div class="atajo hidden" id="atajo">
+          <button class="atajo-btn" id="atajoAbrir" type="button">
+            <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M5 20h14v-2H5v2zM19 9h-4V3H9v6H5l7 7 7-7z"/></svg>
+            <span class="atajo-txt"><span class="atajo-tit" id="atajoTitulo"></span></span>
+          </button>
+
+          <div class="atajo-elegir hidden" id="atajoElegir">
+            <button class="atajo-sistema" id="atajoElegirIos" type="button">
+              <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.71,19.5C17.88,20.74 17,21.95 15.66,21.97C14.32,22 13.89,21.18 12.37,21.18C10.84,21.18 10.37,21.95 9.1,22C7.79,22.05 6.8,20.68 5.96,19.47C4.25,17 2.94,12.45 4.7,9.39C5.57,7.87 7.13,6.91 8.82,6.88C10.1,6.86 11.32,7.75 12.11,7.75C12.89,7.75 14.37,6.68 15.92,6.84C16.57,6.87 18.39,7.1 19.56,8.82C19.47,8.88 17.39,10.1 17.41,12.63C17.44,15.65 20.06,16.66 20.09,16.67C20.06,16.74 19.67,18.11 18.71,19.5M13,3.5C13.73,2.67 14.94,2.04 15.94,2C16.07,3.17 15.6,4.35 14.9,5.19C14.21,6.04 13.07,6.7 11.95,6.61C11.8,5.46 12.36,4.26 13,3.5Z"/></svg>
+              <span>iPhone</span>
+            </button>
+            <button class="atajo-sistema" id="atajoElegirAndroid" type="button">
+              <svg class="atajo-android" viewBox="0 0 24 24" aria-hidden="true">
+                <path d="M7 10.2a5 5 0 0 1 10 0V15a1.3 1.3 0 0 1-1.3 1.3H8.3A1.3 1.3 0 0 1 7 15z" fill="currentColor"/>
+                <path d="M8.3 6.6 6.7 4.7M15.7 6.6l1.6-1.9" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+              <span>Android</span>
+            </button>
+          </div>
+
+          <div class="atajo-explica hidden" id="atajoExplica">
+            <div class="atajo-explica-fila">
+              <svg id="atajoIcono" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"></svg>
+              <span class="atajo-sub" id="atajoInstrucciones"></span>
+            </div>
+            <div class="atajo-alt hidden" id="atajoAlt"></div>
+          </div>
+        </div>
+
+        <div class="firma" id="firma"></div>
       </div>
     </div>
+
 
     <input type="file" id="cameraInput" accept="image/*" capture="environment" style="display:none">
     <input type="file" id="galleryInput" accept="image/*" multiple style="display:none">

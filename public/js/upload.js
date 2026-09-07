@@ -2,8 +2,6 @@
 const grupoDestino = new URLSearchParams(location.search).get('grupo') || '';
 
 // comparTICKET — Upload page (multi-image, camera + gallery)
-document.getElementById('uploadTitle').textContent = t.uploadTitle;
-document.getElementById('uploadSub').textContent = t.uploadHint;
 document.getElementById('retakeText').textContent = t.retakeBtn;
 document.getElementById('scanText').textContent = t.scanBtn;
 document.getElementById('procText').textContent = t.processing;
@@ -260,8 +258,72 @@ const _pon = (id, texto) => {
 };
 _pon('viaSueltaLabel', t.viaSuelta);
 _pon('viaGrupoLabel', t.viaGrupo);
-_pon('groupCtaText', t.createGroup);
+_pon('groupCtaText', t.grupoEnlace || t.createGroup);
 _pon('groupCtaSub', t.createGroupSub);
+
+// --- Portada -------------------------------------------------------------
+_pon('heroA', t.heroA);
+_pon('heroB', t.heroB);
+_pon('heroC', t.heroC);
+_pon('paso1', t.paso1);
+_pon('paso2', t.paso2);
+_pon('paso3', t.paso3);
+_pon('selloA', t.selloA);
+_pon('selloB', t.selloB);
+_pon('grupoPreg', t.grupoPreg);
+_pon('verGruposTexto', t.misGruposLinea);
+_pon('ajustesTxt', t.ajustes);
+_pon('hojaTitulo', t.ajustes);
+_pon('firma', t.hechoPor);
+
+// El subtitular lleva dos frases: la segunda va en su propia linea porque
+// dice otra cosa —la primera explica el escaneo, la segunda el reparto—.
+{
+  const sub = document.getElementById('heroSub');
+  if (sub && t.heroSub) {
+    sub.textContent = '';
+    String(t.heroSub).split('|').forEach((frase, i) => {
+      if (i) sub.appendChild(document.createElement('br'));
+      sub.appendChild(document.createTextNode(frase));
+    });
+  }
+}
+
+/**
+ * AJUSTES: la hoja que sube desde abajo.
+ *
+ * Idioma, moneda, avisos, instalar y la firma ocupaban el final de la
+ * portada. Son cosas que se tocan una vez y no se vuelven, asi que no
+ * pueden quitarle sitio a lo que si se usa todos los dias.
+ *
+ * Se cierra por donde se espera: el aspa, el velo y la tecla Escape.
+ */
+{
+  const btn  = document.getElementById('ajustesBtn');
+  const hoja = document.getElementById('ajustesPanel');
+  const velo = document.getElementById('ajustesVelo');
+  const cerr = document.getElementById('ajustesCerrar');
+
+  if (btn && hoja && velo) {
+    const abrir = () => {
+      hoja.classList.add('abierta');
+      velo.classList.add('abierta');
+      // Con la hoja abierta, el fondo no se desplaza: si no, el dedo mueve
+      // la portada por debajo y se pierde el sitio al cerrar.
+      document.body.style.overflow = 'hidden';
+    };
+    const cerrar = () => {
+      hoja.classList.remove('abierta');
+      velo.classList.remove('abierta');
+      document.body.style.overflow = '';
+    };
+
+    btn.addEventListener('click', abrir);
+    velo.addEventListener('click', cerrar);
+    if (cerr) cerr.addEventListener('click', cerrar);
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') cerrar(); });
+  }
+}
 
 /**
  * Los grupos en los que ya has entrado desde este movil.
@@ -278,14 +340,25 @@ function pintarMisGrupos() {
   const cta  = document.getElementById('verGruposCta');
   const caja = document.getElementById('misGrupos');
   const cont = document.getElementById('misGruposLista');
+  const preg = document.getElementById('grupoLinea');
   if (!cta || !caja || !cont) return;
 
+  // La linea de grupos tiene dos caras, y solo se ve una.
+  //
+  // Sin grupos todavia: "¿Un viaje o un piso? Crea un grupo" — hay que
+  // explicar para que sirve, porque nadie lo sabe hasta que lo usa.
+  //
+  // Con grupos ya guardados: esa pregunta sobra —ya conoce la funcion— y lo
+  // util pasa a ser entrar en los que tiene. Crear otro sigue estando, dentro
+  // de la lista, que es donde se busca cuando ya tienes uno.
   if (!lista.length) {
     cta.classList.add('hidden');
     caja.classList.add('hidden');
+    if (preg) preg.classList.remove('hidden');
     return;
   }
 
+  if (preg) preg.classList.add('hidden');
   cta.classList.remove('hidden');
   const cuantos = document.getElementById('verGruposCuantos');
   if (cuantos) cuantos.textContent = lista.length;
@@ -347,6 +420,22 @@ function pintarMisGrupos() {
 
     cont.appendChild(fila);
   });
+
+  // Crear otro grupo, al final de la lista.
+  //
+  // Cuando ya tienes grupos, la portada esconde el "¿Un viaje o un piso?
+  // Crea un grupo": esa pregunta solo hace falta la primera vez. Pero crear
+  // otro tiene que seguir siendo posible, y aqui es donde se busca —dentro
+  // de la lista de los que ya tienes—.
+  const nuevo = document.createElement('button');
+  nuevo.className = 'mg-nuevo';
+  nuevo.type = 'button';
+  nuevo.innerHTML =
+    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
+    '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg><span></span>';
+  nuevo.querySelector('span').textContent = t.createGroup || 'Crear un grupo';
+  nuevo.addEventListener('click', () => { window.location.href = '/new-group.html'; });
+  cont.appendChild(nuevo);
 }
 
 pintarMisGrupos();
