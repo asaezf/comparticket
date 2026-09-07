@@ -133,16 +133,13 @@
         <button class="gl-enlace" id="groupCta" type="button"><span id="groupCtaText"></span></button>
       </div>
 
-      <button class="grupo-linea grupo-linea-btn hidden" id="verGruposCta" type="button">
-        <svg class="gl-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M4 6h16v2H4zm0 5h16v2H4zm0 5h10v2H4z"/><circle cx="18.5" cy="17" r="2.2"/></svg>
-        <span class="gl-enlace" id="verGruposTexto"></span>
-        <span class="gc-badge" id="verGruposCuantos"></span>
-        <svg class="gl-chev" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7.4 8.6 12 13.2l4.6-4.6L18 10l-6 6-6-6z"/></svg>
+      <!-- Con grupos ya creados, la pregunta sobra: se conoce la funcion. Queda
+           un boton sobrio -gente, "Grupos" y cuantos- que abre la hoja. -->
+      <button class="grupos-btn hidden" id="verGruposCta" type="button">
+        <svg class="gb-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z"/></svg>
+        <span class="gb-txt" id="verGruposTexto"></span>
+        <span class="gb-num" id="verGruposCuantos"></span>
       </button>
-
-      <div class="my-groups hidden" id="misGrupos">
-        <div id="misGruposLista"></div>
-      </div>
     </div>
 
     <!-- ==========================================================
@@ -150,6 +147,29 @@
          moneda, avisos, instalar la app y la firma. Antes ocupaba el
          final de la portada; ahora vive detras de la tuerca.
          ========================================================== -->
+    <!-- ==========================================================
+         GRUPOS. Antes era un acordeon que empujaba la portada hacia abajo:
+         al abrirlo, lo que ya se estaba mirando se movia de sitio. Ahora es
+         una hoja, la misma que los ajustes -mismo gesto, mismo cierre- y ahi
+         si cabe lo que faltaba: crear un grupo con el peso de una accion
+         principal, y no un enlace al final de una lista.
+         ========================================================== -->
+    <div class="hoja-velo" id="gruposVelo"></div>
+    <div class="hoja" id="misGrupos" role="dialog" aria-modal="true" aria-labelledby="gruposTitulo">
+      <div class="hoja-asa"></div>
+      <div class="hoja-cab">
+        <span class="hoja-tit" id="gruposTitulo"></span>
+        <button class="hoja-cerrar" id="gruposCerrar" type="button" aria-label="Cerrar">
+          <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </div>
+      <button class="mg-crear" id="mgCrear" type="button">
+        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        <span id="mgCrearTxt"></span>
+      </button>
+      <div class="mg-lista" id="misGruposLista"></div>
+    </div>
+
     <div class="hoja-velo" id="ajustesVelo"></div>
     <div class="hoja" id="ajustesPanel" role="dialog" aria-modal="true" aria-labelledby="hojaTitulo">
       <div class="hoja-asa"></div>

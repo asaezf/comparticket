@@ -115,12 +115,15 @@ body {
   color: var(--gray-700);
   letter-spacing: -0.02em;
 }
+/* El nombre, tal cual es en el resto de la app: "compar" en gris claro y
+   "TICKET" en negro macizo. Llevaba un degradado de negro a naranja recortado
+   sobre el texto que no esta en ningun otro sitio -ni en el icono, ni en el
+   banner, ni en la cabecera de las otras pantallas- y hacia que la marca se
+   leyera distinta en cada pantalla. Un nombre no cambia de color segun donde
+   se mire. */
 .brand-logo .bl-ticket {
   font-weight: 800;
-  background: linear-gradient(95deg, var(--black) 0%, var(--accent) 95%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  color: var(--black);
   letter-spacing: -0.02em;
 }
 .brand-logo .bl-mark {
@@ -2174,6 +2177,79 @@ input[type="file"] { display: none; }
   min-height: 34px;
 }
 
+/* MEJORA 6 · LA CIFRA EN EL BOTON
+   El total vive donde esta la mano y donde acaba el gesto: a la izquierda de
+   "Confirmar", subiendo conforme marcas. Antes habia una etiqueta naranja por
+   linea con el subtotal de ESE articulo, que es justo el numero que nadie
+   necesita; el que se quiere saber es cuanto llevas en total.
+   El brinco es de 140 ms y sin rebote: confirma que la cifra ha cambiado, no
+   pide atencion. */
+.btn-confirmar {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+.cb-total {
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 0.86rem;
+  letter-spacing: -0.02em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.16);
+  opacity: 0;
+  max-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  transition: opacity 0.18s ease, max-width 0.24s ease, padding 0.2s ease;
+}
+.cb-total.on { opacity: 1; max-width: 120px; }
+.cb-total.sube { animation: cb-sube 0.14s ease-out; }
+/* El texto del boton. Sin cifra va centrado el solo; con cifra, los dos
+   quedan centrados como un bloque. */
+.cb-txt { white-space: nowrap; }
+@keyframes cb-sube {
+  from { transform: translateY(2px) scale(0.94); }
+  to   { transform: none; }
+}
+.btn-confirmar:disabled .cb-total { max-width: 0; padding: 3px 0; opacity: 0; }
+
+/* MEJORA 7 · LA CASILLA ACUSA EL TOQUE
+   Marcar y desmarcar daban exactamente igual por fuera. Ahora la casilla
+   acusa el gesto en su propia forma: al marcar se asienta desde algo mas
+   ancha y plana -como un sello al apoyarse-, al desmarcar se encoge un
+   instante. Son 180 ms; no se ve como animacion, se nota como respuesta. */
+.unit-pill.marcada { animation: pill-sella 0.2s cubic-bezier(0.3, 1.4, 0.5, 1); }
+.unit-pill.desmarcada { animation: pill-suelta 0.18s ease-out; }
+@keyframes pill-sella {
+  0%   { transform: scale(1.06, 0.9); }
+  60%  { transform: scale(0.985, 1.02); }
+  100% { transform: none; }
+}
+@keyframes pill-suelta {
+  0%   { transform: scale(0.9); }
+  100% { transform: none; }
+}
+
+/* MEJORA 8 · EL BRILLO DE LO YA MARCADO
+   Una casilla tuya es negra maciza y se leia plana. Un brillo diagonal muy
+   tenue -blanco al 9%, de esquina a esquina- le da un plano de luz y la
+   separa del fondo sin añadir ni un color nuevo ni un borde mas. Solo en las
+   tuyas: es el estado que interesa distinguir de un vistazo. */
+.unit-pill.mine {
+  background-image: linear-gradient(133deg,
+    rgba(255, 255, 255, 0.11) 0%,
+    rgba(255, 255, 255, 0.03) 42%,
+    rgba(255, 255, 255, 0) 62%);
+}
+.unit-pill.shared {
+  background-image: linear-gradient(133deg,
+    rgba(255, 255, 255, 0.22) 0%,
+    rgba(255, 255, 255, 0.06) 45%,
+    rgba(255, 255, 255, 0) 65%);
+}
+
 /* MEJORA 4 · EL TIC EN HUECO
    La casilla vacía no decía qué se esperaba de ella: era un rectángulo con
    borde discontinuo y nada dentro. Ahora lleva el mismo visto que va a
@@ -2190,7 +2266,7 @@ input[type="file"] { display: none; }
   top: 50%;
   transform: translate(-50%, -50%);
   background: currentColor;
-  opacity: 0.07;
+  opacity: 0.13;
   pointer-events: none;
   transition: opacity 0.18s ease;
   -webkit-mask: var(--tic-mask) center / contain no-repeat;
@@ -2263,25 +2339,11 @@ input[type="file"] { display: none; }
   .up-price { animation: up-price-fade 0.5s linear forwards; }
   @keyframes up-price-fade { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
   .unit-pill.morphing .up-check { animation: none; }
+  .unit-pill.marcada, .unit-pill.desmarcada { animation: none; }
+  .cb-total.sube { animation: none; }
 }
 
-/* EL CONTADOR DE LA LÍNEA.
-   "tú: 3 · 7,50 €" en cuanto marcas algo. Es la red de seguridad: aunque
-   alguien lea mal las casillas, aquí ve el número y se corrige solo, en el
-   sitio, antes de que el error llegue a la cuenta. */
-.ci-mine {
-  font-family: var(--mono);
-  font-size: 0.62rem;
-  font-weight: 700;
-  color: var(--orange);
-  white-space: nowrap;
-  margin-left: auto;
-  opacity: 0;
-  transform: translateY(-2px);
-  transition: opacity 0.2s ease, transform 0.2s ease;
-}
-.ci-mine.on { opacity: 1; transform: none; }
-.ci-mine:empty { display: none; }
+
 
 /* La pista, una sola vez y bajo el primer artículo con varias unidades. */
 .ci-hint {
@@ -4822,6 +4884,83 @@ body.con-visor { overflow: hidden; }
   from { opacity: 0; transform: translateY(4px); }
   to   { opacity: 1; transform: none; }
 }
+
+/* MEJORA 9 · GRUPOS: UN BOTON, Y DETRAS UNA HOJA
+   Dos estados, y solo se ve uno. Sin grupos todavia sigue la linea de la
+   maqueta -"¿Un viaje o un piso? Crea un grupo"-, que es la que explica para
+   que sirve. Con grupos ya creados esa pregunta sobra, y queda este boton:
+   gente, la palabra, y cuantos hay. Nada mas.
+   Al tocarlo ya no se despliega un acordeon que empujaba la portada hacia
+   abajo -moviendo de sitio justo lo que estabas mirando-, sino la misma hoja
+   que los ajustes. Y ahi si cabe crear un grupo como accion principal, en vez
+   de como enlace escondido al final de una lista. */
+.grupos-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 9px 16px 9px 13px;
+  appearance: none;
+  border: 1.5px solid var(--gray-300);
+  border-radius: 999px;
+  background: #fff;
+  cursor: pointer;
+  color: var(--black);
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.16s ease, transform 0.12s ease, box-shadow 0.16s ease;
+}
+.grupos-btn:active { transform: scale(0.975); border-color: var(--accent); }
+.grupos-btn .gb-ico { width: 17px; height: 17px; color: var(--gray-500); }
+.grupos-btn .gb-txt {
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+/* La cifra en naranja macizo: es el unico dato que cambia, y es la razon por
+   la que alguien vuelve a abrir esto. */
+.grupos-btn .gb-num {
+  font-family: var(--mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: #fff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Crear un grupo, dentro de la hoja: es la accion principal, no un apunte. */
+.mg-crear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  /* 18 px a los lados, los mismos que la cabecera de la hoja: sin esto el
+     boton llegaba a sangre y no se leia como parte del panel. */
+  width: calc(100% - 36px);
+  margin: 0 18px 14px;
+  padding: 14px;
+  appearance: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  background: var(--black);
+  color: var(--paper);
+  font-family: var(--sans);
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 0.12s ease;
+}
+.mg-crear:active { transform: scale(0.985); }
+.mg-crear svg { width: 18px; height: 18px; }
+/* La lista, debajo. Con muchos grupos se desplaza ella sola en vez de estirar
+   la hoja hasta salirse de la pantalla. */
+.mg-lista { max-height: 46vh; overflow-y: auto; padding: 0 18px 4px; }
 
 @keyframes portada-sube {
   from { opacity: 0; transform: translateY(9px); }

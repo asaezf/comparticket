@@ -363,10 +363,34 @@ function pintarMisGrupos() {
   const cuantos = document.getElementById('verGruposCuantos');
   if (cuantos) cuantos.textContent = lista.length;
 
-  cta.onclick = () => {
-    caja.classList.toggle('hidden');
-    cta.classList.toggle('abierto', !caja.classList.contains('hidden'));
+  // La hoja se abre y se cierra igual que la de ajustes: por el aspa, por el
+  // velo y con Escape. Antes era un acordeon y abrirlo empujaba la portada
+  // hacia abajo, moviendo de sitio justo lo que se estaba mirando.
+  const velo = document.getElementById('gruposVelo');
+  const abrir = () => {
+    caja.classList.add('abierta');
+    if (velo) velo.classList.add('abierta');
+    document.body.classList.add('con-hoja');
   };
+  const cerrar = () => {
+    caja.classList.remove('abierta');
+    if (velo) velo.classList.remove('abierta');
+    document.body.classList.remove('con-hoja');
+  };
+  cta.onclick = abrir;
+  const aspa = document.getElementById('gruposCerrar');
+  if (aspa) aspa.onclick = cerrar;
+  if (velo) velo.onclick = cerrar;
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && caja.classList.contains('abierta')) cerrar();
+  });
+
+  _pon('gruposTitulo', t.misGruposLinea || 'Grupos');
+  const crear = document.getElementById('mgCrear');
+  if (crear) {
+    _pon('mgCrearTxt', t.createGroup || 'Crear un grupo');
+    crear.onclick = () => { window.location.href = '/new-group.html'; };
+  }
 
   cont.innerHTML = '';
   lista.slice(0, 20).forEach(g => {
@@ -421,21 +445,6 @@ function pintarMisGrupos() {
     cont.appendChild(fila);
   });
 
-  // Crear otro grupo, al final de la lista.
-  //
-  // Cuando ya tienes grupos, la portada esconde el "¿Un viaje o un piso?
-  // Crea un grupo": esa pregunta solo hace falta la primera vez. Pero crear
-  // otro tiene que seguir siendo posible, y aqui es donde se busca —dentro
-  // de la lista de los que ya tienes—.
-  const nuevo = document.createElement('button');
-  nuevo.className = 'mg-nuevo';
-  nuevo.type = 'button';
-  nuevo.innerHTML =
-    '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">' +
-    '<path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6z"/></svg><span></span>';
-  nuevo.querySelector('span').textContent = t.createGroup || 'Crear un grupo';
-  nuevo.addEventListener('click', () => { window.location.href = '/new-group.html'; });
-  cont.appendChild(nuevo);
 }
 
 pintarMisGrupos();

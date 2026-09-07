@@ -12,7 +12,7 @@ document.getElementById('barTitle').textContent = t.claimTitle;
 document.getElementById('nameLabel').textContent = t.yourName.toUpperCase();
 document.getElementById('nameInput').placeholder = t.yourNamePlaceholder;
 document.getElementById('lblTotal').textContent = t.total;
-document.getElementById('confirmBtn').textContent = t.confirm;
+document.getElementById('confirmTxt').textContent = t.confirm;
 // Tutorial texts
 const _ctut1 = document.getElementById('ctut1');
 const _ctut2 = document.getElementById('ctut2');
@@ -714,7 +714,6 @@ function renderItems() {
     header.className = 'ci-head';
     header.innerHTML = `
       <div class="ci-name">${esc(item.name)}</div>
-      <div class="ci-mine"></div>
       <div class="ci-price">${Money.formatEUR(item.unitPrice, lang)}${esc(t.perUnit)}</div>
     `;
 
@@ -747,7 +746,6 @@ function renderItems() {
 
     list.appendChild(row);
     refreshPills(row, item, others);
-    refrescarMio(row, item);
   });
 
   // Esta es la pantalla donde más dolía el recorte: con un ticket largo la
@@ -824,7 +822,6 @@ function pillInner(item, u, others) {
  * estaba la confusión.
  */
 function destelloDePrecio(pill, item) {
-  if ((item.quantity || 1) < 2) return;
   const previo = pill.querySelector('.up-price');
   if (previo) previo.remove();
   const flash = document.createElement('span');
@@ -859,14 +856,7 @@ function destelloDePrecio(pill, item) {
  * casillas, aquí ve "tú: 3 · 7,50 €" y se corrige solo, en el sitio, antes
  * de que el error llegue a la cuenta.
  */
-function refrescarMio(row, item) {
-  const marca = row.querySelector('.ci-mine');
-  if (!marca) return;
-  const n = (myUnits[item.id] || new Set()).size;
-  if (!n) { marca.textContent = ''; marca.classList.remove('on'); return; }
-  marca.textContent = `${t.mineBadge}: ${n} · ${Money.formatEUR(n * item.unitPrice, lang)}`;
-  marca.classList.add('on');
-}
+
 
 function refreshPills(row, item, othersMap) {
   const others = othersMap || otherClaimants();
@@ -922,14 +912,25 @@ function onPillClick(e) {
   const row = pill.closest('.claim-row-v2');
   const item = ticketData.items.find(i => String(i.id) === String(itemId));
   if (row && item) {
+    // La casilla acusa el gesto en su propia forma (ver MEJORA 7 en el CSS).
+    // Se quita la clase contraria antes de poner la nueva: si no, marcar y
+    // desmarcar rapido deja las dos puestas y no anima ninguna.
+    pill.classList.remove('marcada', 'desmarcada');
+    void pill.offsetWidth;
+    pill.classList.add(wasMine ? 'desmarcada' : 'marcada');
+    pill.addEventListener('animationend', function limpia(ev) {
+      if (ev.animationName !== 'pill-sella' && ev.animationName !== 'pill-suelta') return;
+      pill.classList.remove('marcada', 'desmarcada');
+      pill.removeEventListener('animationend', limpia);
+    });
+
     // El destello va ANTES de repintar, y el orden importa: es quien pone la
     // clase `morphing`, y el visto tiene que nacer ya con ella puesta para
     // que le entre el retardo. Al reves funciona por como encadena el
     // navegador, pero depende de un detalle que nadie ve al leerlo.
     if (!wasMine) destelloDePrecio(pill, item);
     refreshPills(row, item);
-    refrescarMio(row, item);
-  }
+    }
   update();
 
   // Al marcar una unidad que ya tiene alguien, decir en el momento con quién
@@ -971,6 +972,28 @@ function update() {
     });
   });
   document.getElementById('yourTotal').textContent = Money.formatEUR(tot, lang);
+
+  // La misma cifra, tambien dentro del boton de confirmar.
+  //
+  // Antes vivia en una etiqueta naranja pegada al precio de cada linea. Ahi
+  // habia UNA cifra por articulo y ninguna del total, que es la que de verdad
+  // se quiere saber. Ahora va donde esta la mano: a la izquierda de
+  // "Confirmar", subiendo conforme marcas. Se usa `tot`, el mismo numero que
+  // ya reparte las unidades compartidas entre quienes las cogen — no un
+  // calculo paralelo que pudiera decir otra cosa.
+  const cbTot = document.getElementById('confirmTotal');
+  if (cbTot) {
+    const nuevo = tot > 0 ? Money.formatEUR(tot, lang) : '';
+    if (cbTot.textContent !== nuevo) {
+      cbTot.textContent = nuevo;
+      cbTot.classList.toggle('on', !!nuevo);
+      // Reinicia la animacion: sin esto, marcar dos veces seguidas solo la
+      // dispara la primera.
+      cbTot.classList.remove('sube');
+      void cbTot.offsetWidth;
+      if (nuevo) cbTot.classList.add('sube');
+    }
+  }
 
   const name = document.getElementById('nameInput').value.trim();
   const anyPicked = Object.values(myUnits).some(s => s && s.size > 0);
