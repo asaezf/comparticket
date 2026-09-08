@@ -176,14 +176,82 @@ console.log('\n3. El botón tiembla mientras se mantiene');
     /prefers-reduced-motion[\s\S]{0,300}\.btn-confirmar\.reteniendo \{ animation: cb-aprieta/.test(css));
 }
 
-console.log('\n4. La curva: rápida al empezar, frenando al final');
+console.log('\n4. Lo que se ve, lo que se nota y lo que dispara van juntos');
 {
   const fill = bloque('.btn-confirmar.reteniendo .cb-fill') || '';
-  const cb = fill.match(/cb-llenar \d+ms cubic-bezier\(([\d.]+),\s*([\d.]+)/);
-  check('el círculo arranca disparado', !!cb && +cb[2] > 0.55,
-    cb ? 'el segundo punto de control es ' + cb[2] + ', y por debajo de 0,55 arranca lento'
-       : 'no se encuentra la curva');
-  check('y no es una `ease-in-out` de las de antes', !!cb && +cb[1] < 0.2);
+  const cb = fill.match(/cb-llenar (\d+)ms cubic-bezier\(([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\)/);
+  check('se encuentra la curva del círculo', !!cb);
+
+  // EL FALLO QUE MOTIVO ESTO. La curva anterior frenaba tanto al final que el
+  // circulo estaba lleno a los 625 ms de 750: quedaban 125 ms en los que la
+  // pantalla no cambiaba y el boton aun no habia confirmado. Quien soltaba al
+  // ver el circulo completo se quedaba sin confirmar, y el gesto parecia roto.
+  //
+  // Asi que la prueba no mira "que la curva sea bonita": calcula CUANDO se
+  // llena de verdad y exige que sea al final.
+  if (cb) {
+    const [dur, x1, y1, x2, y2] = cb.slice(1).map(Number);
+    const bezier = (x) => {
+      const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+      const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+      let t = x;
+      for (let i = 0; i < 50; i++) {
+        const e = ((ax * t + bx) * t + cx) * t - x;
+        const d = (3 * ax * t + 2 * bx) * t + cx;
+        if (Math.abs(e) < 1e-9) break;
+        t -= e / (d || 1e-9);
+      }
+      return ((ay * t + by) * t + cy) * t;
+    };
+    // El circulo no arranca en 0 sino en el `from` de los keyframes: eso es lo
+    // que hace que se vea algo en el instante en que el dedo toca, y por eso
+    // no hace falta ningun cartel que diga "manten pulsado".
+    const llenar = css.slice(css.indexOf('@keyframes cb-llenar'),
+                             css.indexOf('}', css.indexOf('@keyframes cb-llenar') + 60));
+    const desde = parseFloat((llenar.match(/from \{ transform: scale\(([\d.]+)\)/) || [])[1]);
+    check('el círculo se ve desde el primer instante', desde > 0.02 && desde < 0.2,
+      'arranca en ' + desde + '; desde 0 exacto hay un parpadeo en que no responde');
+
+    let lleno = dur;
+    for (let ms = 0; ms <= dur; ms += 5) {
+      if (desde + (1 - desde) * bezier(ms / dur) >= 0.995) { lleno = ms; break; }
+    }
+    const sobra = dur - lleno;
+    check('el círculo NO se llena antes de tiempo', sobra <= 60,
+      'se llena en ' + lleno + ' de ' + dur + ' ms: ' + sobra + ' ms mirando algo ' +
+      'ya terminado que todavía no confirma. Así es como se soltaba sin confirmar');
+
+    // Y el temporizador que dispara tiene que durar lo mismo que la animación
+    // que se está mirando. Si no coinciden, uno de los dos miente.
+    const espera = +(claimJs.match(/const RETENCION = (\d+);/) || [])[1];
+    check('la animación dura exactamente lo que el gesto', dur === espera,
+      'la animación dura ' + dur + ' ms y el gesto ' + espera);
+  }
+
+  // Ningún pulso puede sentirse como el "ya está" antes del final: el zumbido
+  // de 214 ms de la versión anterior empezaba a los 536 de 750, y ahí soltaba
+  // la gente.
+  const pat2 = claimJs.match(/const VIBRA_MANTENIENDO = \[([^\]]+)\]/);
+  if (pat2) {
+    const nums = pat2[1].split(',').map(x => +x.trim());
+    const total = nums.reduce((a2, b2) => a2 + b2, 0);
+    const ultimo = nums[nums.length - 1];
+    const empiezaElUltimo = total - ultimo;
+    check('ningún pulso destaca antes del final',
+      empiezaElUltimo > total * 0.8,
+      'el último pulso arranca en ' + empiezaElUltimo + ' de ' + total +
+      ' ms y se siente como el final del gesto mucho antes de que lo sea');
+  }
+
+  // LA RED DE SEGURIDAD. Por bien que se ajusten los tres, siempre habrá unos
+  // milisegundos entre "parece terminado" y el disparo. Quien ha aguantado
+  // casi todo el gesto ha decidido confirmar; soltar ahí no puede castigarse.
+  const margen = claimJs.match(/const MARGEN_FINAL = ([\d.]+);/);
+  check('soltar en el último tramo cuenta como confirmar',
+    !!margen && +margen[1] >= 0.8 && +margen[1] < 1,
+    'sin esto, el fallo vuelve por cualquier desajuste de milisegundos');
+  check('y ese tramo sigue siendo largo de más para un roce',
+    !!margen && +margen[1] * 750 > 500);
 
   // EL PRECIO DE ESA CURVA, PAGADO. Con el círculo al 95 % cuando va la mitad
   // del gesto, el último tramo no tendría nada que enseñar y alguien soltaría

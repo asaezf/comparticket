@@ -1126,7 +1126,16 @@ window.addEventListener('pagehide', () => {
  * sin dar tiempo a pensar que se ha colgado.
  */
 const RETENCION = 750;
+/* Y esto es lo que hace que el fallo no pueda volver por otra puerta.
+   Por muy bien que se ajusten el circulo, la vibracion y el temporizador,
+   siempre habra unos milisegundos entre "esto ya parece terminado" y el
+   disparo. Quien ha aguantado el 88 % del gesto —660 de 750 ms— ha decidido
+   confirmar, sin ninguna duda: soltar ahi tiene que valer, no castigarse.
+   Un roce no llega ni de lejos a 660 ms, asi que la proteccion que motivo todo
+   esto sigue intacta. */
+const MARGEN_FINAL = 0.88;
 let retencion = null;
+let empezoEn = 0;
 
 function medirCirculo(btn, e) {
   const r = btn.getBoundingClientRect();
@@ -1153,18 +1162,23 @@ function tocar(patron) {
 /* VIBRA DURANTE TODO EL RATO QUE SE MANTIENE, no solo al empezar.
    La API no deja regular la fuerza —solo encender y apagar— asi que la fuerza
    se finge con el ritmo: pulsos cada vez mas largos separados por huecos cada
-   vez mas cortos. Los huecos empiezan en 30 ms y acaban en 8, o sea que de la
-   mitad en adelante ya no se notan como huecos: se siente seguido, subiendo,
-   hasta un zumbido final de 214 ms que termina EXACTAMENTE cuando se confirma.
-   Suma 750 ms clavados, los mismos que la retencion, para que se apague sola
-   aunque algo se tuerza y nadie llame a cancelarla. */
-const VIBRA_MANTENIENDO = [18, 30, 26, 26, 36, 22, 50, 18, 68, 14, 90, 10, 120, 8, 214];
+   vez mas cortos. Los huecos van de 50 ms a 8, o sea que de la mitad en
+   adelante ya no se notan como huecos: se siente seguido y subiendo.
+
+   NINGUN PULSO PUEDE DESTACAR ANTES DEL FINAL. La version anterior acababa en
+   un zumbido de 214 ms, y ese zumbido empezaba a los 536 ms de 750: se sentia
+   como el "ya esta", la gente soltaba ahi, y no confirmaba. Ahora la rampa
+   sube seguida y el unico golpe que dice "hecho" es el de confirmar, que suena
+   despues. Sigue sumando 750 ms clavados —los mismos que la retencion— para
+   que se apague sola aunque algo se tuerza. */
+const VIBRA_MANTENIENDO = [14, 50, 18, 46, 24, 40, 30, 31, 38, 22, 48, 18, 60, 14, 74, 11, 92, 8, 112];
 
 function empezarRetencion(btn, e) {
   if (btn.disabled || retencion) return;
   medirCirculo(btn, e);
   btn.classList.remove('soltado');
   btn.classList.add('reteniendo');
+  empezoEn = Date.now();
   tocar(VIBRA_MANTENIENDO);
   retencion = setTimeout(() => {
     retencion = null;
@@ -1179,6 +1193,18 @@ function soltarRetencion(btn) {
   if (!retencion) { btn.classList.remove('reteniendo'); return; }
   clearTimeout(retencion);
   retencion = null;
+
+  // Soltar en el ultimo tramo cuenta como confirmar: a esas alturas el circulo
+  // ya se ve lleno y la vibracion lleva rato subiendo, y hacerle repetir el
+  // gesto entero a alguien que ha aguantado hasta ahi es tratar su decision
+  // como un accidente.
+  if (Date.now() - empezoEn >= RETENCION * MARGEN_FINAL) {
+    btn.classList.remove('reteniendo');
+    tocar([16, 40, 26]);
+    confirmar();
+    return;
+  }
+
   // Cortar la vibracion en el acto: si se sigue notando despues de soltar,
   // parece que ha confirmado igualmente.
   tocar(0);

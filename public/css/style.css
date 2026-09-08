@@ -2471,7 +2471,7 @@ input[type="file"] { display: none; }
 .btn-confirmar.reteniendo .cb-fill {
   opacity: 1;
   animation:
-    cb-llenar 750ms cubic-bezier(0.17, 0.62, 0.12, 1) forwards,
+    cb-llenar 750ms cubic-bezier(0.25, 0.5, 0.6, 0.98) forwards,
     cb-madura 750ms linear forwards;
 }
 /* Y aqui esta el precio de la curva rapida, pagado: con el circulo al 95 %
@@ -2484,7 +2484,17 @@ input[type="file"] { display: none; }
   from { filter: brightness(1.16) saturate(0.92); }
   to   { filter: brightness(0.86) saturate(1.12); }
 }
-/* No arranca en cero, arranca en 0,07. Es un detalle pequeno y es el que hace
+/* LA CURVA TIENE QUE LLEGAR AL FINAL, no antes.
+   La anterior —(0.17, 0.62, 0.12, 1)— frenaba tanto al final que el circulo
+   ya estaba lleno a los 625 ms de 750: quedaban 125 ms en los que la pantalla
+   no cambiaba nada y el boton todavia no habia confirmado. Quien soltaba al
+   ver el circulo completo se quedaba sin confirmar, que es un fallo serio
+   porque el gesto parecia roto.
+   Esta llega al 99,5 % a los 715 ms: 35 ms de margen, imperceptibles. Sigue
+   frenando de lo lindo —el ultimo 7 % se lo toma en 190 ms, un cuarto del
+   gesto entero— pero termina cuando termina.
+
+   Y no arranca en cero, arranca en 0,07. Es un detalle pequeno y es el que hace
    que no haga falta ningun cartel: en el instante en que el dedo toca ya hay
    un circulo debajo creciendo, asi que "hay que mantener" se entiende sin que
    nadie lo escriba. Desde cero exacto habria una fraccion de segundo en que la
