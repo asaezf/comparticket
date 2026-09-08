@@ -1121,9 +1121,11 @@ window.addEventListener('pagehide', () => {
  * donde se ha tocado, y si se suelta antes de tiempo se va. Un cartel que
  * ponga "manten pulsado" seria mas texto que leer para algo que se ve solo.
  *
- * 520 ms: no lo dispara un roce, y no da tiempo a pensar que se ha colgado.
+ * 750 ms. Empezo en 520 y se alargo a proposito: con el circulo saliendo mas
+ * despacio y frenando mucho al final, el gesto entero se disfruta mas, y sigue
+ * sin dar tiempo a pensar que se ha colgado.
  */
-const RETENCION = 520;
+const RETENCION = 750;
 let retencion = null;
 
 function medirCirculo(btn, e) {
@@ -1151,11 +1153,12 @@ function tocar(patron) {
 /* VIBRA DURANTE TODO EL RATO QUE SE MANTIENE, no solo al empezar.
    La API no deja regular la fuerza —solo encender y apagar— asi que la fuerza
    se finge con el ritmo: pulsos cada vez mas largos separados por huecos cada
-   vez mas cortos. Empieza como un roce y acaba en un zumbido seguido de
-   190 ms que termina EXACTAMENTE cuando se confirma.
-   Suma 520 ms clavados, los mismos que la retencion, para que se apague sola
+   vez mas cortos. Los huecos empiezan en 30 ms y acaban en 8, o sea que de la
+   mitad en adelante ya no se notan como huecos: se siente seguido, subiendo,
+   hasta un zumbido final de 214 ms que termina EXACTAMENTE cuando se confirma.
+   Suma 750 ms clavados, los mismos que la retencion, para que se apague sola
    aunque algo se tuerza y nadie llame a cancelarla. */
-const VIBRA_MANTENIENDO = [8, 52, 12, 44, 16, 38, 22, 30, 30, 22, 42, 14, 190];
+const VIBRA_MANTENIENDO = [18, 30, 26, 26, 36, 22, 50, 18, 68, 14, 90, 10, 120, 8, 214];
 
 function empezarRetencion(btn, e) {
   if (btn.disabled || retencion) return;

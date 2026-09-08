@@ -2452,7 +2452,10 @@ input[type="file"] { display: none; }
   margin-left: calc(var(--cb-x, 50%) - var(--cb-d, 0px) / 2);
   margin-top: calc(var(--cb-y, 50%) - var(--cb-d, 0px) / 2);
   border-radius: 50%;
-  background: radial-gradient(circle, #FBBF24 0%, #F59E0B 58%, #D97706 100%);
+  /* Del naranja de la marca (#EA580C, el mismo de los acentos) al ambar de las
+     casillas compartidas (#F59E0B). Los dos colores ya significan algo en la
+     app, y el circulo va literalmente de uno al otro. */
+  background: radial-gradient(circle, #EA580C 0%, #F2760A 42%, #F59E0B 100%);
   transform: scale(0);
   pointer-events: none;
   opacity: 0;
@@ -2468,8 +2471,8 @@ input[type="file"] { display: none; }
 .btn-confirmar.reteniendo .cb-fill {
   opacity: 1;
   animation:
-    cb-llenar 520ms cubic-bezier(0.08, 0.8, 0.2, 1) forwards,
-    cb-madura 520ms linear forwards;
+    cb-llenar 750ms cubic-bezier(0.17, 0.62, 0.12, 1) forwards,
+    cb-madura 750ms linear forwards;
 }
 /* Y aqui esta el precio de la curva rapida, pagado: con el circulo al 95 %
    cuando va la mitad del gesto, el ultimo tramo no tendria NADA que ensenar, y
@@ -2481,8 +2484,13 @@ input[type="file"] { display: none; }
   from { filter: brightness(1.16) saturate(0.92); }
   to   { filter: brightness(0.86) saturate(1.12); }
 }
+/* No arranca en cero, arranca en 0,07. Es un detalle pequeno y es el que hace
+   que no haga falta ningun cartel: en el instante en que el dedo toca ya hay
+   un circulo debajo creciendo, asi que "hay que mantener" se entiende sin que
+   nadie lo escriba. Desde cero exacto habria una fraccion de segundo en que la
+   pantalla no responde a nada, y eso se lee como que el boton no va. */
 @keyframes cb-llenar {
-  from { transform: scale(0); }
+  from { transform: scale(0.07); }
   to   { transform: scale(1); }
 }
 /* Al soltar antes de tiempo el circulo se va de golpe, no se queda a medias:
@@ -2511,19 +2519,23 @@ input[type="file"] { display: none; }
    usaba `.btn:active`. */
 .btn-confirmar.reteniendo {
   animation:
-    cb-tiembla 78ms linear infinite,
-    cb-aprieta 520ms cubic-bezier(0.08, 0.8, 0.2, 1) forwards;
+    cb-tiembla 70ms linear infinite,
+    cb-aprieta 750ms cubic-bezier(0.17, 0.62, 0.12, 1) forwards;
 }
+/* El temblor, mas gordo: de 1,1 px a 2,4 px de recorrido y un poco mas rapido.
+   El limite es el texto: pasados unos 3 px, "Confirmar seleccion" deja de
+   leerse y el boton parece roto en vez de tenso. */
 @keyframes cb-tiembla {
   0%   { translate: 0 0; }
-  25%  { translate: -1.1px 0.5px; }
-  50%  { translate: 1px -0.6px; }
-  75%  { translate: -0.7px -0.5px; }
+  20%  { translate: -2.4px 1.1px; }
+  40%  { translate: 2.2px -1.3px; }
+  60%  { translate: -1.8px -1px; }
+  80%  { translate: 2.4px 0.9px; }
   100% { translate: 0 0; }
 }
 @keyframes cb-aprieta {
   from { scale: 1; }
-  to   { scale: 0.958; }
+  to   { scale: 0.938; }
 }
 /* Al soltar, el temblor tiene que parar en seco y el boton volver a su sitio;
    si no, se queda encogido y torcido hasta el siguiente intento. */
