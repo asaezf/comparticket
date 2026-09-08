@@ -1142,17 +1142,27 @@ function medirCirculo(btn, e) {
   btn.style.setProperty('--cb-d', (lejos * 2) + 'px');
 }
 
-/** Un toque corto. En los moviles que lo soportan; iOS no vibra nunca. */
+/** Vibrar. Solo en los moviles que lo soportan: iOS no vibra nunca porque
+ *  Safari no implementa la API, y no hay manera de hacerlo desde una web. */
 function tocar(patron) {
   try { if (navigator.vibrate) navigator.vibrate(patron); } catch (_) {}
 }
+
+/* VIBRA DURANTE TODO EL RATO QUE SE MANTIENE, no solo al empezar.
+   La API no deja regular la fuerza —solo encender y apagar— asi que la fuerza
+   se finge con el ritmo: pulsos cada vez mas largos separados por huecos cada
+   vez mas cortos. Empieza como un roce y acaba en un zumbido seguido de
+   190 ms que termina EXACTAMENTE cuando se confirma.
+   Suma 520 ms clavados, los mismos que la retencion, para que se apague sola
+   aunque algo se tuerza y nadie llame a cancelarla. */
+const VIBRA_MANTENIENDO = [8, 52, 12, 44, 16, 38, 22, 30, 30, 22, 42, 14, 190];
 
 function empezarRetencion(btn, e) {
   if (btn.disabled || retencion) return;
   medirCirculo(btn, e);
   btn.classList.remove('soltado');
   btn.classList.add('reteniendo');
-  tocar(10);
+  tocar(VIBRA_MANTENIENDO);
   retencion = setTimeout(() => {
     retencion = null;
     // Dos golpes secos al completarse: es el "ya esta" que en un boton normal
@@ -1166,6 +1176,9 @@ function soltarRetencion(btn) {
   if (!retencion) { btn.classList.remove('reteniendo'); return; }
   clearTimeout(retencion);
   retencion = null;
+  // Cortar la vibracion en el acto: si se sigue notando despues de soltar,
+  // parece que ha confirmado igualmente.
+  tocar(0);
   btn.classList.remove('reteniendo');
   btn.classList.add('soltado');
   // La clase se quita al acabar el desvanecido para que el siguiente intento

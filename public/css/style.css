@@ -2037,25 +2037,10 @@ body.ya-copio .pantalla-grupo .tr-amount { animation: none; }
   line-height: 1.4;
 }
 
-.share-link {
-  display: block;
-  width: 100%;
-  font-family: var(--mono);
-  font-size: 0.72rem;
-  color: var(--gray-700);
-  background: var(--gray-100);
-  border: 1.5px dashed var(--gray-300);
-  padding: 12px 14px;
-  border-radius: var(--radius-xs);
-  word-break: break-all;
-  user-select: all;
-  cursor: pointer;
-  transition: border-color 0.15s;
-  line-height: 1.4;
-  box-sizing: border-box;
-  text-align: center;
-}
-.share-link:hover { border-color: var(--blue); }
+/* AQUI ESTABA .share-link, el recuadro con el enlace escrito. Retirado: con
+   "copiar enlace" y "compartir" justo debajo, nadie lo iba a teclear a mano, y
+   ocupaba tres lineas de texto ilegible encima de los botones que si se usan.
+   El enlace vive ahora en una variable de ticket.js. */
 
 .share-btn-row {
   display: flex;
@@ -2472,9 +2457,29 @@ input[type="file"] { display: none; }
   pointer-events: none;
   opacity: 0;
 }
+/* LA CURVA. Era una `ease-in-out`: arrancaba despacio, y medio segundo que
+   empieza despacio se siente el doble de largo. Ahora sale disparado y frena
+   al final —el circulo esta casi lleno a mitad de camino—, que es como se
+   mueven las cosas que tienen inercia y por eso se disfruta.
+   Que el circulo llegue antes que el gesto no despista, porque el boton NO se
+   queda quieto en ese ultimo tramo: es justo cuando mas tiembla y mas se
+   aprieta. Lo que dice "ya casi" deja de ser el circulo y pasa a ser la
+   tension del boton. */
 .btn-confirmar.reteniendo .cb-fill {
   opacity: 1;
-  animation: cb-llenar 520ms cubic-bezier(0.35, 0, 0.5, 1) forwards;
+  animation:
+    cb-llenar 520ms cubic-bezier(0.08, 0.8, 0.2, 1) forwards,
+    cb-madura 520ms linear forwards;
+}
+/* Y aqui esta el precio de la curva rapida, pagado: con el circulo al 95 %
+   cuando va la mitad del gesto, el ultimo tramo no tendria NADA que ensenar, y
+   alguien soltaria pensando que ya esta. Asi que lo que avanza al final es el
+   color: el ambar entra claro y va madurando hasta el tostado, a ritmo
+   constante y durante los 520 ms enteros. El circulo llega pronto; el color
+   llega justo a tiempo. */
+@keyframes cb-madura {
+  from { filter: brightness(1.16) saturate(0.92); }
+  to   { filter: brightness(0.86) saturate(1.12); }
 }
 @keyframes cb-llenar {
   from { transform: scale(0); }
@@ -2494,11 +2499,39 @@ input[type="file"] { display: none; }
 .btn-confirmar .cb-txt,
 .btn-confirmar .cb-total { position: relative; z-index: 1; }
 .btn-confirmar.reteniendo .cb-txt { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.42); }
-/* Se hunde un poco mas de lo normal mientras se mantiene: el dedo esta quieto
-   encima y sin esto no hay ninguna respuesta al peso. */
-.btn-confirmar.reteniendo { transform: scale(0.975); }
+/* EL BOTON TIEMBLA MIENTRAS SE MANTIENE.
+   Son dos cosas a la vez, y por eso van en propiedades distintas: `translate`
+   lleva el temblor —rapido y constante, 78 ms por ciclo, que es la frecuencia
+   a la que algo parece que vibra en vez de que se mueve— y `scale` lleva el
+   apriete, que va cediendo durante los 520 ms enteros. El temblor dice "esto
+   esta pasando ahora"; el apriete dice "y le queda poco".
+   Que vayan en `translate` y `scale` y no en `transform` no es un capricho:
+   una sola propiedad solo admite una animacion, y la segunda pisaria a la
+   primera. Asi corren las dos, y ademas dejan libre el `transform` que ya
+   usaba `.btn:active`. */
+.btn-confirmar.reteniendo {
+  animation:
+    cb-tiembla 78ms linear infinite,
+    cb-aprieta 520ms cubic-bezier(0.08, 0.8, 0.2, 1) forwards;
+}
+@keyframes cb-tiembla {
+  0%   { translate: 0 0; }
+  25%  { translate: -1.1px 0.5px; }
+  50%  { translate: 1px -0.6px; }
+  75%  { translate: -0.7px -0.5px; }
+  100% { translate: 0 0; }
+}
+@keyframes cb-aprieta {
+  from { scale: 1; }
+  to   { scale: 0.958; }
+}
+/* Al soltar, el temblor tiene que parar en seco y el boton volver a su sitio;
+   si no, se queda encogido y torcido hasta el siguiente intento. */
+.btn-confirmar.soltado { animation: none; translate: 0 0; scale: 1; }
+/* Quien pide menos movimiento no quiere un boton temblando: se queda el
+   apriete, que es informacion, y se va el temblor, que es adorno. */
 @media (prefers-reduced-motion: reduce) {
-  .btn-confirmar.reteniendo .cb-fill { animation-duration: 520ms; }
+  .btn-confirmar.reteniendo { animation: cb-aprieta 520ms linear forwards; }
 }
 .cb-total {
   font-family: var(--mono);

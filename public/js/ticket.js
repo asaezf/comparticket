@@ -345,11 +345,15 @@ document.getElementById('shareBtn').addEventListener('click', async () => {
   }
 });
 
+// El enlace ya no se escribe en pantalla, asi que vive aqui. Los dos botones
+// que lo usan lo leian del recuadro, y al quitarlo se habrian quedado sin el.
+let enlaceCompartir = '';
+
 function showShare() {
   document.getElementById('footer').classList.add('hidden');
   document.getElementById('shareSection').classList.remove('hidden');
   const url = `${location.origin}/t/${ticketId}`;
-  document.getElementById('shareUrl').textContent = url;
+  enlaceCompartir = url;
   document.getElementById('claimMineLink').href = `/t/${ticketId}`;
   document.getElementById('claimMineText').textContent = t.claimMine;
 
@@ -367,7 +371,7 @@ function showShare() {
 
 document.getElementById('copyBtn').addEventListener('click', () => {
   const btn = document.getElementById('copyBtn');
-  navigator.clipboard.writeText(document.getElementById('shareUrl').textContent)
+  navigator.clipboard.writeText(enlaceCompartir)
     .then(() => {
       const txt = document.getElementById('copyText');
       const original = txt.textContent;
