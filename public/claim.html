@@ -32,7 +32,16 @@
        hoja de estilos antes de descubrir siquiera que hacían falta. -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;0,9..40,900;1,9..40,400&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:wght@500;700;800&display=swap">
+  <!-- Sin `media="print"` esta hoja BLOQUEA el pintado: hasta que Google
+       responde, la pantalla esta en blanco. Con el truco, el navegador la
+       trata como si fuera para imprimir -o sea, no urgente-, pinta la pagina
+       al instante con las fuentes de reserva, y al terminar de descargarla la
+       pasa a `all`. Como las reservas estan calibradas para ocupar lo mismo
+       (ver los @font-face del CSS), el cambio no mueve nada de sitio.
+       Se han quitado los pesos 300 y 900 de DM Sans y el 500 de Bricolage:
+       no aparecen en ninguna regla del CSS. -->
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:wght@700;800&display=swap" media="print" onload="this.media='all'">
+  <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=Space+Mono:wght@400;700&family=Bricolage+Grotesque:wght@700;800&display=swap"></noscript>
   <link rel="stylesheet" href="/css/style.css">
 </head>
 <body class="pantalla-ancha">
