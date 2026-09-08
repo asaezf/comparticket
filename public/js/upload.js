@@ -5,6 +5,44 @@ const grupoDestino = new URLSearchParams(location.search).get('grupo') || '';
 document.getElementById('retakeText').textContent = t.retakeBtn;
 document.getElementById('scanText').textContent = t.scanBtn;
 document.getElementById('procText').textContent = t.processing;
+
+/**
+ * Los consejos de la pantalla de carga.
+ *
+ * Leer un ticket tarda unos segundos y esos segundos estaban en blanco. Es el
+ * unico rato en que la persona mira la pantalla sin nada que hacer, o sea el
+ * mejor sitio para contarle lo que la app sabe hacer y que no descubriria
+ * sola: que se pueden encadenar varias fotos, que nadie tiene que instalarse
+ * nada, que la IA a veces se equivoca y se puede corregir.
+ *
+ * Empieza por uno al azar -si empezara siempre por el primero, quien escanea
+ * dos tickets seguidos leeria dos veces el mismo- y va rotando con un fundido.
+ */
+const consejos = (t.tips && t.tips.length) ? t.tips : [];
+let consejoTimer = null;
+
+function arrancarConsejos() {
+  const caja = document.getElementById('loaderTip');
+  if (!caja || !consejos.length) return;
+  let i = Math.floor(Math.random() * consejos.length);
+  const pintar = () => {
+    caja.textContent = consejos[i];
+    caja.classList.add('visible');
+  };
+  pintar();
+  clearInterval(consejoTimer);
+  consejoTimer = setInterval(() => {
+    // Se apaga, se cambia el texto con la caja ya invisible, y se enciende.
+    // Cambiarlo a la vista se leeria como un parpadeo, no como un relevo.
+    caja.classList.remove('visible');
+    setTimeout(() => { i = (i + 1) % consejos.length; pintar(); }, 500);
+  }, 4600);
+}
+
+function pararConsejos() {
+  clearInterval(consejoTimer);
+  consejoTimer = null;
+}
 document.getElementById('cameraBtnText').textContent = t.cameraLabel || 'Cámara';
 document.getElementById('galleryBtnText').textContent = t.galleryLabel || 'Galería';
 const addHint = document.getElementById('addHintText');
@@ -77,11 +115,16 @@ function renderThumbs() {
   files.forEach((file, idx) => {
     const thumb = document.createElement('div');
     thumb.className = 'thumb';
+    // La foto va en su propio hueco y el boton de girar DEBAJO, no encima. La
+    // barra de girar es casi blanca, y flotando sobre un ticket blanco
+    // desaparecia por el centro: parecia que el papel partia el boton en dos.
+    const foto = document.createElement('div');
+    foto.className = 'thumb-foto';
     const img = document.createElement('img');
     const reader = new FileReader();
     reader.onload = e => { img.src = e.target.result; };
     reader.readAsDataURL(file);
-    thumb.appendChild(img);
+    foto.appendChild(img);
 
     const rm = document.createElement('button');
     rm.className = 'thumb-rm';
@@ -92,7 +135,8 @@ function renderThumbs() {
       e.stopPropagation();
       removeFile(idx);
     });
-    thumb.appendChild(rm);
+    foto.appendChild(rm);
+    thumb.appendChild(foto);
 
     // Girar. Un ticket tumbado la IA no lo lee: sobre una cuenta de 84 \u20ac el
     // desv\u00edo medido fue de 20 \u20ac. Se gira a mano porque hay facturas
@@ -178,6 +222,10 @@ scanBtn.addEventListener('click', async () => {
   if (!files.length) return;
   previewOverlay.classList.add('hidden');
   proc.classList.remove('hidden');
+  // La firma de la portada estorba aqui: la pantalla de carga lleva la suya
+  // abajo del todo, y dos seguidas quedan raras.
+  document.body.classList.add('escaneando');
+  arrancarConsejos();
 
   try {
     // Reducir las fotos antes de subirlas. Sin esto, dos fotos de móvil pasan
@@ -242,6 +290,8 @@ scanBtn.addEventListener('click', async () => {
   } catch (err) {
     console.error('Upload error:', err);
     proc.classList.add('hidden');
+    document.body.classList.remove('escaneando');
+    pararConsejos();
     previewOverlay.classList.remove('hidden');
     // Show error toast
     const toast = document.getElementById('toast');

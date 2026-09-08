@@ -9,6 +9,20 @@ const translations = {
     scanBtn: 'Escanear',
     retakeBtn: 'Repetir',
     processing: 'Imprimiendo ticket',
+    // Consejos de la pantalla de carga. Leer un ticket tarda unos segundos y
+    // esos segundos estaban en blanco: es el unico rato en que la persona mira
+    // la pantalla sin nada que hacer, o sea el mejor sitio para contarle lo que
+    // la app hace y que no descubriria sola. Rotan, como en los videojuegos.
+    tips: [
+      'Si el ticket no cabe en una foto, haz varias: se leen como uno solo.',
+      'Nadie más tiene que instalarse nada. Les pasas el enlace y ya está.',
+      'Un ticket de lado se lee fatal. Gíralo antes de escanear.',
+      'Una casilla por cada unidad que sea tuya. Si te llevas tres, tocas tres.',
+      'Si tocas una casilla que ya tiene alguien, el precio se parte entre los dos.',
+      'En un grupo, todos los tickets del viaje se suman solos.',
+      'Al final dice quién le paga a quién, y con los menos pagos posibles.',
+      'A veces la IA lee mal un importe. Puedes corregirlo antes de repartir.',
+    ],
     editTitle: 'Revisa los ítems',
     addItem: '+ Añadir línea',
     total: 'Total',
@@ -197,6 +211,20 @@ const translations = {
     scanBtn: 'Scan',
     retakeBtn: 'Retake',
     processing: 'Printing ticket',
+    // Consejos de la pantalla de carga. Leer un ticket tarda unos segundos y
+    // esos segundos estaban en blanco: es el unico rato en que la persona mira
+    // la pantalla sin nada que hacer, o sea el mejor sitio para contarle lo que
+    // la app hace y que no descubriria sola. Rotan, como en los videojuegos.
+    tips: [
+      'If the receipt doesn’t fit in one photo, take several: they read as one.',
+      'Nobody else has to install anything. You just send them the link.',
+      'A sideways receipt reads terribly. Turn it upright before scanning.',
+      'One box per unit that’s yours. Take three, tap three.',
+      'Tap a box someone already took and the price splits between you.',
+      'In a group, every receipt from the trip adds up on its own.',
+      'At the end it says who pays whom, in the fewest payments possible.',
+      'Sometimes the AI misreads an amount. You can fix it before splitting.',
+    ],
     editTitle: 'Review items',
     addItem: '+ Add line',
     total: 'Total',
@@ -385,6 +413,20 @@ const translations = {
     scanBtn: 'Skann',
     retakeBtn: 'Ta på nytt',
     processing: 'Skriver ut kvittering',
+    // Consejos de la pantalla de carga. Leer un ticket tarda unos segundos y
+    // esos segundos estaban en blanco: es el unico rato en que la persona mira
+    // la pantalla sin nada que hacer, o sea el mejor sitio para contarle lo que
+    // la app hace y que no descubriria sola. Rotan, como en los videojuegos.
+    tips: [
+      'Får du ikke hele kvitteringen på ett bilde? Ta flere — de leses som én.',
+      'Ingen andre trenger å installere noe. Du sender bare lenken.',
+      'En kvittering på tvers leses dårlig. Snu den før du skanner.',
+      'Én rute for hver enhet som er din. Tar du tre, trykker du tre.',
+      'Trykker du på en rute noen alt har tatt, deles prisen mellom dere.',
+      'I en gruppe legges alle kvitteringene fra turen sammen av seg selv.',
+      'Til slutt sier den hvem som betaler hvem, med færrest mulig betalinger.',
+      'Noen ganger leser KI-en et beløp feil. Du kan rette det før dere deler.',
+    ],
     editTitle: 'Se over varene',
     addItem: '+ Legg til linje',
     total: 'Totalt',
@@ -571,6 +613,20 @@ const translations = {
     scanBtn: 'Skanuj',
     retakeBtn: 'Powtórz',
     processing: 'Drukowanie paragonu',
+    // Consejos de la pantalla de carga. Leer un ticket tarda unos segundos y
+    // esos segundos estaban en blanco: es el unico rato en que la persona mira
+    // la pantalla sin nada que hacer, o sea el mejor sitio para contarle lo que
+    // la app hace y que no descubriria sola. Rotan, como en los videojuegos.
+    tips: [
+      'Jeśli paragon nie mieści się na jednym zdjęciu, zrób kilka: czytane są jak jeden.',
+      'Nikt inny nie musi nic instalować. Wystarczy, że wyślesz link.',
+      'Paragon na boku czyta się fatalnie. Obróć go przed skanowaniem.',
+      'Jedno pole na każdą sztukę, która jest twoja. Bierzesz trzy, klikasz trzy.',
+      'Kliknij pole, które ktoś już wziął, a cena podzieli się między was.',
+      'W grupie wszystkie paragony z wyjazdu sumują się same.',
+      'Na końcu powie, kto komu płaci, w jak najmniejszej liczbie przelewów.',
+      'Czasem AI źle odczyta kwotę. Możesz ją poprawić przed podziałem.',
+    ],
     editTitle: 'Sprawdź pozycje',
     addItem: '+ Dodaj pozycję',
     total: 'Razem',
@@ -757,6 +813,20 @@ const translations = {
     scanBtn: 'Scanner',
     retakeBtn: 'Refaire',
     processing: 'Impression du ticket',
+    // Consejos de la pantalla de carga. Leer un ticket tarda unos segundos y
+    // esos segundos estaban en blanco: es el unico rato en que la persona mira
+    // la pantalla sin nada que hacer, o sea el mejor sitio para contarle lo que
+    // la app hace y que no descubriria sola. Rotan, como en los videojuegos.
+    tips: [
+      'Si le ticket ne tient pas sur une photo, fais-en plusieurs : elles se lisent comme une.',
+      'Personne d’autre n’a rien à installer. Tu envoies le lien, c’est tout.',
+      'Un ticket de travers se lit très mal. Redresse-le avant de scanner.',
+      'Une case par unité qui est à toi. Tu en prends trois, tu touches trois.',
+      'Touche une case déjà prise par quelqu’un : le prix se partage entre vous.',
+      'Dans un groupe, tous les tickets du voyage s’additionnent tout seuls.',
+      'À la fin, il dit qui paie qui, avec le moins de paiements possible.',
+      'Parfois l’IA lit mal un montant. Tu peux le corriger avant de partager.',
+    ],
     editTitle: 'Vérifiez les articles',
     addItem: '+ Ajouter une ligne',
     total: 'Total',
@@ -943,6 +1013,20 @@ const translations = {
     scanBtn: 'Scansiona',
     retakeBtn: 'Rifai',
     processing: 'Stampa dello scontrino',
+    // Consejos de la pantalla de carga. Leer un ticket tarda unos segundos y
+    // esos segundos estaban en blanco: es el unico rato en que la persona mira
+    // la pantalla sin nada que hacer, o sea el mejor sitio para contarle lo que
+    // la app hace y que no descubriria sola. Rotan, como en los videojuegos.
+    tips: [
+      'Se lo scontrino non entra in una foto, fanne più di una: si leggono come una sola.',
+      'Nessun altro deve installare niente. Gli mandi il link e basta.',
+      'Uno scontrino di lato si legge malissimo. Raddrizzalo prima di scansionare.',
+      'Una casella per ogni unità che è tua. Ne prendi tre, tocchi tre.',
+      'Tocca una casella che ha già qualcuno: il prezzo si divide tra voi.',
+      'In un gruppo, tutti gli scontrini del viaggio si sommano da soli.',
+      'Alla fine dice chi paga chi, con meno pagamenti possibile.',
+      'A volte l’IA sbaglia a leggere un importo. Puoi correggerlo prima di dividere.',
+    ],
     editTitle: 'Controlla le voci',
     addItem: '+ Aggiungi riga',
     total: 'Totale',
@@ -1129,6 +1213,20 @@ const translations = {
     scanBtn: 'Scannen',
     retakeBtn: 'Wiederholen',
     processing: 'Beleg wird gedruckt',
+    // Consejos de la pantalla de carga. Leer un ticket tarda unos segundos y
+    // esos segundos estaban en blanco: es el unico rato en que la persona mira
+    // la pantalla sin nada que hacer, o sea el mejor sitio para contarle lo que
+    // la app hace y que no descubriria sola. Rotan, como en los videojuegos.
+    tips: [
+      'Passt der Beleg nicht auf ein Foto? Mach mehrere — sie werden als einer gelesen.',
+      'Sonst muss niemand etwas installieren. Du schickst einfach den Link.',
+      'Ein Beleg quer wird schlecht gelesen. Dreh ihn vor dem Scannen.',
+      'Ein Kästchen pro Einheit, die dir gehört. Nimmst du drei, tippst du drei.',
+      'Tippst du ein Kästchen an, das schon jemand hat, teilt sich der Preis.',
+      'In einer Gruppe addieren sich alle Belege der Reise von allein.',
+      'Am Ende steht, wer wem zahlt — mit so wenig Zahlungen wie möglich.',
+      'Manchmal liest die KI einen Betrag falsch. Du kannst ihn vorher korrigieren.',
+    ],
     editTitle: 'Positionen prüfen',
     addItem: '+ Zeile hinzufügen',
     total: 'Gesamt',

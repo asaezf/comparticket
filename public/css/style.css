@@ -1522,7 +1522,10 @@ body {
 .preview-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.88);
+  /* Opaco, no al 88 %: al 88 % se transparentaban la cabecera y la firma por
+     detras de las fotos y parecia que habia elementos montados unos sobre
+     otros. Esta pantalla existe para mirar UNA foto; detras no va nada. */
+  background: #0A0A0C;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1559,23 +1562,66 @@ body {
   max-height: 56dvh;
   overflow-y: auto;
   padding: 4px;
+  /* Con el alto limitado y las filas automaticas, la rejilla APLASTA las
+     primeras filas para que quepa todo en vez de dejar que se desplace: con
+     tres fotos, las de arriba perdian 47 px de alto y con ellos la proporcion
+     del papel, que es lo unico que esta pantalla tiene que ensenar. Con
+     `max-content` cada fila conserva su tamano y lo que sobra se desplaza. */
+  grid-auto-rows: max-content;
 }
+/* Y dentro de la ficha, ni la foto ni el boton ceden alto: sin esto vuelven a
+   encogerse en cuanto algo de fuera aprieta. */
+.preview-overlay .thumb-foto,
+.preview-overlay .thumb-rot { flex-shrink: 0; }
 /* Una sola foto: a pantalla completa, sin compartir fila con nada. */
 .preview-overlay .thumbs.una { grid-template-columns: minmax(0, 1fr); max-width: 300px; }
-.preview-overlay .thumb,
-.preview-overlay .thumb-add {
+/* La ficha es una columna: la foto arriba y el boton de girar DEBAJO, como
+   una fila de verdad. Antes el boton iba flotando encima de la imagen, y como
+   es casi blanco, sobre un ticket blanco desaparecia por el centro: solo se
+   veian sus dos extremos contra el fondo negro y parecia que el papel partia
+   el boton en dos. Encima tapaba los ultimos 38 px de la foto, que es
+   exactamente donde un ticket lleva el total. Ahora no se solapa nada. */
+.preview-overlay .thumb {
   width: 100%;
   height: auto;
-  aspect-ratio: 3 / 4;
+  aspect-ratio: auto;
   border-radius: 14px;
-}
-.preview-overlay .thumb {
+  display: flex;
+  flex-direction: column;
   background: #0C0C0E;
   border: 1.5px solid rgba(255, 255, 255, 0.14);
   box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
 }
+/* El recuadro de "anadir otra" se estira hasta la altura de su fila cuando
+   comparte con una foto -si no, hereda los 60 px de la regla base y queda como
+   una pastilla suelta al lado de algo que mide el triple-, y cuando le toca
+   fila propia el minimo evita que se quede en una rendija de 36 px. */
+.preview-overlay .thumb-add {
+  width: 100%;
+  height: auto;
+  min-height: 150px;
+  align-self: stretch;
+  border-radius: 14px;
+  font-size: 1.9rem;
+}
+/* El hueco de la foto: es el que lleva la proporcion de papel. */
+.preview-overlay .thumb-foto {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  overflow: hidden;
+}
 /* `contain`, no `cover`: se ve el ticket entero y por tanto su orientacion. */
-.preview-overlay .thumb img { object-fit: contain; }
+.preview-overlay .thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  /* La regla general `.preview-overlay img` limita a 55dvh, pensada para una
+     foto a pantalla completa. Aqui la foto ya vive dentro de su hueco. */
+  max-height: none;
+  border-radius: 0;
+  box-shadow: none;
+}
 
 /* Tumbada: se dice en la propia foto, no solo en un texto debajo. */
 .preview-overlay .thumb.tumbada {
@@ -1587,10 +1633,9 @@ body {
    el pulgar, y es la accion que hay que hacer justo cuando algo va mal. Ahora
    es una barra a lo ancho de la foto, con su palabra. */
 .preview-overlay .thumb-rot {
-  position: absolute;
-  left: 8px; right: 8px; bottom: 8px;
-  width: auto; height: 38px;
-  border-radius: 10px;
+  position: static;
+  width: 100%; height: 42px;
+  border-radius: 0 0 12px 12px;
   background: rgba(255, 255, 255, 0.92);
   color: #18181B;
   gap: 7px;
@@ -1957,14 +2002,44 @@ body {
    PROCESSING / LOADING
    ============================================= */
 
+/* La pantalla de carga ocupa lo que queda de pantalla bajo la cabecera. Antes
+   media 230 px y todo -incluida la firma- quedaba flotando a media altura, en
+   mitad de un movil de 812. Ahora el contenido se centra y la firma se va
+   abajo del todo, que es su sitio. */
 .processing {
   display: flex;
   flex-direction: column;
   align-items: center;
+  justify-content: center;
   gap: 20px;
-  padding: 60px 20px;
+  padding: 60px 20px 46px;
+  min-height: calc(100dvh - 66px);
+  position: relative;
   animation: fadeIn 0.3s ease;
 }
+/* Un consejo de los de la pantalla de carga de los videojuegos: en letra de
+   ticket, flojita, y sin robarle protagonismo al "Imprimiendo ticket". Ancho
+   corto a proposito -no es un parrafo, es una frase que se lee de un golpe-. */
+.loader-tip {
+  max-width: 270px;
+  min-height: 2.6em;
+  text-align: center;
+  font-family: var(--mono);
+  font-size: 0.7rem;
+  line-height: 1.45;
+  color: var(--gray-500);
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+.loader-tip.visible { opacity: 0.72; }
+/* La firma, abajo del todo. Es lo unico que hay debajo del consejo. */
+.proc-firma {
+  position: absolute;
+  left: 0; right: 0; bottom: 8px;
+  padding: 0;
+}
+/* Mientras se escanea, la firma de la portada estorba: la de abajo ya esta. */
+body.escaneando .page > .easter-egg:not(.proc-firma) { display: none; }
 .loader-printer {
   width: 60px;
   height: 72px;
@@ -2410,6 +2485,9 @@ input[type="file"] { display: none; }
   letter-spacing: -0.02em;
   color: currentColor;
   pointer-events: none;
+  /* Nunca parte la cifra en dos lineas: un precio a medias no se entiende. El
+     tamano lo ajusta el JS para que quepa (ver `ajustarPrecio` en claim.js). */
+  white-space: nowrap;
   animation: up-price-pop 0.66s cubic-bezier(0.2, 0.9, 0.25, 1) forwards;
 }
 /* MEJORA 5 · EL PRECIO SE CONVIERTE EN VISTO

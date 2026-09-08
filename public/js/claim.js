@@ -821,6 +821,48 @@ function pillInner(item, u, others) {
  * que enseñar— y solo si el artículo tiene más de una unidad, que es donde
  * estaba la confusión.
  */
+/**
+ * Que la cifra quepa en la casilla.
+ *
+ * EL FALLO: la casilla mide 42 px de ancho y el precio salia a 0,9 rem fijos.
+ * A partir de cinco caracteres se salia por los lados —o sea que ya con un
+ * "12,50" desbordaba, aunque no cantaba hasta los tres digitos: un "129,90"
+ * asomaba por fuera del recuadro y se veia roto—. Con coronas o zlotys, donde
+ * los importes traen mas digitos, pasaba con casi todo.
+ *
+ * La fuente es monoespaciada, asi que el ancho es casi proporcional al cuerpo
+ * y una regla de tres deja el tamano practicamente clavado a la primera. Casi:
+ * el redondeo de subpixeles y el interletraje negativo hacen que en las cifras
+ * mas largas se quede corta por un pelo, asi que despues se COMPRUEBA de
+ * verdad y se baja un escalon si hace falta. Como mucho tres vueltas, y solo
+ * al pulsar: medir la pagina tres veces en un toque no lo nota nadie, y
+ * fiarse de la estimacion sin mirar era justo lo que dejaba el "1.299,90"
+ * asomando por fuera.
+ *
+ * El suelo son 0,52 rem. Por debajo la cifra ya no se lee de un vistazo, y de
+ * un vistazo es la unica forma en que sirve para algo.
+ */
+function ajustarPrecio(pill, flash) {
+  const hueco = pill.clientWidth - 4;
+  if (!hueco) return;
+  // Se mide el TEXTO, no la caja. La caja va con `inset: 0`, asi que su
+  // `scrollWidth` nunca baja del ancho de la casilla y da la misma cifra para
+  // un "2,50" que para un "99,00": midiendola, se encogian tambien los
+  // precios cortos, que cabian de sobra. El rango mide solo lo escrito.
+  const rango = document.createRange();
+  const mide = () => {
+    rango.selectNodeContents(flash);
+    return rango.getBoundingClientRect().width;
+  };
+  if (mide() <= hueco) return;
+  let tam = Math.max(0.52, 0.9 * (hueco / mide()));
+  for (let i = 0; i < 3; i++) {
+    flash.style.fontSize = tam.toFixed(3) + 'rem';
+    if (mide() <= hueco || tam <= 0.52) break;
+    tam = Math.max(0.52, tam * 0.88);
+  }
+}
+
 function destelloDePrecio(pill, item) {
   const previo = pill.querySelector('.up-price');
   if (previo) previo.remove();
@@ -834,6 +876,7 @@ function destelloDePrecio(pill, item) {
     .replace(/\s*(kr|zł)\s*/gi, '')
     .trim();
   pill.appendChild(flash);
+  ajustarPrecio(pill, flash);
   // `morphing` es lo que retrasa la entrada del visto (ver el CSS): sin esto
   // el visto y el precio saldrian a la vez, que es justo lo que no se
   // entendia. Se quita al terminar para que un segundo toque vuelva a
