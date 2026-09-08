@@ -80,6 +80,26 @@ console.log('\n4. La animación de impresión no puede recortar tickets largos')
   const css = fs.readFileSync(path.join(PUB, 'css', 'style.css'), 'utf8');
   const i18n = fs.readFileSync(path.join(PUB, 'js', 'i18n.js'), 'utf8');
 
+  // EL FALLO QUE COSTÓ NUEVE INTENTOS. `class="ticket printing"` estaba en el
+  // HTML, así que la animación arrancaba en cuanto el navegador leía la página
+  // —con el ticket VACÍO—, y su contenido no llegaba de la API hasta uno o dos
+  // segundos después. Lo que se veía: se imprime la caja vacía, parón, y las
+  // líneas apareciendo de golpe. Se tocó la animación nueve veces sin
+  // arreglarlo, porque la animación nunca fue el problema.
+  for (const pagina of ['claim.html', 'summary.html', 'ticket.html']) {
+    const h = fs.readFileSync(path.join(PUB, pagina), 'utf8');
+    check(pagina + ' no arranca la impresión con el ticket vacío',
+      !/class="ticket printing"/.test(h) && /class="ticket esperando"/.test(h),
+      'con `printing` en el HTML la animación corre antes de que existan los datos');
+  }
+  check('la arranca el JS cuando ya hay contenido que imprimir',
+    /classList\.contains\('esperando'\)[\s\S]{0,240}classList\.add\('printing'\)/.test(i18n));
+  // Y si eso no llegara a pasar, el ticket no puede quedarse invisible: sería
+  // una pantalla en blanco donde tendría que haber una cuenta.
+  check('si algo falla, el ticket se enseña igualmente',
+    /querySelectorAll\('\.ticket\.esperando'\)/.test(i18n),
+    'sin la red de seguridad, un fallo de la API deja el ticket invisible para siempre');
+
   const emerge = css.slice(css.indexOf('@keyframes papel-sale'),
                            css.indexOf('}\n', css.indexOf('@keyframes papel-sale') + 40));
 
@@ -106,8 +126,10 @@ console.log('\n4. La animación de impresión no puede recortar tickets largos')
     'fotograma es exactamente lo que daba tirones las dos veces anteriores');
 
   // Lo que rompió la 2ª versión, con nombre y apellidos.
-  const imprimiendo = css.slice(css.indexOf('.ticket.printing'),
-                                css.indexOf('}', css.indexOf('.ticket.printing')));
+  // El bloque exacto, no el primer `.ticket.printing` que aparezca: hay otras
+  // reglas que empiezan igual y devolvian el cuerpo equivocado.
+  const iImpr = css.indexOf('.ticket.printing,\n.ticket.printing + .ticket-zigzag {');
+  const imprimiendo = iImpr === -1 ? '' : css.slice(iImpr, css.indexOf('}', iImpr));
   check('el ticket NO pide capa propia con will-change',
     !/will-change/.test(imprimiendo),
     'en un elemento de miles de píxeles, will-change obliga a rasterizar una ' +

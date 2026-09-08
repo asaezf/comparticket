@@ -1474,16 +1474,62 @@ function fechaDelTicket(tk) {
  * toca la maquetación, va fina, y no hay ningún alto que pueda quedarse
  * puesto. Lo único que queda por hacer es quitarle la clase al terminar.
  *
- * Se sigue llamando después de pintar el contenido; el segundo motivo por el
- * que se llamaba —remedir al cambiar el alto mientras se imprime— ya no hace
- * falta, pero llamarla de más no cuesta nada.
+ * Y AHORA HACE ALGO MÁS IMPORTANTE: ARRANCA LA IMPRESIÓN.
+ *
+ * La clase `printing` estaba puesta en el HTML, así que la animación empezaba
+ * en cuanto el navegador leía la página —con el ticket VACÍO, porque su
+ * contenido no llega de la API hasta medio segundo o dos segundos después—.
+ * Lo que se veía era: se imprime la caja vacía, parón esperando a los datos, y
+ * las líneas apareciendo de golpe sin relación con nada. Un tramo, un atasco,
+ * otro tramo. Y no se arreglaba tocando la animación, porque la animación
+ * nunca fue el problema.
+ *
+ * Esta función se llama SIEMPRE después de pintar el contenido —ese es su
+ * contrato desde que existe— así que es el sitio exacto donde el ticket ya
+ * tiene algo que imprimir. Aquí se le quita `esperando` y se le pone
+ * `printing`, y sale entero y de una pieza.
  */
+/* RED DE SEGURIDAD DEL ESTADO `esperando`.
+ *
+ * El ticket arranca invisible y lo destapa `fitTicket` al pintarse el
+ * contenido. Si por lo que sea eso no llega a pasar —la API falla, el JS de la
+ * pagina revienta antes, un navegador raro— el ticket se quedaria invisible
+ * PARA SIEMPRE, y eso es infinitamente peor que una animacion fea: seria una
+ * pantalla en blanco donde tendria que haber una cuenta.
+ *
+ * Ocho segundos. Ninguna carga normal tarda tanto, asi que si esto salta es
+ * que algo ha ido mal, y lo que toca entonces es ensenar el ticket sin mas
+ * ceremonia. */
+// El `typeof ... === 'function'` y no un simple `if (window)`: las pruebas
+// ejecutan este fichero en un entorno simulado donde `window` existe pero esta
+// vacio, y sin esto reventaban al cargarlo.
+if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+  window.addEventListener('load', () => {
+    setTimeout(() => {
+      document.querySelectorAll('.ticket.esperando').forEach(t => {
+        t.classList.remove('esperando');
+        t.classList.add('printed');
+      });
+    }, 8000);
+  });
+}
+
 function fitTicket(el) {
   el = el || document.getElementById('ticket');
   if (!el) return;
 
   // Ya terminó: no hay nada que atar.
   if (el.classList.contains('printed')) return;
+
+  // El momento de arrancar. Se fuerza una lectura del alto entre quitar una
+  // clase y poner la otra: sin eso el navegador puede juntar los dos cambios
+  // en el mismo fotograma y no llegar a ver nunca el estado inicial de la
+  // animación, que es justo lo que la deja sin empezar.
+  if (el.classList.contains('esperando')) {
+    el.classList.remove('esperando');
+    void el.offsetHeight;
+    el.classList.add('printing');
+  }
 
   const liberar = () => {
     el.classList.add('printed');

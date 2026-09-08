@@ -477,6 +477,27 @@ body {
  *
  * NADA DE `will-change` AQUI. Fue exactamente lo que rompio la version 2.
  */
+/* ANTES DE TENER CONTENIDO NO SE ENSENA NADA.
+   El papel no existe hasta que hay algo escrito en el: se ve la impresora, y
+   cuando el ticket esta listo sale entero. Ensenar la caja vacia mientras se
+   espera a la API era lo que hacia que pareciera que salia a trozos. */
+.ticket.esperando,
+.ticket.esperando + .ticket-zigzag {
+  opacity: 0;
+  animation: none;
+}
+
+/* Y al salir, UN SOLO movimiento. Cada linea del ticket trae su propia
+   animacion de entrada (`claim-in`), y si corren a la vez que la del papel se
+   ven dos cosas moviendose con ritmos distintos: el papel bajando y las lineas
+   subiendo por dentro. Mientras se imprime, las lineas van quietas y montadas
+   en el papel, que es lo que hace una impresora de verdad. */
+.ticket.printing .claim-row-v2,
+.ticket.printing .edit-row,
+.ticket.printing .person-row {
+  animation: none;
+}
+
 .ticket.printing,
 .ticket.printing + .ticket-zigzag {
   /* `linear` a proposito, y no una curva. Con una `ease-out` el 95 % del

@@ -71,7 +71,13 @@
 
       <div class="ticket-wrap">
         <!-- Ticket paper — narrower than printer, emerges from slot -->
-        <div class="ticket printing" id="ticket">
+        <!-- `esperando`, NO `printing`. La animacion no puede arrancar aqui: cuando
+             el navegador lee esta linea el ticket esta VACIO, y su contenido no
+             llega de la API hasta medio segundo o dos segundos despues. Se
+             imprimia la caja vacia, luego un paron, y luego las lineas
+             apareciendo de golpe por su cuenta. La animacion la arranca el JS
+             cuando ya hay algo que imprimir (ver fitTicket). -->
+        <div class="ticket esperando" id="ticket">
           <!-- Header: date + store name -->
           <div class="ticket-header">
             <div class="ticket-store" id="ticketTitle"></div>

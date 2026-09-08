@@ -62,5 +62,12 @@ if (rotos.length) {
   }
 }
 
-console.log(`\n${ficheros.length} ficheros · ${totalOk} pruebas ok · ${totalFallos} fallos`);
+// Una suite que revienta antes de contar nada suma CERO fallos, así que esta
+// línea decía "0 fallos" con un fichero hecho pedazos. Y es justo la línea que
+// se mira de un vistazo -o con `| tail -1`- para dar algo por bueno. Ya pasó:
+// un error de sintaxis en test-pages.js se coló como verde.
+const reventados = rotos.filter(r => !/\d+ ok, \d+ fallos/.test(r.salida)).length;
+const resumen = `\n${ficheros.length} ficheros · ${totalOk} pruebas ok · ${totalFallos} fallos` +
+  (reventados ? ` · ${reventados} FICHERO${reventados > 1 ? 'S' : ''} SIN LLEGAR A EJECUTARSE` : '');
+console.log(resumen);
 process.exit(rotos.length ? 1 : 0);
