@@ -1174,6 +1174,27 @@ function calentarServidor() {
   catch (_) {}
 }
 
+/* Y ya que se estan aprovechando esos 750 ms: el navegador se va a descargar
+ * la pantalla de resumen igualmente, solo que despues de confirmar y con la
+ * persona mirando una pantalla en blanco. Pidiendola AHORA llega a la vez que
+ * la respuesta del servidor en vez de despues, y el salto es directo.
+ *
+ * `prefetch` es una peticion de baja prioridad: no le quita ancho de banda a
+ * la que importa, que es la de confirmar. Y si el navegador decide ignorarla,
+ * no se pierde nada.
+ */
+let resumenPedido = false;
+function precargarResumen() {
+  if (resumenPedido) return;
+  resumenPedido = true;
+  try {
+    const l = document.createElement('link');
+    l.rel = 'prefetch';
+    l.href = `/summary.html?id=${ticketId}`;
+    document.head.appendChild(l);
+  } catch (_) {}
+}
+
 const RETENCION = 750;
 /* Y esto es lo que hace que el fallo no pueda volver por otra puerta.
    Por muy bien que se ajusten el circulo, la vibracion y el temporizador,
@@ -1229,6 +1250,7 @@ function empezarRetencion(btn, e) {
   // hizo al marcar la primera casilla pero ha pasado mucho rato, se repite:
   // una funcion sin usar se vuelve a dormir.
   calentarServidor();
+  precargarResumen();
   medirCirculo(btn, e);
   btn.classList.remove('soltado');
   btn.classList.add('reteniendo');
@@ -1291,6 +1313,31 @@ function soltarRetencion(btn) {
   // -que es lo que se queria evitar- seguiria valiendo.
   btn.addEventListener('click', e => e.preventDefault());
 }
+
+/**
+ * Volver atras desde el resumen dejaba el boton amarillo y muerto.
+ *
+ * Al confirmar se le ponen las clases `confirmado` y `enviando` y se
+ * desactiva, y despues se cambia de pantalla. Pero al pulsar "atras" el
+ * navegador NO recarga la pagina: la saca tal cual de la memoria (bfcache),
+ * con el boton exactamente como se dejo. O sea lleno de ambar, desactivado y
+ * sin ninguna forma de recuperarlo.
+ *
+ * `pageshow` con `persisted` es el unico aviso que da el navegador de que la
+ * pagina vuelve de esa memoria; `load` no se dispara. Aqui se deshace todo lo
+ * que puso confirmar y se recalcula si el boton debe estar activo.
+ */
+window.addEventListener('pageshow', e => {
+  if (!e.persisted) return;
+  const btn = document.getElementById('confirmBtn');
+  if (!btn) return;
+  btn.classList.remove('reteniendo', 'soltado', 'confirmado', 'enviando');
+  btn.style.removeProperty('--cb-d');
+  // Y que vuelva a guardarse el borrador: al confirmar se bloqueo a proposito
+  // para que no pisara la confirmacion, pero eso ya paso.
+  confirmedNow = false;
+  update();
+});
 
 async function confirmar() {
   const name = document.getElementById('nameInput').value.trim();

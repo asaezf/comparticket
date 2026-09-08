@@ -498,11 +498,16 @@ body {
   animation: none;
   max-height: none;
   overflow: visible;
-  clip-path: none;
   will-change: auto;
   opacity: 1;
   transform: none;
 }
+/* `clip-path: none` SOLO en el ticket, nunca en el borde dentado. Los dientes
+   los dibuja un `clip-path: polygon(...)` en .ticket-zigzag: al meter las dos
+   reglas juntas para ahorrar lineas, esto le borraba el poligono y el ticket
+   se quedaba con el borde recto en las tres pantallas. Ahorrar dos lineas de
+   CSS no vale un borde dentado. */
+.ticket.printed { clip-path: none; }
 
 /* Solo `transform` y `opacity`. Si algun dia hace falta anadir algo aqui, que
    sea una de esas dos: lo demas se paga en fotogramas perdidos.
@@ -1055,7 +1060,13 @@ body {
    en el tamano. Sigue sin tocarsele el tipo, el tamano ni el color.
    Deja de respirar en cuanto se abre: ya ha hecho su trabajo. */
 .claim-help > summary {
-  animation: ayuda-respira 3.2s ease-in-out 0.8s infinite;
+  /* Seis latidos y para. Antes era `infinite`, y una animacion infinita es
+     trabajo infinito: el navegador no puede quedarse quieto NUNCA mientras esa
+     pantalla este abierta, y eso se paga en todo lo demas —empezando por lo
+     que se nota, que es desplazar la lista—. Seis latidos son veinte segundos:
+     si en veinte segundos mirando la pantalla no lo ha visto, no lo va a ver,
+     y a partir de ahi solo estorba. */
+  animation: ayuda-respira 3.2s ease-in-out 0.8s 6;
   transform-origin: left center;
 }
 .claim-help[open] > summary { animation: none; }
@@ -1222,7 +1233,10 @@ body {
 .person-amount,
 .pantalla-grupo .tr-amount {
   display: inline-block;
-  animation: cifra-late 3.4s ease-in-out 1.4s infinite;
+  /* Cinco latidos y para, por lo mismo: eran una animacion por cada persona
+     de la lista, todas infinitas y todas a la vez. Cinco son diecisiete
+     segundos, de sobra para que se vea que las cifras se tocan. */
+  animation: cifra-late 3.4s ease-in-out 1.4s 5;
 }
 @keyframes cifra-late {
   0%, 58%, 100% { transform: scale(1); }
@@ -2365,12 +2379,30 @@ input[type="file"] { display: none; }
 /* =========================================================
    Claim v2 — per-unit pills
    ========================================================= */
+/* Los 7 px de relleno de mas, con su margen negativo que los devuelve, son
+   para que quepa la animacion de la casilla al pulsarla. `content-visibility`
+   -mas abajo- recorta todo lo que se salga de la fila, y la casilla al
+   marcarse crece un 16 % y gira 9 grados: necesita 6,7 px, y solo tenia 2. Sin
+   este hueco, a la casilla de mas a la izquierda se le cortaba el borde justo
+   en el fotograma en que se pulsa. Nada se mueve de sitio: 9 - 7 = los 2 de
+   antes. */
 .claim-row-v2 {
-  padding: 10px 2px 12px;
-  border-bottom: 1px dotted var(--gray-200);
+  padding: 10px 9px 12px;
+  margin: 0 -7px;
+  position: relative;
   animation: claim-in 0.28s both;
 }
-.claim-row-v2:last-child { border-bottom: none; }
+/* La linea de puntos va en un pseudoelemento y no en el borde de la fila,
+   porque el borde se habria estirado esos 14 px y las separaciones habrian
+   quedado mas anchas que el texto de encima. Asi se queda exactamente donde
+   estaba. */
+.claim-row-v2::after {
+  content: '';
+  position: absolute;
+  left: 7px; right: 7px; bottom: 0;
+  border-bottom: 1px dotted var(--gray-200);
+}
+.claim-row-v2:last-child::after { display: none; }
 .ci-head {
   display: flex;
   justify-content: space-between;
@@ -2400,6 +2432,36 @@ input[type="file"] { display: none; }
   flex-wrap: wrap;
   gap: 6px;
   align-items: flex-start;
+}
+/* Lo mismo en las otras dos pantallas con listas largas: la de repasar el
+   ticket -que ademas lleva un campo de texto por linea- y la del reparto. El
+   alto reservado es el de una fila tipica de cada una; si se queda corto o
+   largo, lo unico que pasa es que la barra de desplazamiento se ajusta al
+   llegar, y con `auto` el navegador aprende el real en cuanto la pinta una vez. */
+.edit-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 58px;
+}
+.person-row {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 96px;
+}
+
+/* LO QUE NO SE VE, NO SE PINTA.
+   Un ticket del super son 30 filas y hasta 50 casillas, y cada casilla no es
+   una caja simple: lleva borde discontinuo -de los caros de pintar- y encima
+   un visto en hueco hecho con una mascara. Multiplicado por 50, y por cada vez
+   que la pantalla se repinta -o sea en cada fotograma mientras se desplaza-,
+   es mucho mas trabajo del que un movil puede hacer a 60 fotogramas.
+   `content-visibility: auto` le dice al navegador que se salte por completo
+   las filas que estan fuera de la pantalla. No cambia nada de como se ve; solo
+   deja de dibujar lo que nadie esta mirando.
+   El `contain-intrinsic-size` es imprescindible: sin el, el navegador da alto
+   cero a lo que se salta, la barra de desplazamiento pega saltos y el dedo se
+   va de sitio. 116 px es lo que mide una fila de una unidad. */
+.claim-row-v2 {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 116px;
 }
 .unit-pill {
   appearance: none;
