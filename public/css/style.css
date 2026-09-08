@@ -1023,19 +1023,22 @@ body {
    Es la unica ayuda de la pantalla y estaba plegada, quieta, con el aspecto
    de un pie de pagina: nadie la abria. No se le cambia ni el tipo ni el
    tamano ni el color -sigue siendo texto pequeno y discreto- pero respira.
-   Cuatro segundos por ciclo y muy poco recorrido: en reposo se percibe por
-   el rabillo del ojo, y no compite con las casillas, que es donde tiene que
-   estar la atencion.
+   El primer latido -4 s de ciclo, 3,5 % de recorrido- no se veia: pasaba
+   demasiado desapercibido para lo unico que tenia que hacer, que es que
+   alguien lo mire. Ahora late cada 3,2 s, sube un 7 % y va del 62 % al 100 %
+   de opacidad, o sea que el latido se nota tambien en el contraste y no solo
+   en el tamano. Sigue sin tocarsele el tipo, el tamano ni el color.
    Deja de respirar en cuanto se abre: ya ha hecho su trabajo. */
 .claim-help > summary {
-  animation: ayuda-respira 4s ease-in-out 1.2s infinite;
+  animation: ayuda-respira 3.2s ease-in-out 0.8s infinite;
   transform-origin: left center;
 }
 .claim-help[open] > summary { animation: none; }
 @keyframes ayuda-respira {
-  0%, 62%, 100% { opacity: 0.72; transform: scale(1); }
-  76%           { opacity: 1;    transform: scale(1.035); }
-  88%           { opacity: 0.88; transform: scale(1.005); }
+  0%, 48%, 100% { opacity: 0.62; transform: scale(1); }
+  64%           { opacity: 1;    transform: scale(1.07); }
+  78%           { opacity: 0.82; transform: scale(0.995); }
+  88%           { opacity: 0.92; transform: scale(1.02); }
 }
 @media (prefers-reduced-motion: reduce) {
   .claim-help > summary { animation: none; opacity: 0.9; }
@@ -1559,7 +1562,15 @@ body {
   align-content: start;
   width: 100%;
   max-width: 420px;
-  max-height: 56dvh;
+  /* Sin tope a ojo. Antes habia un `max-height: 56dvh` -455 px en un movil de
+     812- que cortaba la rejilla mucho antes de que se acabase la pantalla: con
+     una sola foto, la foto y el recuadro de "anadir otra" suman 604 px y caben
+     de sobra, pero el tope los partia y el "+" quedaba escondido tras un
+     scroll que salia de la nada. Encogiendo solo si hace falta (`0 1 auto`) se
+     queda con el sitio que de verdad sobra, y el scroll pasa a ser lo que
+     tenia que haber sido siempre: el ultimo recurso con muchas fotos. */
+  flex: 0 1 auto;
+  min-height: 0;
   overflow-y: auto;
   padding: 4px;
   /* Con el alto limitado y las filas automaticas, la rejilla APLASTA las
@@ -1575,6 +1586,28 @@ body {
 .preview-overlay .thumb-rot { flex-shrink: 0; }
 /* Una sola foto: a pantalla completa, sin compartir fila con nada. */
 .preview-overlay .thumbs.una { grid-template-columns: minmax(0, 1fr); max-width: 300px; }
+/* En pantallas cortas -un iPhone SE mide 667- tres fotos y el aviso rojo no
+   caben ni a dos columnas, y volvia el scroll. Ahi, y solo ahi, la rejilla se
+   estrecha en proporcion al alto que haya: menos ancho de columna es menos
+   alto de ficha, que es lo que sobraba. Por encima de 740 px no se aplica,
+   asi que en un movil normal no se toca nada. */
+@media (max-height: 740px) {
+  .preview-overlay .thumbs { max-width: min(420px, calc(100dvh - 410px)); }
+  /* Con una sola foto, ella y el "+" van uno DEBAJO del otro, asi que ahi hay
+     que apretar mas que cuando comparten fila. */
+  .preview-overlay .thumbs.una { max-width: min(300px, calc(100dvh - 470px)); }
+  /* El selector lleva `.thumbs` a proposito: sin el pierde contra la regla de
+     mas abajo, que tiene la misma fuerza y va despues en el fichero. Los
+     150 px del recuadro son lo que sobra cuando va debajo de la foto. */
+  .preview-overlay .thumbs .thumb-add { min-height: 110px; }
+}
+
+/* De cuatro fotos para arriba, tres columnas. A dos no caben en la pantalla y
+   aparecia el scroll; a tres siempre son dos filas como mucho, con seis
+   incluidas, y se ven todas de un vistazo, que es a lo que viene esta
+   pantalla. Es el unico caso en que se toca el tamano, y es porque no hay
+   alternativa: a dos columnas, seis fotos miden 990 px. */
+.preview-overlay .thumbs.muchas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 /* La ficha es una columna: la foto arriba y el boton de girar DEBAJO, como
    una fila de verdad. Antes el boton iba flotando encima de la imagen, y como
    es casi blanco, sobre un ticket blanco desaparecia por el centro: solo se
@@ -2032,11 +2065,16 @@ body {
   transition: opacity 0.5s ease;
 }
 .loader-tip.visible { opacity: 0.72; }
-/* La firma, abajo del todo. Es lo unico que hay debajo del consejo. */
+/* La firma, abajo del todo de la PANTALLA. Con `absolute` quedaba atada a la
+   caja de .processing, que acaba donde acaba su `min-height` y no donde acaba
+   el movil: se veia flotando a media altura. `fixed` la ata a la pantalla. El
+   `env()` la aparta de la barra de gestos del iPhone, que si no se la come. */
 .proc-firma {
-  position: absolute;
-  left: 0; right: 0; bottom: 8px;
+  position: fixed;
+  left: 0; right: 0;
+  bottom: calc(4px + env(safe-area-inset-bottom, 0px));
   padding: 0;
+  z-index: 3;
 }
 /* Mientras se escanea, la firma de la portada estorba: la de abajo ya esta. */
 body.escaneando .page > .easter-egg:not(.proc-firma) { display: none; }

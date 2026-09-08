@@ -148,10 +148,18 @@ console.log('\n5. La firma solo donde toca');
     'aparece en: ' + conFirma.join(', '));
 
   const index = fs.readFileSync(path.join(PUB, 'index.html'), 'utf8');
-  // Dos: la de la portada y la de la pantalla de carga, que va abajo del todo.
-  check('la pantalla de carga lleva la suya, y va abajo del todo',
-    /class="easter-egg proc-firma"/.test(index) &&
-    /bottom:\s*8px/.test(bloque('.proc-firma') || ''));
+  check('la pantalla de carga lleva la suya', /class="easter-egg proc-firma"/.test(index));
+
+  // Estuvo con `absolute`, y `absolute` la ata a la caja de .processing: esa
+  // caja acaba donde acaba su min-height, no donde acaba el movil, asi que la
+  // firma se quedaba flotando a media altura. `fixed` la ata a la pantalla.
+  const firma = bloque('.proc-firma') || '';
+  check('va abajo del todo de la PANTALLA, no de su caja',
+    /position:\s*fixed/.test(firma) && /bottom:/.test(firma),
+    'con absolute vuelve a quedarse a media altura');
+  // Y sin esto, la barra de gestos del iPhone se la come.
+  check('esquiva la barra de gestos del iPhone',
+    /env\(safe-area-inset-bottom/.test(firma));
 }
 
 console.log('\n6. Los consejos de la pantalla de carga');
@@ -163,6 +171,16 @@ console.log('\n6. Los consejos de la pantalla de carga');
                   '\nout = translations;', ctx);
   const T = ctx.out;
   const idiomas = Object.keys(T);
+
+  // Al principio rotaban cada 4,6 s. Escanear tarda menos que eso: no daba
+  // tiempo a leer el segundo, y un texto que se va a media lectura molesta
+  // mas de lo que aporta. Uno por escaneo, quieto hasta que acabe.
+  check('el consejo no rota en pantalla',
+    !/setInterval/.test(upload),
+    'volvio la rueda: escanear acaba antes de que se lea el segundo');
+  check('cada escaneo trae uno distinto',
+    /ct_ultimo_consejo/.test(upload),
+    'sin recordar el anterior, con ocho frases sale repetida mas de lo que parece');
 
   check('los siete idiomas tienen consejos',
     idiomas.every(l => Array.isArray(T[l].tips)),

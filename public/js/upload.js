@@ -15,33 +15,36 @@ document.getElementById('procText').textContent = t.processing;
  * sola: que se pueden encadenar varias fotos, que nadie tiene que instalarse
  * nada, que la IA a veces se equivoca y se puede corregir.
  *
- * Empieza por uno al azar -si empezara siempre por el primero, quien escanea
- * dos tickets seguidos leeria dos veces el mismo- y va rotando con un fundido.
+ * UNO POR ESCANEO, y no una rueda. Al principio iban rotando cada 4,6 s, pero
+ * escanear tarda menos que eso: no daba tiempo a leer el segundo, y un texto
+ * que se va a media lectura molesta mas de lo que aporta. Uno, quieto, hasta
+ * que acabe.
+ *
+ * Lo que rota es entre escaneos: cada ticket trae uno distinto. Se guarda cual
+ * toco la ultima vez para no repetirlo seguido -al azar puro, con ocho
+ * frases, salir dos veces la misma es mas frecuente de lo que parece- y si no
+ * hay donde guardarlo (navegador en privado) se sortea y ya esta.
  */
 const consejos = (t.tips && t.tips.length) ? t.tips : [];
-let consejoTimer = null;
+const CLAVE_CONSEJO = 'ct_ultimo_consejo';
 
 function arrancarConsejos() {
   const caja = document.getElementById('loaderTip');
   if (!caja || !consejos.length) return;
+  let previo = -1;
+  try { previo = parseInt(localStorage.getItem(CLAVE_CONSEJO), 10); } catch (e) {}
   let i = Math.floor(Math.random() * consejos.length);
-  const pintar = () => {
-    caja.textContent = consejos[i];
-    caja.classList.add('visible');
-  };
-  pintar();
-  clearInterval(consejoTimer);
-  consejoTimer = setInterval(() => {
-    // Se apaga, se cambia el texto con la caja ya invisible, y se enciende.
-    // Cambiarlo a la vista se leeria como un parpadeo, no como un relevo.
-    caja.classList.remove('visible');
-    setTimeout(() => { i = (i + 1) % consejos.length; pintar(); }, 500);
-  }, 4600);
+  // Uno solo de reintento: con ocho frases basta, y un bucle que dependa del
+  // azar para terminar no se pone en algo que se ejecuta en cada escaneo.
+  if (i === previo && consejos.length > 1) i = (i + 1) % consejos.length;
+  try { localStorage.setItem(CLAVE_CONSEJO, String(i)); } catch (e) {}
+  caja.textContent = consejos[i];
+  caja.classList.add('visible');
 }
 
 function pararConsejos() {
-  clearInterval(consejoTimer);
-  consejoTimer = null;
+  const caja = document.getElementById('loaderTip');
+  if (caja) caja.classList.remove('visible');
 }
 document.getElementById('cameraBtnText').textContent = t.cameraLabel || 'Cámara';
 document.getElementById('galleryBtnText').textContent = t.galleryLabel || 'Galería';
@@ -112,6 +115,9 @@ function renderThumbs() {
   previewThumbs.innerHTML = '';
   // Una sola foto no comparte fila con nada: se trata de MIRARLA.
   previewThumbs.classList.toggle('una', files.length === 1);
+  // A dos columnas, de cuatro fotos para arriba no caben en la pantalla y sale
+  // un scroll. A tres columnas son dos filas como mucho, siempre.
+  previewThumbs.classList.toggle('muchas', files.length >= 4);
   files.forEach((file, idx) => {
     const thumb = document.createElement('div');
     thumb.className = 'thumb';
