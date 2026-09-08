@@ -243,15 +243,47 @@ console.log('\n4. Lo que se ve, lo que se nota y lo que dispara van juntos');
       ' ms y se siente como el final del gesto mucho antes de que lo sea');
   }
 
-  // LA RED DE SEGURIDAD. Por bien que se ajusten los tres, siempre habrá unos
-  // milisegundos entre "parece terminado" y el disparo. Quien ha aguantado
-  // casi todo el gesto ha decidido confirmar; soltar ahí no puede castigarse.
+  // EL PUNTO DE NO RETORNO. La petición ya no sale al terminar el gesto sino a
+  // mitad, para que los milisegundos que quedan de animación se los coma la
+  // red en vez de la persona esperando con el botón congelado.
   const margen = claimJs.match(/const MARGEN_FINAL = ([\d.]+);/);
-  check('soltar en el último tramo cuenta como confirmar',
-    !!margen && +margen[1] >= 0.8 && +margen[1] < 1,
-    'sin esto, el fallo vuelve por cualquier desajuste de milisegundos');
-  check('y ese tramo sigue siendo largo de más para un roce',
-    !!margen && +margen[1] * 750 > 500);
+  const sinRetorno = claimJs.match(/const PUNTO_SIN_RETORNO = ([\d.]+);/);
+  const espera = +(claimJs.match(/const RETENCION = (\d+);/) || [])[1];
+
+  // ESTA ES LA IMPORTANTE, Y ES DE DINERO. Si la petición saliera antes del
+  // punto en que soltar cuenta como confirmar, habría una ventana en la que
+  // alguien suelta creyendo que cancela y su selección ya se ha mandado. Y al
+  // revés, si saliera después, soltar confirmaría sin haber mandado nada.
+  // Tienen que ser el MISMO número, no dos parecidos.
+  check('mandar y dar por bueno ocurren en el mismo instante',
+    !!margen && !!sinRetorno && margen[1] === sinRetorno[1],
+    'se manda al ' + (sinRetorno ? sinRetorno[1] : '?') + ' y se da por bueno al ' +
+    (margen ? margen[1] : '?') + ': entre esos dos hay una ventana donde soltar ' +
+    'hace lo contrario de lo que parece');
+
+  // Y ese punto tiene que seguir estando lejos de un roce accidental.
+  check('el punto de no retorno sigue lejos de un roce',
+    !!sinRetorno && +sinRetorno[1] * espera >= 400,
+    sinRetorno ? 'son ' + Math.round(+sinRetorno[1] * espera) + ' ms' : '');
+
+  // El salto de pantalla espera a la RESPUESTA, no al cronómetro, con un suelo
+  // para que no parezca que se ha saltado un paso.
+  const suelo = claimJs.match(/const SUELO_PARA_SALTAR = ([\d.]+);/);
+  check('se salta de pantalla en cuanto contesta el servidor',
+    /await new Promise\(r => setTimeout\(r, falta\)\)/.test(claimJs) &&
+    !!suelo && +suelo[1] > +sinRetorno[1] && +suelo[1] < 1,
+    'el suelo tiene que estar por encima del punto de no retorno y por debajo del final');
+
+  // Y el golpe de "hecho" tiene que ir pegado al salto, no al cronómetro: si
+  // van por su cuenta, se nota el "ya está" y la pantalla tarda en cambiar.
+  const cola = claimJs.slice(claimJs.indexOf('const falta ='));
+  check('la vibración de "hecho" va pegada al salto de pantalla',
+    /tocar\(\[[\d, ]+\]\);\s*\n\s*window\.location\.href/.test(cola),
+    'si no van juntas, se siente el final del gesto antes de que pase nada');
+
+  // Soltar después de haber mandado no puede cancelar nada: ya está hecho.
+  check('soltar después de mandar no cancela',
+    /if \(envio\) return;/.test(claimJs));
 
   // EL PRECIO DE ESA CURVA, PAGADO. Con el círculo al 95 % cuando va la mitad
   // del gesto, el último tramo no tendría nada que enseñar y alguien soltaría

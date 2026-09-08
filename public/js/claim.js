@@ -1203,9 +1203,46 @@ const RETENCION = 750;
    confirmar, sin ninguna duda: soltar ahi tiene que valer, no castigarse.
    Un roce no llega ni de lejos a 660 ms, asi que la proteccion que motivo todo
    esto sigue intacta. */
-const MARGEN_FINAL = 0.88;
+const MARGEN_FINAL = 0.62;
+
+/* EL PUNTO DE NO RETORNO, Y POR QUE ESTA AL 62 % Y NO AL FINAL.
+ *
+ * Antes la peticion salia AL TERMINAR el gesto: 750 ms de animacion y despues
+ * a esperar al servidor con el boton congelado. Medido contra produccion, esa
+ * espera son 0,42-0,67 s con la funcion caliente y 2,45 s si estaba dormida, y
+ * encima luego hay que cargar la pantalla siguiente. Se sentia rudimentario
+ * porque lo era: el movil no hacia NADA durante los primeros 750 ms y lo hacia
+ * TODO despues.
+ *
+ * Ahora la peticion sale a los 465 ms —el 62 % del gesto— y los 285 ms que
+ * quedan de animacion los aprovecha la red. Que la barra siga llenandose
+ * mientras el servidor trabaja no es un truco: es que ya no hay motivo para
+ * esperar a que acabe, porque a partir de ese punto la decision esta tomada.
+ *
+ * Y de ahi que MARGEN_FINAL sea el MISMO numero. No pueden ser dos: si la
+ * peticion sale al 62 % pero soltar solo cuenta a partir del 88 %, alguien que
+ * suelte al 70 % habria confirmado sin querer. Igualandolos, el 62 % es el
+ * punto de no retorno para todo a la vez —lo que se manda y lo que vale— y no
+ * hay ninguna ventana en la que una cosa y la otra no coincidan.
+ *
+ * 465 ms siguen siendo muchisimo para un roce: lo que protegia el gesto sigue
+ * protegido.
+ */
+const PUNTO_SIN_RETORNO = 0.62;
+
+/* Y el salto de pantalla no espera al cronometro: espera a la RESPUESTA. En
+ * cuanto el servidor contesta se salta, con un suelo del 78 % para que no
+ * parezca que el gesto se ha quedado a medias. O sea que con la red rapida se
+ * salta antes de que el circulo acabe de llenarse —que es exactamente lo que
+ * se pidio— y con la red lenta el circulo termina y el boton se queda
+ * esperando, pero habiendo ganado ya 285 ms. */
+const SUELO_PARA_SALTAR = 0.78;
+
 let retencion = null;
 let empezoEn = 0;
+/* Si esto no es null, la confirmacion ya va de camino y soltar no la cancela:
+   el gesto ya esta hecho, aunque el dedo se levante. */
+let envio = null;
 
 function medirCirculo(btn, e) {
   const r = btn.getBoundingClientRect();
@@ -1255,31 +1292,25 @@ function empezarRetencion(btn, e) {
   btn.classList.remove('soltado');
   btn.classList.add('reteniendo');
   empezoEn = Date.now();
+  envio = null;
   tocar(VIBRA_MANTENIENDO);
+  // A los 465 ms sale la peticion, EN SILENCIO: ni se toca el boton ni se corta
+  // la vibracion. La animacion sigue exactamente igual, porque para quien mira
+  // el gesto no ha terminado —solo ha dejado de poder deshacerse—.
   retencion = setTimeout(() => {
     retencion = null;
-    // Dos golpes secos al completarse: es el "ya esta" que en un boton normal
-    // da el propio salto de pantalla, y aqui llega antes que el.
-    tocar([16, 40, 26]);
-    confirmar();
-  }, RETENCION);
+    envio = confirmar();
+  }, Math.round(RETENCION * PUNTO_SIN_RETORNO));
 }
 
 function soltarRetencion(btn) {
+  // La peticion ya salio: soltar no la para. Se sigue viendo el boton lleno y
+  // vibrando hasta que conteste el servidor, que es la verdad de lo que pasa.
+  if (envio) return;
+
   if (!retencion) { btn.classList.remove('reteniendo'); return; }
   clearTimeout(retencion);
   retencion = null;
-
-  // Soltar en el ultimo tramo cuenta como confirmar: a esas alturas el circulo
-  // ya se ve lleno y la vibracion lleva rato subiendo, y hacerle repetir el
-  // gesto entero a alguien que ha aguantado hasta ahi es tratar su decision
-  // como un accidente.
-  if (Date.now() - empezoEn >= RETENCION * MARGEN_FINAL) {
-    btn.classList.remove('reteniendo');
-    tocar([16, 40, 26]);
-    confirmar();
-    return;
-  }
 
   // Cortar la vibracion en el acto: si se sigue notando despues de soltar,
   // parece que ha confirmado igualmente.
@@ -1333,6 +1364,8 @@ window.addEventListener('pageshow', e => {
   if (!btn) return;
   btn.classList.remove('reteniendo', 'soltado', 'confirmado', 'enviando');
   btn.style.removeProperty('--cb-d');
+  envio = null;
+  retencion = null;
   // Y que vuelva a guardarse el borrador: al confirmar se bloqueo a proposito
   // para que no pisara la confirmacion, pero eso ya paso.
   confirmedNow = false;
@@ -1346,27 +1379,37 @@ async function confirmar() {
     const arr = [...myUnits[id]].sort((a, b) => a - b);
     if (arr.length > 0) itemUnitsPayload[id] = arr;
   });
-  if (!name || Object.keys(itemUnitsPayload).length === 0) return;
+  // Si algo de esto falla no se manda nada, asi que hay que soltar el gesto:
+  // sin esto, `envio` se quedaria puesto y el boton no volveria a responder.
+  const abortar = () => {
+    envio = null;
+    tocar(0);
+    const b = document.getElementById('confirmBtn');
+    if (b) b.classList.remove('reteniendo', 'soltado', 'confirmado', 'enviando');
+  };
+  if (!name || Object.keys(itemUnitsPayload).length === 0) return abortar();
 
   // Último cinturón: nunca confirmar sobre la selección de otra persona.
   if (identityBlocked || nameBelongsToSomeoneElse(name)) {
+    abortar();
     askWhoYouAre(name);
     document.getElementById('nameTaken').scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
   const btn = document.getElementById('confirmBtn');
-  // Parar el temblor ANTES de nada. Es una animacion infinita a 70 ms por
-  // ciclo, y si sigue corriendo mientras se manda la seleccion y se cambia de
-  // pagina compite por el hilo principal justo en el peor momento: se notaba
-  // como un tiron seco al completarse el circulo.
-  btn.classList.remove('reteniendo', 'soltado');
-  btn.classList.add('confirmado');
-  // Y despues de calmarse, que se note que sigue trabajando. Lo que queda de
-  // espera es el viaje al servidor, y un boton lleno y completamente quieto
-  // durante un segundo se lee como que se ha colgado. Es una respiracion en la
-  // opacidad del texto: cuesta cero -no repinta nada- y basta para decir "voy".
-  btn.classList.add('enviando');
+  // El boton NO se toca todavia. La peticion sale mientras el circulo se sigue
+  // llenando y el movil sigue vibrando, porque para quien mira el gesto aun no
+  // ha terminado. Solo si el servidor tarda mas de lo que dura la animacion se
+  // pasa al estado de espera, y eso se programa aqui: si contesta antes, este
+  // temporizador no llega a hacer nada porque ya se habra saltado de pantalla.
+  const seHaceLargo = setTimeout(() => {
+    btn.classList.remove('reteniendo', 'soltado');
+    btn.classList.add('confirmado', 'enviando');
+    // Aqui si se corta el temblor: es una animacion infinita a 70 ms por ciclo
+    // y no puede quedarse corriendo mientras se espera a la red.
+    tocar(0);
+  }, Math.max(0, RETENCION - (Date.now() - empezoEn)));
   btn.disabled = true;
   confirmedNow = true;       // bloquea el guardado de emergencia de pagehide
   clearTimeout(saveTimer);   // que el borrador pendiente no pise la confirmación
@@ -1379,8 +1422,25 @@ async function confirmar() {
       body: JSON.stringify({ personName: name, itemUnits: itemUnitsPayload, confirmed: true })
     });
     clearInterval(polling);
+
+    // Ya esta guardado. Ahora el salto: en cuanto la respuesta llega, pero sin
+    // bajar del 78 % del gesto, para que no parezca que se ha saltado un paso.
+    // Con la red fina eso cae ANTES de que el circulo acabe de llenarse, que es
+    // justo lo que se buscaba: la espera se la come la animacion.
+    const falta = Math.round(RETENCION * SUELO_PARA_SALTAR) - (Date.now() - empezoEn);
+    if (falta > 0) await new Promise(r => setTimeout(r, falta));
+
+    clearTimeout(seHaceLargo);
+    // El golpe de "hecho" va AQUI, pegado al salto de pantalla, no a los
+    // 750 ms del cronometro. Antes iban por su cuenta: se notaba el "ya esta"
+    // y la pantalla tardaba dos segundos mas en cambiar.
+    tocar(0);
+    tocar([18, 42, 30]);
     window.location.href = `/summary.html?id=${ticketId}`;
   } catch (err) {
+    clearTimeout(seHaceLargo);
+    envio = null;
+    tocar(0);
     btn.disabled = false;
     btn.classList.remove('reteniendo', 'soltado', 'confirmado', 'enviando');
   }
