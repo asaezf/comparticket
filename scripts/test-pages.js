@@ -80,19 +80,51 @@ console.log('\n4. La animación de impresión no puede recortar tickets largos')
   const css = fs.readFileSync(path.join(PUB, 'css', 'style.css'), 'utf8');
   const i18n = fs.readFileSync(path.join(PUB, 'js', 'i18n.js'), 'utf8');
 
-  // Un tope fijo en píxeles cortaba el ticket de Mercadona por la mitad: el
-  // total desaparecía en la pantalla de revisión y en la de marcar había
-  // artículos imposibles de tocar. La altura debe venir del contenido.
-  const topeFijo = /max-height:\s*\d+px[^;]*;\s*\n?\s*padding-top:\s*18px/.test(css);
-  check('el fotograma final no usa un alto fijo', !topeFijo,
-    'ticketEmerge vuelve a tener un max-height en píxeles fijos');
-  check('el alto final sale de --ticket-h', /max-height:\s*var\(--ticket-h/.test(css));
+  const emerge = css.slice(css.indexOf('@keyframes ticketEmerge'),
+                           css.indexOf('}\n', css.indexOf('@keyframes ticketEmerge') + 40));
+
+  // EL FALLO DE LOS TIRONES. Esto animaba `max-height` y los dos `padding`
+  // durante segundos, y las tres son propiedades de MAQUETACIÓN: el navegador
+  // recolocaba las 35 líneas de un ticket del súper —y la página entera por
+  // debajo— en cada fotograma. En un móvil eso va a trompicones, y así se veía.
+  const layout = ['max-height', 'height', 'padding', 'padding-top',
+                  'padding-bottom', 'margin', 'top', 'width'];
+  const culpables = layout.filter(prop =>
+    new RegExp('(^|[\\s;{])' + prop + ':').test(emerge));
+  check('la impresión no anima nada que recoloque la página',
+    culpables.length === 0,
+    'ticketEmerge anima ' + culpables.join(', ') + ': eso obliga a recalcular ' +
+    'la maquetación en cada fotograma y es exactamente lo que daba tirones');
+
+  // `clip-path` solo cambia hasta dónde se ve: el contenido está colocado
+  // desde el primer momento y no se mueve ni un píxel.
+  check('se descubre recortando, que no cuesta maquetación',
+    /clip-path:\s*inset\(/.test(emerge));
+
+  // Y el ticket largo tampoco puede quedarse cortado. Antes pasaba: la
+  // animación es `forwards`, así que un tope fijo en píxeles se quedaba puesto
+  // para siempre y el ticket de Mercadona perdía el total y media lista.
   check('existe el estado .printed que suelta las ataduras', /\.ticket\.printed\b/.test(css));
   check('.printed quita el max-height', /\.ticket\.printed[^}]*max-height:\s*none/s.test(css));
   check('.printed devuelve el overflow', /\.ticket\.printed[^}]*overflow:\s*visible/s.test(css));
-  check('fitTicket existe y mide el contenido', /function fitTicket[\s\S]*scrollHeight/.test(i18n));
+  check('.printed quita el recorte', /\.ticket\.printed[^}]*clip-path:\s*none/s.test(css),
+    'sin esto el ticket se queda recortado para siempre, que es el fallo viejo');
+  check('fitTicket sigue existiendo para soltar el ticket',
+    /function fitTicket[\s\S]*classList\.add\('printed'\)/.test(i18n));
   check('fitTicket tiene red de seguridad por si no salta la animación',
     /function fitTicket[\s\S]*setTimeout\(liberar/.test(i18n));
+
+  // La espera importa: es el rato que alguien está mirando la pantalla para
+  // saber lo que tiene que pagar.
+  const dur = css.match(/animation: ticketEmerge ([\d.]+)s/);
+  check('la impresión no se eterniza', !!dur && parseFloat(dur[1]) <= 2.2,
+    dur ? 'dura ' + dur[1] + ' s' : 'no se encuentra la duración');
+  // Y la red de seguridad tiene que ir por detrás de la animación, no por
+  // delante: si salta antes, corta la impresión a medias.
+  const red = i18n.match(/setTimeout\(liberar, (\d+)\)/);
+  check('la red de seguridad salta después de la animación',
+    !!red && !!dur && +red[1] > parseFloat(dur[1]) * 1000,
+    red && dur ? 'red a los ' + red[1] + ' ms, animación de ' + (parseFloat(dur[1]) * 1000) : '');
 
   // Las tres pantallas que dibujan un ticket tienen que remedir al pintar.
   for (const [pagina, script] of Object.entries(PAGINAS)) {

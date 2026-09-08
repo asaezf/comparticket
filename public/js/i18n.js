@@ -29,7 +29,7 @@ const translations = {
     perPerson: 'A partes iguales',
     shareBtn: 'Compartir enlace',
     shareTitle: 'Comparte con tus amigos',
-    shareHint: 'Marca lo tuyo',
+    shareHint: 'Que marquen lo suyo',
     copyLink: 'Copiar enlace',
     copied: '¡Enlace copiado!',
     share: 'Compartir',
@@ -231,7 +231,7 @@ const translations = {
     perPerson: 'Per person, split evenly',
     shareBtn: 'Share link',
     shareTitle: 'Share with friends',
-    shareHint: 'Pick what you had',
+    shareHint: 'Let them pick theirs',
     copyLink: 'Copy link',
     copied: 'Link copied!',
     share: 'Share',
@@ -433,7 +433,7 @@ const translations = {
     perPerson: 'Likt fordelt',
     shareBtn: 'Del lenke',
     shareTitle: 'Del med vennene dine',
-    shareHint: 'Merk det som er ditt',
+    shareHint: 'La dem merke sitt',
     copyLink: 'Kopier lenke',
     copied: 'Lenke kopiert!',
     share: 'Del',
@@ -633,7 +633,7 @@ const translations = {
     perPerson: 'Po równo',
     shareBtn: 'Udostępnij link',
     shareTitle: 'Podziel się ze znajomymi',
-    shareHint: 'Zaznacz swoje',
+    shareHint: 'Niech zaznaczą swoje',
     copyLink: 'Kopiuj link',
     copied: 'Link skopiowany!',
     share: 'Udostępnij',
@@ -833,7 +833,7 @@ const translations = {
     perPerson: 'En parts égales',
     shareBtn: 'Partager le lien',
     shareTitle: 'Partagez avec vos amis',
-    shareHint: 'Cochez ce qui est à vous',
+    shareHint: 'Qu’ils cochent le leur',
     copyLink: 'Copier le lien',
     copied: 'Lien copié !',
     share: 'Partager',
@@ -1033,7 +1033,7 @@ const translations = {
     perPerson: 'In parti uguali',
     shareBtn: 'Condividi link',
     shareTitle: 'Condividi con i tuoi amici',
-    shareHint: 'Segna il tuo',
+    shareHint: 'Che segnino il loro',
     copyLink: 'Copia link',
     copied: 'Link copiato!',
     share: 'Condividi',
@@ -1233,7 +1233,7 @@ const translations = {
     perPerson: 'Zu gleichen Teilen',
     shareBtn: 'Link teilen',
     shareTitle: 'Teile mit deinen Freunden',
-    shareHint: 'Markiere deins',
+    shareHint: 'Sollen sie ihres markieren',
     copyLink: 'Link kopieren',
     copied: 'Link kopiert!',
     share: 'Teilen',
@@ -1464,17 +1464,19 @@ function fechaDelTicket(tk) {
 /**
  * Termina la animación de "el ticket sale de la impresora" sin recortar nada.
  *
- * La animación crece el `max-height` desde 0, y como es `forwards` el valor
- * final se queda fijo para siempre. Con un tope fijo, cualquier ticket más
- * largo quedaba cortado de forma permanente — se comía el total en la pantalla
- * de revisión y media lista en la de marcar.
+ * Ya no mide nada, y esa es la gracia. La animación crecía el `max-height`
+ * desde 0 y, como es `forwards`, el valor final se quedaba puesto para
+ * siempre: con un tope fijo, cualquier ticket más largo quedaba CORTADO de
+ * forma permanente —se comía el total en la pantalla de revisión y media lista
+ * en la de marcar—. Por eso había que medir el alto real y pasarlo al CSS.
  *
- * Aquí se mide el alto real del contenido y se pasa al CSS, y en cuanto
- * termina la animación se le quitan todas las ataduras al ticket.
+ * Ahora la animación recorta con `clip-path` en vez de encoger la caja: no
+ * toca la maquetación, va fina, y no hay ningún alto que pueda quedarse
+ * puesto. Lo único que queda por hacer es quitarle la clase al terminar.
  *
- * Hay que llamarla DESPUÉS de pintar el contenido, y otra vez si el contenido
- * cambia de alto mientras aún se está imprimiendo (añadir una línea, desplegar
- * la ayuda).
+ * Se sigue llamando después de pintar el contenido; el segundo motivo por el
+ * que se llamaba —remedir al cambiar el alto mientras se imprime— ya no hace
+ * falta, pero llamarla de más no cuesta nada.
  */
 function fitTicket(el) {
   el = el || document.getElementById('ticket');
@@ -1490,12 +1492,6 @@ function fitTicket(el) {
 
   if (!el.classList.contains('printing')) return liberar();
 
-  // scrollHeight ignora el max-height que impone la animación, así que da el
-  // alto de verdad del contenido. El margen extra evita que un redondeo deje
-  // la última línea a medias.
-  const alto = el.scrollHeight + 40;
-  el.style.setProperty('--ticket-h', alto + 'px');
-
   if (!el.dataset.fitBound) {
     el.dataset.fitBound = '1';
     el.addEventListener('animationend', e => {
@@ -1504,6 +1500,6 @@ function fitTicket(el) {
     // Red de seguridad: si la animación no llega a emitir el evento (pestaña
     // en segundo plano, `prefers-reduced-motion`, un navegador raro), el
     // ticket se libera igual. Nunca puede quedarse recortado.
-    setTimeout(liberar, 4200);
+    setTimeout(liberar, 2400);
   }
 }

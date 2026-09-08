@@ -436,25 +436,36 @@ body {
   margin-top: -1px; /* seamless with ticket */
 }
 
-/* Print animation — paper pushes out from the slot.
+/* EL TICKET SALIENDO DE LA IMPRESORA — Y POR QUE YA NO DA TIRONES.
  *
- * El alto final lo mide el JS y lo pasa en --ticket-h. Antes había un
- * `max-height: 2000px` fijo y, como la animación es `forwards`, ese límite se
- * quedaba puesto para siempre junto con `overflow: hidden`: cualquier ticket
- * más alto de 2000 px quedaba CORTADO de forma permanente. Con el ticket de
- * Mercadona (35 líneas) se comía el total en la pantalla de revisión y media
- * lista en la de marcar, que era imposible de completar.
+ * Esto animaba `max-height` y los dos `padding` durante 3,4 segundos, y las
+ * tres son propiedades de MAQUETACION: el navegador tenia que recalcular la
+ * posicion de todo —las 35 lineas de un ticket del super, y la pagina entera
+ * por debajo— en cada uno de los 200 fotogramas. En un movil eso no da 60
+ * fotogramas por segundo ni de lejos, y por eso se veia a trompicones.
  *
- * El respaldo de 12000px es para el caso raro de que el JS no llegue a medir:
- * es preferible pasarse de largo que volver a cortar contenido.
+ * Ahora se recorta con `clip-path`, que no toca la maquetacion: el contenido
+ * esta colocado desde el primer momento y lo unico que cambia es hasta donde
+ * se ve. Cero recalculos. El efecto es el mismo —el papel se descubre de
+ * arriba abajo, como sale de la ranura— pero sin mover nada de sitio.
+ *
+ * Y de paso desaparece un problema viejo: con `max-height` habia que medir el
+ * alto real del ticket y pasarlo en --ticket-h, porque un tope fijo cortaba
+ * los tickets largos PARA SIEMPRE (la animacion es `forwards`). Sin
+ * `max-height` no hay nada que medir ni nada que pueda quedarse cortado.
+ *
+ * 1,7 s en vez de 3,4. Los 3,4 originales eran lentos incluso yendo finos: es
+ * el rato que la persona esta esperando para ver lo que tiene que pagar.
  */
 .ticket.printing {
-  animation: ticketEmerge 3.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: ticketEmerge 1.7s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
   transform-origin: top center;
-  overflow: hidden;
+  /* Le pide al navegador una capa propia: sin esto, algunos motores recortan
+     repintando en el hilo principal en vez de en la tarjeta grafica. */
+  will-change: clip-path;
 }
 .ticket.printing + .ticket-zigzag {
-  animation: zigzagFollow 3.4s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  animation: zigzagFollow 1.7s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
   opacity: 0;
 }
 
@@ -465,6 +476,8 @@ body {
   animation: none;
   max-height: none;
   overflow: visible;
+  clip-path: none;
+  will-change: auto;
 }
 .ticket.printed + .ticket-zigzag {
   animation: none;
@@ -472,25 +485,12 @@ body {
   transform: none;
 }
 
+/* Se descubre de arriba abajo. El `inset` recorta por el borde de abajo: del
+   100 % (nada a la vista) al 0 % (todo). Ni un pixel se mueve de sitio. */
 @keyframes ticketEmerge {
-  0% {
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    opacity: 0.2;
-  }
-  8% {
-    opacity: 1;
-    max-height: 18px;
-    padding-top: 6px;
-    padding-bottom: 0;
-  }
-  100% {
-    max-height: var(--ticket-h, 12000px);
-    padding-top: 18px;
-    padding-bottom: 18px;
-    opacity: 1;
-  }
+  0%   { clip-path: inset(0 0 100% 0); opacity: 0.35; }
+  7%   { clip-path: inset(0 0 96% 0);  opacity: 1; }
+  100% { clip-path: inset(0 0 0 0);    opacity: 1; }
 }
 
 @keyframes zigzagFollow {
@@ -2407,6 +2407,18 @@ input[type="file"] { display: none; }
   min-height: 34px;
 }
 
+/* MAS ANCHAS SEGUN LO QUE CUESTE LA UNIDAD.
+   Al marcar, el precio asoma dentro de la casilla, y en una de 42 px un
+   "129,90" no cabe: habia que encogerlo tanto que se leia con lupa. Asi que la
+   casilla crece con las cifras, y SOLO a lo ancho —el alto se queda en 34 px
+   para que las filas sigan cuadrando entre si—.
+   A partir de cinco cifras no se hace nada: un articulo suelto de mas de
+   10.000 no existe en un ticket, y reservar sitio para el estropearia el resto.
+   El alto no se toca; el ancho sube lo justo para que la cifra entre a su
+   tamano, sin que la casilla parezca otra cosa. */
+.unit-pill.tres-cifras  { min-width: 56px; }
+.unit-pill.cuatro-cifras { min-width: 72px; }
+
 /* MEJORA 6 · LA CIFRA EN EL BOTON
    El total vive donde esta la mano y donde acaba el gesto: a la izquierda de
    "Confirmar", subiendo conforme marcas. Antes habia una etiqueta naranja por
@@ -2550,6 +2562,25 @@ input[type="file"] { display: none; }
 /* Al soltar, el temblor tiene que parar en seco y el boton volver a su sitio;
    si no, se queda encogido y torcido hasta el siguiente intento. */
 .btn-confirmar.soltado { animation: none; translate: 0 0; scale: 1; }
+
+/* Y AL CONFIRMAR, IGUAL DE EN SECO.
+   El temblor es una animacion infinita a 70 ms por ciclo. Si sigue corriendo
+   mientras se manda la seleccion al servidor y se cambia de pagina, compite
+   por el hilo principal justo en el peor momento: se veia como un tiron seco
+   al completarse el circulo. Aqui se para todo y el boton se queda quieto,
+   lleno y en calma, que ademas es lo que tiene que transmitir. */
+.btn-confirmar.confirmado {
+  animation: none;
+  translate: 0 0;
+  scale: 1;
+  transition: none;
+}
+.btn-confirmar.confirmado .cb-fill {
+  animation: none;
+  opacity: 1;
+  transform: scale(1);
+  filter: brightness(0.86) saturate(1.12);
+}
 /* Quien pide menos movimiento no quiere un boton temblando: se queda el
    apriete, que es informacion, y se va el temblor, que es adorno. */
 @media (prefers-reduced-motion: reduce) {

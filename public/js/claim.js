@@ -723,7 +723,9 @@ function renderItems() {
     for (let u = 0; u < qty; u++) {
       const pill = document.createElement('button');
       pill.type = 'button';
-      pill.className = 'unit-pill';
+      // La casilla se ensancha si el precio de la unidad trae mas cifras: en
+      // una de 42 px un "129,90" no cabe, y al marcar el precio asoma dentro.
+      pill.className = 'unit-pill' + anchoPorPrecio(item.unitPrice);
       pill.dataset.itemId = item.id;
       pill.dataset.unit = u;
       pill.innerHTML = pillInner(item, u, others);
@@ -821,6 +823,25 @@ function pillInner(item, u, others) {
  * que enseñar— y solo si el artículo tiene más de una unidad, que es donde
  * estaba la confusión.
  */
+/**
+ * Cuanto hay que ensanchar la casilla para que su precio quepa.
+ *
+ * Se mira el precio de la UNIDAD, que es el que asoma al marcarla, no el total
+ * de la linea. Solo a lo ancho: el alto se queda en 34 px para que las filas
+ * sigan cuadrando entre si.
+ *
+ * De cinco cifras para arriba no se hace nada. Un articulo suelto de mas de
+ * 10.000 no aparece en un ticket, y reservarle sitio estropearia el resto de
+ * la rejilla por un caso que no llega nunca; para ese, `ajustarPrecio` sigue
+ * encogiendo la cifra como hasta ahora.
+ */
+function anchoPorPrecio(precio) {
+  const n = Math.abs(Number(precio) || 0);
+  if (n >= 1000) return ' cuatro-cifras';
+  if (n >= 100) return ' tres-cifras';
+  return '';
+}
+
 /**
  * Que la cifra quepa en la casilla.
  *
@@ -1255,6 +1276,12 @@ async function confirmar() {
   }
 
   const btn = document.getElementById('confirmBtn');
+  // Parar el temblor ANTES de nada. Es una animacion infinita a 70 ms por
+  // ciclo, y si sigue corriendo mientras se manda la seleccion y se cambia de
+  // pagina compite por el hilo principal justo en el peor momento: se notaba
+  // como un tiron seco al completarse el circulo.
+  btn.classList.remove('reteniendo', 'soltado');
+  btn.classList.add('confirmado');
   btn.disabled = true;
   confirmedNow = true;       // bloquea el guardado de emergencia de pagehide
   clearTimeout(saveTimer);   // que el borrador pendiente no pise la confirmación
@@ -1270,7 +1297,7 @@ async function confirmar() {
     window.location.href = `/summary.html?id=${ticketId}`;
   } catch (err) {
     btn.disabled = false;
-    btn.classList.remove('reteniendo', 'soltado');
+    btn.classList.remove('reteniendo', 'soltado', 'confirmado');
   }
 }
 
