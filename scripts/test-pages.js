@@ -80,26 +80,54 @@ console.log('\n4. La animación de impresión no puede recortar tickets largos')
   const css = fs.readFileSync(path.join(PUB, 'css', 'style.css'), 'utf8');
   const i18n = fs.readFileSync(path.join(PUB, 'js', 'i18n.js'), 'utf8');
 
-  const emerge = css.slice(css.indexOf('@keyframes ticketEmerge'),
-                           css.indexOf('}\n', css.indexOf('@keyframes ticketEmerge') + 40));
+  const emerge = css.slice(css.indexOf('@keyframes papel-sale'),
+                           css.indexOf('}\n', css.indexOf('@keyframes papel-sale') + 40));
 
-  // EL FALLO DE LOS TIRONES. Esto animaba `max-height` y los dos `padding`
-  // durante segundos, y las tres son propiedades de MAQUETACIÓN: el navegador
-  // recolocaba las 35 líneas de un ticket del súper —y la página entera por
-  // debajo— en cada fotograma. En un móvil eso va a trompicones, y así se veía.
-  const layout = ['max-height', 'height', 'padding', 'padding-top',
-                  'padding-bottom', 'margin', 'top', 'width'];
-  const culpables = layout.filter(prop =>
-    new RegExp('(^|[\\s;{])' + prop + ':').test(emerge));
-  check('la impresión no anima nada que recoloque la página',
-    culpables.length === 0,
-    'ticketEmerge anima ' + culpables.join(', ') + ': eso obliga a recalcular ' +
-    'la maquetación en cada fotograma y es exactamente lo que daba tirones');
+  // LA REGLA, Y VIENE DE DOS FALLOS SEGUIDOS EN ESTA MISMA ANIMACIÓN:
+  //
+  //   1ª versión — animaba `max-height` y los dos `padding`. Son propiedades
+  //      de MAQUETACIÓN: el navegador recolocaba las 35 líneas de un ticket
+  //      del súper, y la página entera por debajo, en cada fotograma.
+  //   2ª versión — pasó a `clip-path`, que no maqueta, pero con
+  //      `will-change: clip-path` sobre un elemento de 2.773 px. Eso obliga a
+  //      rasterizar una capa enorme y, hasta que termina, se ve el papel sin
+  //      su contenido: salía el ticket y DESPUÉS el texto de golpe.
+  //
+  // De ahí la regla: aquí solo pueden animarse `transform` y `opacity`, que
+  // son las dos únicas que no cuestan ni maquetación ni repintado. Cualquier
+  // otra cosa es un fotograma perdido en un móvil.
+  const permitidas = ['transform', 'opacity'];
+  const propiedades = [...new Set(
+    [...emerge.matchAll(/(?:^|[\s;{])([a-z-]+)\s*:/g)].map(m => m[1]))];
+  const prohibidas = propiedades.filter(x => !permitidas.includes(x));
+  check('la impresión solo anima transform y opacity',
+    prohibidas.length === 0,
+    'anima también ' + prohibidas.join(', ') + '. Layout o repintado en cada ' +
+    'fotograma es exactamente lo que daba tirones las dos veces anteriores');
 
-  // `clip-path` solo cambia hasta dónde se ve: el contenido está colocado
-  // desde el primer momento y no se mueve ni un píxel.
-  check('se descubre recortando, que no cuesta maquetación',
-    /clip-path:\s*inset\(/.test(emerge));
+  // Lo que rompió la 2ª versión, con nombre y apellidos.
+  const imprimiendo = css.slice(css.indexOf('.ticket.printing'),
+                                css.indexOf('}', css.indexOf('.ticket.printing')));
+  check('el ticket NO pide capa propia con will-change',
+    !/will-change/.test(imprimiendo),
+    'en un elemento de miles de píxeles, will-change obliga a rasterizar una ' +
+    'capa enorme y el contenido aparece de golpe cuando termina');
+
+  // El papel y su contenido son el MISMO elemento moviéndose, y el borde
+  // dentado va en la misma regla: no pueden desincronizarse porque no son
+  // animaciones distintas. Cuando el zigzag tenía la suya, se notaba.
+  check('el borde dentado se mueve con el ticket, no por su cuenta',
+    /\.ticket\.printing,\s*\n\.ticket\.printing \+ \.ticket-zigzag \{/.test(css),
+    'con animaciones separadas van cada uno a su ritmo');
+
+  // Y el JS tiene que escuchar el nombre de la animación que existe AHORA: al
+  // renombrarla se quedó esperando una que ya no estaba, y el ticket solo se
+  // soltaba por el temporizador de seguridad.
+  // Del bloque del ticket, no del primer `animation:` que haya en el fichero.
+  const nombre = (imprimiendo.match(/animation:\s*([\w-]+)\s/) || [])[1];
+  check('el JS espera el final de la animación que existe',
+    !!nombre && new RegExp("animationName === '" + nombre + "'").test(i18n),
+    'la animación se llama ' + nombre + ' y el JS escucha otra cosa');
 
   // Y el ticket largo tampoco puede quedarse cortado. Antes pasaba: la
   // animación es `forwards`, así que un tope fijo en píxeles se quedaba puesto
@@ -116,15 +144,15 @@ console.log('\n4. La animación de impresión no puede recortar tickets largos')
 
   // La espera importa: es el rato que alguien está mirando la pantalla para
   // saber lo que tiene que pagar.
-  const dur = css.match(/animation: ticketEmerge ([\d.]+)s/);
-  check('la impresión no se eterniza', !!dur && parseFloat(dur[1]) <= 2.2,
-    dur ? 'dura ' + dur[1] + ' s' : 'no se encuentra la duración');
+  const dur = css.match(/animation: papel-sale (\d+)ms/);
+  check('la impresión no se eterniza', !!dur && +dur[1] <= 900,
+    dur ? 'dura ' + dur[1] + ' ms' : 'no se encuentra la duración');
   // Y la red de seguridad tiene que ir por detrás de la animación, no por
   // delante: si salta antes, corta la impresión a medias.
   const red = i18n.match(/setTimeout\(liberar, (\d+)\)/);
   check('la red de seguridad salta después de la animación',
-    !!red && !!dur && +red[1] > parseFloat(dur[1]) * 1000,
-    red && dur ? 'red a los ' + red[1] + ' ms, animación de ' + (parseFloat(dur[1]) * 1000) : '');
+    !!red && !!dur && +red[1] > +dur[1],
+    red && dur ? 'red a los ' + red[1] + ' ms, animación de ' + dur[1] + ' ms' : '');
 
   // Las tres pantallas que dibujan un ticket tienen que remedir al pintar.
   for (const [pagina, script] of Object.entries(PAGINAS)) {

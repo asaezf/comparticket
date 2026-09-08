@@ -1494,12 +1494,15 @@ function fitTicket(el) {
 
   if (!el.dataset.fitBound) {
     el.dataset.fitBound = '1';
+    // El nombre tiene que ser el de la animacion que hay AHORA. Al cambiarla
+    // se quedo escuchando una que ya no existia, y el ticket solo se soltaba
+    // por el temporizador de seguridad: funcionaba, pero por el camino malo.
     el.addEventListener('animationend', e => {
-      if (e.animationName === 'ticketEmerge') liberar();
+      if (e.animationName === 'papel-sale') liberar();
     });
     // Red de seguridad: si la animación no llega a emitir el evento (pestaña
     // en segundo plano, `prefers-reduced-motion`, un navegador raro), el
     // ticket se libera igual. Nunca puede quedarse recortado.
-    setTimeout(liberar, 2400);
+    setTimeout(liberar, 1100);
   }
 }

@@ -436,67 +436,92 @@ body {
   margin-top: -1px; /* seamless with ticket */
 }
 
-/* EL TICKET SALIENDO DE LA IMPRESORA — Y POR QUE YA NO DA TIRONES.
+/* EL TICKET SALIENDO DE LA IMPRESORA — TERCERA VERSION, Y LA BUENA.
  *
- * Esto animaba `max-height` y los dos `padding` durante 3,4 segundos, y las
- * tres son propiedades de MAQUETACION: el navegador tenia que recalcular la
- * posicion de todo —las 35 lineas de un ticket del super, y la pagina entera
- * por debajo— en cada uno de los 200 fotogramas. En un movil eso no da 60
- * fotogramas por segundo ni de lejos, y por eso se veia a trompicones.
+ * Historia corta, porque las dos anteriores fallaron por el mismo sitio y
+ * conviene que no haya una cuarta:
  *
- * Ahora se recorta con `clip-path`, que no toca la maquetacion: el contenido
- * esta colocado desde el primer momento y lo unico que cambia es hasta donde
- * se ve. Cero recalculos. El efecto es el mismo —el papel se descubre de
- * arriba abajo, como sale de la ranura— pero sin mover nada de sitio.
+ *   1ª — Animaba `max-height` y los dos `padding` durante 3,4 s. Las tres son
+ *        propiedades de MAQUETACION: el navegador recolocaba las 35 lineas de
+ *        un ticket del super, y la pagina entera por debajo, en cada uno de
+ *        los 200 fotogramas. A trompicones.
  *
- * Y de paso desaparece un problema viejo: con `max-height` habia que medir el
- * alto real del ticket y pasarlo en --ticket-h, porque un tope fijo cortaba
- * los tickets largos PARA SIEMPRE (la animacion es `forwards`). Sin
- * `max-height` no hay nada que medir ni nada que pueda quedarse cortado.
+ *   2ª — Se cambio a `clip-path`, que no toca la maquetacion, pero se le puso
+ *        `will-change: clip-path`. En un elemento de 2.773 px de alto eso
+ *        obliga al navegador a rasterizar una capa enorme, y hasta que
+ *        termina se ve el papel sin su contenido: salia el ticket y DESPUES
+ *        el texto de golpe. Peor que antes.
  *
- * 1,7 s en vez de 3,4. Los 3,4 originales eran lentos incluso yendo finos: es
- * el rato que la persona esta esperando para ver lo que tiene que pagar.
+ * La leccion de las dos: cualquier cosa que obligue a recalcular o a repintar
+ * un elemento de tres mil pixeles va a ir mal en un movil, por muy elegante
+ * que sea la propiedad.
+ *
+ * Asi que esta version solo mueve `transform` y `opacity`. Son las dos unicas
+ * que no cuestan NI maquetacion NI repintado: el navegador pinta el ticket una
+ * sola vez y luego se limita a desplazar esa imagen ya hecha, que es trabajo
+ * de la tarjeta grafica y no del hilo principal.
+ *
+ * Y hay algo que esto arregla por construccion, no por suerte: el papel y su
+ * contenido son EL MISMO elemento moviendose. No pueden ir cada uno por su
+ * lado porque no son dos cosas.
+ *
+ * El caracter de impresora lo da la curva, no la propiedad: sale rapido —como
+ * un rodillo que empuja— se pasa tres pixeles y se asienta. Es el gesto que
+ * hace una impresora de tickets de verdad al soltar el papel.
+ *
+ * 560 ms. La primera version duraba 3,4 s, y ese es el rato que alguien esta
+ * esperando para ver lo que tiene que pagar.
+ *
+ * NADA DE `will-change` AQUI. Fue exactamente lo que rompio la version 2.
  */
-.ticket.printing {
-  animation: ticketEmerge 1.7s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
-  transform-origin: top center;
-  /* Le pide al navegador una capa propia: sin esto, algunos motores recortan
-     repintando en el hilo principal en vez de en la tarjeta grafica. */
-  will-change: clip-path;
-}
+.ticket.printing,
 .ticket.printing + .ticket-zigzag {
-  animation: zigzagFollow 1.7s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
-  opacity: 0;
+  /* `linear` a proposito, y no una curva. Con una `ease-out` el 95 % del
+     recorrido se gastaba en los primeros 170 ms de 560: el papel aparecia de
+     golpe y luego no pasaba nada, que es justo lo que se queria evitar. En
+     lineal, cada porcentaje de los keyframes ES un porcentaje del tiempo, asi
+     que el movimiento se reparte de verdad y se controla aqui abajo. Ademas un
+     avance constante es lo que hace un rodillo: la impresora no acelera. */
+  animation: papel-sale 620ms linear forwards;
+  transform-origin: top center;
 }
 
 /* Al terminar de "imprimirse" se quitan TODAS las ataduras. A partir de aquí
  * el ticket es una caja normal: ni recortes ni alturas máximas, pase lo que
  * pase con el contenido (añadir líneas, plegar la ayuda, girar el móvil). */
-.ticket.printed {
+/* Al terminar se sueltan todas las ataduras: a partir de aqui el ticket es una
+   caja normal, pase lo que pase con el contenido. Las de `max-height`,
+   `overflow` y `clip-path` son herencia de las dos versiones anteriores y se
+   quedan como red: si alguna vuelve por descuido, esto la desactiva. */
+.ticket.printed,
+.ticket.printed + .ticket-zigzag {
   animation: none;
   max-height: none;
   overflow: visible;
   clip-path: none;
   will-change: auto;
-}
-.ticket.printed + .ticket-zigzag {
-  animation: none;
   opacity: 1;
   transform: none;
 }
 
-/* Se descubre de arriba abajo. El `inset` recorta por el borde de abajo: del
-   100 % (nada a la vista) al 0 % (todo). Ni un pixel se mueve de sitio. */
-@keyframes ticketEmerge {
-  0%   { clip-path: inset(0 0 100% 0); opacity: 0.35; }
-  7%   { clip-path: inset(0 0 96% 0);  opacity: 1; }
-  100% { clip-path: inset(0 0 0 0);    opacity: 1; }
+/* Solo `transform` y `opacity`. Si algun dia hace falta anadir algo aqui, que
+   sea una de esas dos: lo demas se paga en fotogramas perdidos.
+   El papel arranca escondido detras del cuerpo de la impresora —que va por
+   encima, con z-index 3— asi que se lee como que sale por la ranura. */
+@keyframes papel-sale {
+  0%   { opacity: 0;    transform: translateY(-30px); }
+  22%  { opacity: 0.45; transform: translateY(-21px); }
+  48%  { opacity: 0.85; transform: translateY(-12px); }
+  /* A partir de aqui frena: el rodillo suelta el papel y se asienta. */
+  70%  { opacity: 1;    transform: translateY(-4px);
+         animation-timing-function: cubic-bezier(0.25, 0.9, 0.4, 1); }
+  86%  { transform: translateY(2.5px); }
+  100% { opacity: 1;    transform: translateY(0); }
 }
 
-@keyframes zigzagFollow {
-  0%, 85%  { opacity: 0; transform: translateY(-6px); }
-  100%     { opacity: 1; transform: translateY(0); }
-}
+/* zigzagFollow ya no existe: el borde dentado se anima con los MISMOS
+   keyframes que el ticket y en la misma regla, para que arranquen en el mismo
+   fotograma. Cuando tenia animacion propia iba por su cuenta y se notaba. */
 
 /* =============================================
    TICKET HEADER — restaurant/date
@@ -2574,6 +2599,15 @@ input[type="file"] { display: none; }
   translate: 0 0;
   scale: 1;
   transition: none;
+}
+/* Mientras viaja al servidor. Solo la opacidad del texto, que es un elemento
+   pequeno: no cuesta repintado y evita que el boton parezca colgado. */
+.btn-confirmar.enviando .cb-txt {
+  animation: cb-enviando 1s ease-in-out infinite;
+}
+@keyframes cb-enviando {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.55; }
 }
 .btn-confirmar.confirmado .cb-fill {
   animation: none;

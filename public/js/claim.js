@@ -962,6 +962,9 @@ function refreshPills(row, item, othersMap) {
 }
 
 function onPillClick(e) {
+  // Aqui arriba y no mas abajo: el resto de la funcion tiene ramas por las que
+  // no siempre se pasa, y ahi la llamada no llegaba a ejecutarse nunca.
+  calentarServidor();
   const pill = e.currentTarget;
   stopBeat(pill);            // si latía por estar pendiente, deja de hacerlo
   const itemId = +pill.dataset.itemId;
@@ -1146,6 +1149,31 @@ window.addEventListener('pagehide', () => {
  * despacio y frenando mucho al final, el gesto entero se disfruta mas, y sigue
  * sin dar tiempo a pensar que se ha colgado.
  */
+/* EL SERVIDOR, CALIENTE ANTES DE QUE HAGA FALTA.
+ *
+ * Confirmar manda la seleccion al servidor y espera la respuesta antes de
+ * cambiar de pantalla, y esa espera es casi toda arranque en frio: la funcion
+ * lleva rato sin usarse y hay que levantarla. Por eso, despues de completarse
+ * la animacion, el boton se quedaba muerto uno o dos segundos.
+ *
+ * En cuanto alguien marca su primera casilla han pasado ya varios segundos
+ * hasta que confirma. Ese hueco es gratis: se le da un toque al servidor —una
+ * peticion minima que no escribe nada— y para cuando llega el momento de
+ * verdad, ya esta despierto.
+ *
+ * Una sola vez por pantalla, y sin esperar la respuesta: si falla, da igual,
+ * era un favor y no un requisito.
+ */
+let calentadoEn = 0;
+function calentarServidor() {
+  // No es una bandera de una sola vez: una funcion que lleva un rato sin
+  // usarse se vuelve a dormir, asi que se repite el aviso cada 30 s como mucho.
+  if (Date.now() - calentadoEn < 30000) return;
+  calentadoEn = Date.now();
+  try { fetch(`/api/tickets/${ticketId}/pulse`, { cache: 'no-store' }).catch(() => {}); }
+  catch (_) {}
+}
+
 const RETENCION = 750;
 /* Y esto es lo que hace que el fallo no pueda volver por otra puerta.
    Por muy bien que se ajusten el circulo, la vibracion y el temporizador,
@@ -1196,6 +1224,11 @@ const VIBRA_MANTENIENDO = [14, 50, 18, 46, 24, 40, 30, 31, 38, 22, 48, 18, 60, 1
 
 function empezarRetencion(btn, e) {
   if (btn.disabled || retencion) return;
+  // El mejor momento para despertar al servidor: mantener pulsado dura 750 ms,
+  // y son 750 ms que la peticion de calentamiento aprovecha entera. Si ya se
+  // hizo al marcar la primera casilla pero ha pasado mucho rato, se repite:
+  // una funcion sin usar se vuelve a dormir.
+  calentarServidor();
   medirCirculo(btn, e);
   btn.classList.remove('soltado');
   btn.classList.add('reteniendo');
@@ -1282,6 +1315,11 @@ async function confirmar() {
   // como un tiron seco al completarse el circulo.
   btn.classList.remove('reteniendo', 'soltado');
   btn.classList.add('confirmado');
+  // Y despues de calmarse, que se note que sigue trabajando. Lo que queda de
+  // espera es el viaje al servidor, y un boton lleno y completamente quieto
+  // durante un segundo se lee como que se ha colgado. Es una respiracion en la
+  // opacidad del texto: cuesta cero -no repinta nada- y basta para decir "voy".
+  btn.classList.add('enviando');
   btn.disabled = true;
   confirmedNow = true;       // bloquea el guardado de emergencia de pagehide
   clearTimeout(saveTimer);   // que el borrador pendiente no pise la confirmación
@@ -1297,7 +1335,7 @@ async function confirmar() {
     window.location.href = `/summary.html?id=${ticketId}`;
   } catch (err) {
     btn.disabled = false;
-    btn.classList.remove('reteniendo', 'soltado', 'confirmado');
+    btn.classList.remove('reteniendo', 'soltado', 'confirmado', 'enviando');
   }
 }
 
