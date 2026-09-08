@@ -2323,14 +2323,15 @@ input[type="file"] { display: none; }
 
 /* MEJORA 7 · LA CASILLA ACUSA EL TOQUE
    Marcar y desmarcar daban exactamente igual por fuera. Ahora la casilla
-   acusa el gesto en su propia forma: al marcar se asienta desde algo mas
-   ancha y plana -como un sello al apoyarse-, al desmarcar se encoge un
-   instante. Son 180 ms; no se ve como animacion, se nota como respuesta. */
+   acusa el gesto en su propia forma: al marcar cae de canto y se asienta con
+   dos rebotes -como un sello al apoyarse-, al desmarcar se despega girando al
+   reves. La primera version duraba 180 ms y giraba 4 grados: Alvaro no la veia
+   siquiera. Subida a 460 ms y 9 grados, que es donde se nota sin marear. */
 .unit-pill.marcada { animation: pill-sella 0.46s cubic-bezier(0.28, 1.5, 0.4, 1); }
 .unit-pill.desmarcada { animation: pill-suelta 0.36s cubic-bezier(0.3, 1.4, 0.45, 1); }
-/* El sello: cae de canto, se apoya con un golpe seco y se endereza. El giro
-   es de 4 grados -suficiente para verlo, poco para que parezca que la
-   interfaz se ha torcido- y vuelve a cero, nunca se queda ladeada. */
+/* El sello: cae de canto, se apoya con un golpe seco y se endereza. Nueve
+   grados de giro y dos rebotes antes de asentar; sea cual sea el recorrido,
+   siempre vuelve a cero: una casilla no se queda torcida. */
 @keyframes pill-sella {
   0%   { transform: rotate(-9deg) scale(0.74); }
   30%  { transform: rotate(5deg)  scale(1.16); }
