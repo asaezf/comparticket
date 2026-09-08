@@ -72,6 +72,8 @@ function removeFile(idx) {
 
 function renderThumbs() {
   previewThumbs.innerHTML = '';
+  // Una sola foto no comparte fila con nada: se trata de MIRARLA.
+  previewThumbs.classList.toggle('una', files.length === 1);
   files.forEach((file, idx) => {
     const thumb = document.createElement('div');
     thumb.className = 'thumb';
@@ -100,7 +102,8 @@ function renderThumbs() {
     rot.type = 'button';
     rot.title = t.rotate || 'Girar';
     rot.setAttribute('aria-label', t.rotate || 'Girar');
-    rot.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11a7.9 7.9 0 0 0-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.91v2.02c1.42-.23 2.76-.79 3.9-1.62l-1.44-1.44c-.75.54-1.59.89-2.46 1.04zm3.89-2.42l1.42 1.41c.83-1.13 1.39-2.47 1.62-3.9h-2.02c-.15.87-.5 1.72-1.02 2.49z"/></svg>';
+    rot.innerHTML = '<svg viewBox="0 0 24 24"><path d="M15.55 5.55L11 1v3.07C7.06 4.56 4 7.92 4 12s3.05 7.44 7 7.93v-2.02c-2.84-.48-5-2.94-5-5.91s2.16-5.43 5-5.91V10l4.55-4.45zM19.93 11a7.9 7.9 0 0 0-1.62-3.89l-1.42 1.42c.54.75.88 1.6 1.02 2.47h2.02zM13 17.91v2.02c1.42-.23 2.76-.79 3.9-1.62l-1.44-1.44c-.75.54-1.59.89-2.46 1.04zm3.89-2.42l1.42 1.41c.83-1.13 1.39-2.47 1.62-3.9h-2.02c-.15.87-.5 1.72-1.02 2.49z"/></svg>'
+      + '<span>' + (t.rotate || 'Girar') + '</span>';
     rot.addEventListener('click', async (e) => {
       e.stopPropagation();
       rot.disabled = true;
@@ -126,18 +129,42 @@ function renderThumbs() {
   }
 }
 
-/** Aviso suave si alguna foto sale más ancha que alta, que en un ticket es raro. */
+/**
+ * Una foto tumbada NO se escanea. Se bloquea.
+ *
+ * Antes esto era un aviso suave que se podia ignorar, y se ignoraba: se han
+ * escaneado tickets en horizontal y la lectura sale mal —lineas partidas,
+ * importes que no cuadran— y el fallo no aparece hasta el final, cuando ya
+ * hay gente marcando lo suyo sobre unas cifras equivocadas. Mas vale un
+ * segundo girando la foto que un reparto mal hecho.
+ *
+ * Se marca la foto concreta, no "alguna": con cuatro fotos, "alguna esta
+ * girada" obliga a mirarlas una por una.
+ */
 async function hintSideways() {
   const hint = document.getElementById('addHintText');
-  if (!hint) return;
+  const aviso = document.getElementById('previewAviso');
+  const avisoTxt = document.getElementById('previewAvisoTxt');
   const checks = await Promise.all(files.map(f => ImgPrep.looksSideways(f)));
-  const sideways = checks.some(Boolean);
-  hint.textContent = sideways
-    ? (lang === 'es'
-        ? 'Alguna foto parece girada. Gírala con ⟳ para que se lea bien.'
-        : 'A photo looks sideways. Use ⟳ so it can be read properly.')
-    : t.addMore;
-  hint.classList.toggle('warn', sideways);
+  const cuantas = checks.filter(Boolean).length;
+
+  // Cada miniatura dice si es ella la que esta mal.
+  previewThumbs.querySelectorAll('.thumb').forEach((el, i) => {
+    el.classList.toggle('tumbada', !!checks[i]);
+  });
+
+  if (hint) {
+    hint.textContent = t.addMore;
+    hint.classList.remove('warn');
+  }
+  if (aviso) aviso.classList.toggle('on', cuantas > 0);
+  if (avisoTxt && cuantas > 0) avisoTxt.textContent = cuantas === 1
+    ? (t.tumbadaUna || 'Esta foto está tumbada. Gírala para poder escanear: de lado, la lectura falla y las cifras salen mal.')
+    : (t.tumbadaVarias || 'Hay fotos tumbadas. Gíralas para poder escanear: de lado, la lectura falla y las cifras salen mal.')
+        .replace('{n}', cuantas);
+
+  // El boton de escanear no admite fotos tumbadas.
+  if (scanBtn) scanBtn.disabled = cuantas > 0;
 }
 
 retakeBtn.addEventListener('click', () => {

@@ -262,6 +262,13 @@
     <div class="preview-overlay hidden" id="previewOverlay">
       <div class="thumbs" id="previewThumbs"></div>
       <div class="preview-add-hint" id="addHintText"></div>
+      <!-- Una foto tumbada no se escanea: la lectura falla y las cifras salen
+           mal, y eso no se descubre hasta el final, con gente ya marcando lo
+           suyo sobre unos importes equivocados. -->
+      <div class="preview-aviso" id="previewAviso">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z"/></svg>
+        <span id="previewAvisoTxt"></span>
+      </div>
       <div class="preview-btns">
         <button class="btn btn-retake" id="retakeBtn">
           <span id="retakeText"></span>
