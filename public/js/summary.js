@@ -863,6 +863,10 @@ function importeParaPegar(n) {
 /** Copiar el importe de un toque. Es donde más se equivoca la gente: mandar
  *  124 € en vez de 12,40 € pasa, y deshacerlo es un marrón. */
 function copiarImporte(valor) {
+  // Las cifras laten para que se vea que se tocan. En cuanto se copia una, ya
+  // no hace falta decirlo mas: a partir de ahi solo seria una cifra de dinero
+  // moviendose sin motivo.
+  document.body.classList.add('ya-copio');
   const texto = importeParaPegar(valor);
   const hecho = () => toast(texto + ' · ' + t.copied);
   if (navigator.clipboard && navigator.clipboard.writeText) {

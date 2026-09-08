@@ -1046,6 +1046,12 @@ body {
 
 /* Ayuda de la pantalla de revisión: qué hacer si la lectura se dejó algo */
 .review-help { margin-top: 6px; }
+/* Esta ayuda lleva tambien la clase .claim-help, y con ella se llevaba el
+   latido de la pantalla de las casillas. Ahi si tiene sentido -es la unica
+   ayuda y nadie la abria-; aqui no: en la pantalla de repasar el ticket lo que
+   hay que mirar son las cifras, y un texto moviendose al lado se lleva la
+   vista justo a donde no hace falta. */
+.review-help > summary { animation: none; }
 .review-help .rh-body {
   font-family: var(--sans);
   font-size: 0.68rem;
@@ -1178,6 +1184,33 @@ body {
 }
 .person-amount:active {
   opacity: 0.45;
+}
+
+/* LAS CIFRAS QUE SE COPIAN, LATIENDO
+   Copiar el importe de un toque existe desde hace tiempo y no se ve por
+   ninguna parte: son texto, sin borde ni fondo, iguales que las de al lado que
+   no hacen nada. Quien no lo sabe no lo descubre. Un latido flojo es la forma
+   mas barata de decir "esto se toca" sin meter un boton ni un icono al lado de
+   una cifra de dinero, que es donde menos ruido puede haber.
+   Ciclo largo -3,4 s- y solo en la escala: el color no se toca, porque el rojo
+   de "este paga" significa algo y no puede parpadear. */
+.person-amount,
+.pantalla-grupo .tr-amount {
+  display: inline-block;
+  animation: cifra-late 3.4s ease-in-out 1.4s infinite;
+}
+@keyframes cifra-late {
+  0%, 58%, 100% { transform: scale(1); }
+  70%           { transform: scale(1.085); }
+  81%           { transform: scale(0.985); }
+  91%           { transform: scale(1.028); }
+}
+/* En cuanto copia una, deja de latir: ya sabe que se tocan, y a partir de ahi
+   solo seria una cifra de dinero moviendose sin motivo. */
+body.ya-copio .person-amount,
+body.ya-copio .pantalla-grupo .tr-amount { animation: none; }
+@media (prefers-reduced-motion: reduce) {
+  .person-amount, .pantalla-grupo .tr-amount { animation: none; }
 }
 
 /* "Recordar": solo lo ve quien puso el dinero, y solo con la cuenta cerrada.
@@ -2401,6 +2434,71 @@ input[type="file"] { display: none; }
   align-items: center;
   justify-content: center;
   gap: 10px;
+  /* Los dos son para el relleno de mantener pulsado: el circulo crece desde
+     donde esta el dedo y el boton lo recorta con su propia forma. */
+  position: relative;
+  overflow: hidden;
+  /* Y estos, por iOS: un dedo quieto medio segundo encima de un texto saca la
+     lupa y el menu de copiar, que es justo lo que NO puede pasar mientras se
+     mantiene pulsado para confirmar. */
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* MANTENER PULSADO PARA CONFIRMAR
+   Confirmar es el unico paso de la app que no tiene vuelta atras: cierra tu
+   parte del ticket y te saca de la pantalla. Un toque suelto lo disparaba, y
+   un toque suelto es justo lo que pasa cuando el movil va en la mano.
+   No se anuncia en ninguna parte a proposito. Se nota al primer intento: al
+   apoyar el dedo empieza a crecer un circulo ambar desde el punto exacto donde
+   se ha tocado, y si se suelta antes de tiempo se va. Nadie necesita que le
+   expliquen eso; solo necesita verlo una vez.
+   El ambar es el de las casillas compartidas. No es decoracion: es el unico
+   color de esta pantalla que ya significa "esto es de varios", y confirmar es
+   precisamente el momento en que tu parte pasa a ser de todos.
+   520 ms. Suficiente para que no lo dispare un roce, poco para que nadie
+   piense que se ha quedado colgado. */
+.cb-fill {
+  position: absolute;
+  left: 0; top: 0;
+  width: var(--cb-d, 0px);
+  height: var(--cb-d, 0px);
+  margin-left: calc(var(--cb-x, 50%) - var(--cb-d, 0px) / 2);
+  margin-top: calc(var(--cb-y, 50%) - var(--cb-d, 0px) / 2);
+  border-radius: 50%;
+  background: radial-gradient(circle, #FBBF24 0%, #F59E0B 58%, #D97706 100%);
+  transform: scale(0);
+  pointer-events: none;
+  opacity: 0;
+}
+.btn-confirmar.reteniendo .cb-fill {
+  opacity: 1;
+  animation: cb-llenar 520ms cubic-bezier(0.35, 0, 0.5, 1) forwards;
+}
+@keyframes cb-llenar {
+  from { transform: scale(0); }
+  to   { transform: scale(1); }
+}
+/* Al soltar antes de tiempo el circulo se va de golpe, no se queda a medias:
+   una barra parada a la mitad se lee como que algo ha fallado. */
+.btn-confirmar.soltado .cb-fill {
+  animation: none;
+  opacity: 0;
+  transform: scale(0);
+  transition: opacity 0.16s ease, transform 0.16s ease;
+}
+/* El texto y la cifra, por encima del relleno. Y con una sombra minima
+   mientras se mantiene: el blanco sobre ambar se lee peor que sobre negro, y
+   son los ultimos 200 ms en los que la cifra todavia importa. */
+.btn-confirmar .cb-txt,
+.btn-confirmar .cb-total { position: relative; z-index: 1; }
+.btn-confirmar.reteniendo .cb-txt { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.42); }
+/* Se hunde un poco mas de lo normal mientras se mantiene: el dedo esta quieto
+   encima y sin esto no hay ninguna respuesta al peso. */
+.btn-confirmar.reteniendo { transform: scale(0.975); }
+@media (prefers-reduced-motion: reduce) {
+  .btn-confirmar.reteniendo .cb-fill { animation-duration: 520ms; }
 }
 .cb-total {
   font-family: var(--mono);

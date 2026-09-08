@@ -1067,6 +1067,10 @@ async function liquidarReparto() {
 /** Lo que va al portapapeles: el número pelado, sin símbolo de moneda, porque
  *  muchos formularios de banco no lo aceptan. */
 function copiarImporte(valor) {
+  // Las cifras laten para que se vea que se tocan. En cuanto se copia una, ya
+  // no hace falta decirlo mas: a partir de ahi solo seria una cifra de dinero
+  // moviendose sin motivo.
+  document.body.classList.add('ya-copio');
   const texto = eur(valor).replace(/[^0-9.,]/g, '').trim();
   const hecho = () => toast(texto + ' · copiado');
   if (navigator.clipboard && navigator.clipboard.writeText) {

@@ -1109,7 +1109,94 @@ window.addEventListener('pagehide', () => {
   } catch (_) {}
 });
 
-document.getElementById('confirmBtn').addEventListener('click', async () => {
+/**
+ * CONFIRMAR SE MANTIENE PULSADO, NO SE TOCA.
+ *
+ * Es el unico paso de la app que no tiene vuelta atras: cierra tu parte del
+ * ticket y te saca de la pantalla. Un toque suelto lo disparaba, y un toque
+ * suelto es exactamente lo que pasa con el movil en la mano en una mesa.
+ *
+ * No se avisa por ninguna parte, a proposito. Se entiende al primer intento:
+ * al apoyar el dedo empieza a crecer un circulo ambar desde el punto exacto
+ * donde se ha tocado, y si se suelta antes de tiempo se va. Un cartel que
+ * ponga "manten pulsado" seria mas texto que leer para algo que se ve solo.
+ *
+ * 520 ms: no lo dispara un roce, y no da tiempo a pensar que se ha colgado.
+ */
+const RETENCION = 520;
+let retencion = null;
+
+function medirCirculo(btn, e) {
+  const r = btn.getBoundingClientRect();
+  // Sin coordenadas -teclado- se centra. Con ellas, el circulo nace justo
+  // debajo del dedo: es lo que hace que se lea como que lo empujas tu.
+  const x = (e && e.clientX != null) ? e.clientX - r.left : r.width / 2;
+  const y = (e && e.clientY != null) ? e.clientY - r.top : r.height / 2;
+  // Diametro = el doble de la esquina mas lejana, para que cubra el boton
+  // entero venga el dedo de donde venga.
+  const lejos = Math.max(
+    Math.hypot(x, y), Math.hypot(r.width - x, y),
+    Math.hypot(x, r.height - y), Math.hypot(r.width - x, r.height - y));
+  btn.style.setProperty('--cb-x', x + 'px');
+  btn.style.setProperty('--cb-y', y + 'px');
+  btn.style.setProperty('--cb-d', (lejos * 2) + 'px');
+}
+
+/** Un toque corto. En los moviles que lo soportan; iOS no vibra nunca. */
+function tocar(patron) {
+  try { if (navigator.vibrate) navigator.vibrate(patron); } catch (_) {}
+}
+
+function empezarRetencion(btn, e) {
+  if (btn.disabled || retencion) return;
+  medirCirculo(btn, e);
+  btn.classList.remove('soltado');
+  btn.classList.add('reteniendo');
+  tocar(10);
+  retencion = setTimeout(() => {
+    retencion = null;
+    // Dos golpes secos al completarse: es el "ya esta" que en un boton normal
+    // da el propio salto de pantalla, y aqui llega antes que el.
+    tocar([16, 40, 26]);
+    confirmar();
+  }, RETENCION);
+}
+
+function soltarRetencion(btn) {
+  if (!retencion) { btn.classList.remove('reteniendo'); return; }
+  clearTimeout(retencion);
+  retencion = null;
+  btn.classList.remove('reteniendo');
+  btn.classList.add('soltado');
+  // La clase se quita al acabar el desvanecido para que el siguiente intento
+  // arranque de cero; si se quedara puesta, el circulo no volveria a salir.
+  setTimeout(() => btn.classList.remove('soltado'), 200);
+}
+
+{
+  const btn = document.getElementById('confirmBtn');
+  btn.addEventListener('pointerdown', e => {
+    // Solo el boton principal del raton; con el dedo siempre es 0.
+    if (e.button !== 0) return;
+    e.preventDefault();
+    empezarRetencion(btn, e);
+  });
+  // Soltar, salirse del boton o que el navegador cancele el gesto -un scroll
+  // que se lleva el dedo- cuentan todos como no confirmar.
+  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev =>
+    btn.addEventListener(ev, () => soltarRetencion(btn)));
+
+  // Con teclado no hay nada que mantener: Enter o espacio confirman y ya. El
+  // gesto largo protege del roce en un movil, no de un teclado.
+  btn.addEventListener('keydown', e => {
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); confirmar(); }
+  });
+  // Y el `click` deja de confirmar: si siguiera haciendolo, un toque suelto
+  // -que es lo que se queria evitar- seguiria valiendo.
+  btn.addEventListener('click', e => e.preventDefault());
+}
+
+async function confirmar() {
   const name = document.getElementById('nameInput').value.trim();
   const itemUnitsPayload = {};
   Object.keys(myUnits).forEach(id => {
@@ -1141,8 +1228,9 @@ document.getElementById('confirmBtn').addEventListener('click', async () => {
     window.location.href = `/summary.html?id=${ticketId}`;
   } catch (err) {
     btn.disabled = false;
+    btn.classList.remove('reteniendo', 'soltado');
   }
-});
+}
 
 function toast(msg) {
   const el = document.getElementById('toast');

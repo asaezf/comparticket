@@ -138,7 +138,23 @@ console.log('\n4. Un ticket tumbado no se escanea');
     !!marca && /var\(--red\)/.test(marca));
 }
 
-console.log('\n5. La firma solo donde toca');
+console.log('\n5. La ayuda de repasar el ticket no se mueve');
+{
+  // Lleva las dos clases, y con .claim-help se llevaba el latido que se puso
+  // para la pantalla de las casillas. Ahi tiene sentido -es la unica ayuda y
+  // nadie la abria-; en la de repasar el ticket no: lo que hay que mirar son
+  // las cifras, y un texto moviendose al lado se lleva la vista a otro sitio.
+  const rev = bloque('.review-help > summary') || '';
+  check('la linea de "\u00bffalta algo o no cuadra?" no respira',
+    /animation:\s*none/.test(rev),
+    'hereda el latido de .claim-help si no se le apaga aqui');
+  // Y la de las casillas sigue respirando: apagar una no puede apagar la otra.
+  const ayuda = bloque('.claim-help > summary') || '';
+  check('la de "\u00bfcomo funciona?" si sigue respirando',
+    /animation:\s*ayuda-respira/.test(ayuda));
+}
+
+console.log('\n6. La firma solo donde toca');
 {
   const conFirma = fs.readdirSync(PUB)
     .filter(f => f.endsWith('.html'))
@@ -162,7 +178,7 @@ console.log('\n5. La firma solo donde toca');
     /env\(safe-area-inset-bottom/.test(firma));
 }
 
-console.log('\n6. Los consejos de la pantalla de carga');
+console.log('\n7. Los consejos de la pantalla de carga');
 {
   const ctx = { window: {}, document: { documentElement: {} }, navigator: {},
                 localStorage: { getItem: () => null, setItem: () => {} }, out: null };
