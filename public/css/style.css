@@ -2205,13 +2205,16 @@ input[type="file"] { display: none; }
   transition: opacity 0.18s ease, max-width 0.24s ease, padding 0.2s ease;
 }
 .cb-total.on { opacity: 1; max-width: 120px; }
-.cb-total.sube { animation: cb-sube 0.14s ease-out; }
+/* La cifra no cambia sin mas: da un salto corto hacia arriba, como un
+   contador mecanico pasando de numero. 260 ms y con un rebote minimo. */
+.cb-total.sube { animation: cb-sube 0.26s cubic-bezier(0.34, 1.5, 0.5, 1); }
 /* El texto del boton. Sin cifra va centrado el solo; con cifra, los dos
    quedan centrados como un bloque. */
 .cb-txt { white-space: nowrap; }
 @keyframes cb-sube {
-  from { transform: translateY(2px) scale(0.94); }
-  to   { transform: none; }
+  0%   { transform: translateY(7px) scale(0.82); opacity: 0.45; }
+  55%  { transform: translateY(-2px) scale(1.06); opacity: 1; }
+  100% { transform: none; opacity: 1; }
 }
 .btn-confirmar:disabled .cb-total { max-width: 0; padding: 3px 0; opacity: 0; }
 
@@ -2220,15 +2223,21 @@ input[type="file"] { display: none; }
    acusa el gesto en su propia forma: al marcar se asienta desde algo mas
    ancha y plana -como un sello al apoyarse-, al desmarcar se encoge un
    instante. Son 180 ms; no se ve como animacion, se nota como respuesta. */
-.unit-pill.marcada { animation: pill-sella 0.2s cubic-bezier(0.3, 1.4, 0.5, 1); }
-.unit-pill.desmarcada { animation: pill-suelta 0.18s ease-out; }
+.unit-pill.marcada { animation: pill-sella 0.34s cubic-bezier(0.34, 1.56, 0.5, 1); }
+.unit-pill.desmarcada { animation: pill-suelta 0.26s cubic-bezier(0.4, 0, 0.5, 1); }
+/* El sello: cae de canto, se apoya con un golpe seco y se endereza. El giro
+   es de 4 grados -suficiente para verlo, poco para que parezca que la
+   interfaz se ha torcido- y vuelve a cero, nunca se queda ladeada. */
 @keyframes pill-sella {
-  0%   { transform: scale(1.06, 0.9); }
-  60%  { transform: scale(0.985, 1.02); }
+  0%   { transform: rotate(-4deg) scale(0.86); }
+  38%  { transform: rotate(2.2deg) scale(1.07); }
+  68%  { transform: rotate(-0.8deg) scale(0.985); }
   100% { transform: none; }
 }
+/* Al soltar, el giro va al reves: se despega. */
 @keyframes pill-suelta {
-  0%   { transform: scale(0.9); }
+  0%   { transform: rotate(2.5deg) scale(0.9); }
+  55%  { transform: rotate(-1deg) scale(1.02); }
   100% { transform: none; }
 }
 
@@ -2237,19 +2246,6 @@ input[type="file"] { display: none; }
    tenue -blanco al 9%, de esquina a esquina- le da un plano de luz y la
    separa del fondo sin añadir ni un color nuevo ni un borde mas. Solo en las
    tuyas: es el estado que interesa distinguir de un vistazo. */
-.unit-pill.mine {
-  background-image: linear-gradient(133deg,
-    rgba(255, 255, 255, 0.11) 0%,
-    rgba(255, 255, 255, 0.03) 42%,
-    rgba(255, 255, 255, 0) 62%);
-}
-.unit-pill.shared {
-  background-image: linear-gradient(133deg,
-    rgba(255, 255, 255, 0.22) 0%,
-    rgba(255, 255, 255, 0.06) 45%,
-    rgba(255, 255, 255, 0) 65%);
-}
-
 /* MEJORA 4 · EL TIC EN HUECO
    La casilla vacía no decía qué se esperaba de ella: era un rectángulo con
    borde discontinuo y nada dentro. Ahora lleva el mismo visto que va a
@@ -2384,8 +2380,20 @@ input[type="file"] { display: none; }
   flex-shrink: 0;
 }
 /* State: mine (claimed by me, alone) */
+/* MEJORA 8 · EL BRILLO DE LO YA MARCADO
+   Va en la MISMA declaracion que el color, no en una regla aparte: la forma
+   abreviada `background:` reinicia `background-image`, asi que un brillo
+   declarado por separado mas arriba lo borraba esta linea sin avisar. Es la
+   misma trampa contra la que avisa el comentario del borde unas reglas mas
+   abajo, y aqui se cayo en ella igual.
+   Un plano de luz diagonal muy tenue para que el negro macizo no se lea
+   plano. Nada de color nuevo: solo blanco a muy baja opacidad. */
 .unit-pill.mine {
-  background: var(--black);
+  background: linear-gradient(134deg,
+      rgba(255, 255, 255, 0.16) 0%,
+      rgba(255, 255, 255, 0.05) 38%,
+      rgba(255, 255, 255, 0) 60%),
+    var(--black);
   color: white;
   border: 1.5px solid var(--black);
 }
@@ -2397,7 +2405,11 @@ input[type="file"] { display: none; }
 }
 /* State: shared (me + at least one other) */
 .unit-pill.shared {
-  background: #F59E0B;
+  background: linear-gradient(134deg,
+      rgba(255, 255, 255, 0.34) 0%,
+      rgba(255, 255, 255, 0.10) 40%,
+      rgba(255, 255, 255, 0) 62%),
+    #F59E0B;
   color: #1F1203;
   border: 1.5px solid #D97706;
 }

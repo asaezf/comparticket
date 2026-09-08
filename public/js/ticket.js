@@ -302,32 +302,24 @@ document.getElementById('shareBtn').addEventListener('click', async () => {
   btn.textContent = t.sharing;
 
   try {
-    const itemsRes = await fetch(`/api/tickets/${ticketId}/items`, {
-      method: 'PUT',
+    // UNA sola peticion, no cuatro.
+    //
+    // Antes esto eran tres esperas encadenadas -guardar articulos, luego
+    // pagador y participantes, luego compartir- y cada una con su arranque en
+    // frio de la funcion en Vercel y su ida y vuelta a Firestore: ocho
+    // operaciones. En un movil con datos eso son varios segundos con el boton
+    // bloqueado, justo cuando la persona esta esperando para pasar el enlace.
+    // El servidor acepta ahora todo junto y lo escribe de una vez.
+    const shareRes = await fetch(`/api/tickets/${ticketId}/share`, {
+      method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ items: ticketData.items, total: ticketData.total })
-    });
-    if (!itemsRes.ok) {
-      const err = await itemsRes.json().catch(() => ({}));
-      throw new Error(err.error || t.itemsLocked);
-    }
-
-    // Pagador y participantes son independientes: en paralelo se ahorra un
-    // viaje de ida y vuelta, que en móvil se nota.
-    await Promise.all([
-      fetch(`/api/tickets/${ticketId}/payer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ payerName })
-      }),
-      fetch(`/api/tickets/${ticketId}/participants`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ expectedParticipants: pVal })
+      body: JSON.stringify({
+        items: ticketData.items,
+        total: ticketData.total,
+        payerName,
+        expectedParticipants: pVal
       })
-    ]);
-
-    const shareRes = await fetch(`/api/tickets/${ticketId}/share`, { method: 'POST' });
+    });
     if (!shareRes.ok) {
       const err = await shareRes.json().catch(() => ({}));
       if (err.reconciliation) {

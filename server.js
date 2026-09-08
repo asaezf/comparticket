@@ -373,11 +373,43 @@ app.put('/api/tickets/:id/items', ruta(async (req, res) => {
 // Gate #1: the extracted lines must add up to the receipt total before anyone
 // is invited in. Sharing a ticket that doesn't reconcile guarantees the split
 // will be wrong and nobody will notice.
+/**
+ * Compartir el ticket: de tres viajes al servidor a uno.
+ *
+ * La pantalla hacia PUT /items, luego /payer y /participants, y luego /share.
+ * Tres esperas encadenadas, cada una con su arranque en frio de la funcion y
+ * su ida y vuelta a Firestore: ocho operaciones en total. En un movil con
+ * datos eso son varios segundos con el boton bloqueado, que es justo el
+ * momento en que la persona esta esperando para pasar el enlace al grupo.
+ *
+ * Ahora todo puede venir en el cuerpo de esta misma peticion. Los endpoints
+ * sueltos siguen existiendo -los usa la pantalla para guardar mientras
+ * editas- pero el camino de compartir ya no los necesita.
+ *
+ * Y de paso queda mas seguro que antes: el cuadre se comprueba ANTES de
+ * escribir nada. Antes los articulos se guardaban en la primera peticion y
+ * el cuadre se miraba en la cuarta, asi que un ticket descuadrado dejaba las
+ * cifras nuevas ya escritas.
+ */
 app.post('/api/tickets/:id/share', ruta(async (req, res) => {
   const ticket = await db.getTicket(req.params.id);
   if (!ticket) return res.status(404).json({ error: 'Ticket not found' });
 
-  const check = money.reconcileTicket(ticket.items, ticket.total);
+  const cuerpo = req.body || {};
+  const items = cuerpo.items === undefined ? null : asItems(cuerpo.items);
+  if (cuerpo.items !== undefined && !items) {
+    return res.status(400).json({ error: 'Artículos no válidos', code: 'BAD_ITEMS' });
+  }
+  const total = cuerpo.total === undefined ? null
+    : asNumber(cuerpo.total, { min: 0, max: 1000000 });
+  if (cuerpo.total !== undefined && total === null) {
+    return res.status(400).json({ error: 'Total no válido', code: 'BAD_TOTAL' });
+  }
+
+  // El cuadre se mira sobre lo que se VA a guardar, no sobre lo que hay.
+  const itemsFinales = items || ticket.items;
+  const totalFinal = total === null ? ticket.total : total;
+  const check = money.reconcileTicket(itemsFinales, totalFinal);
   if (!check.balanced) {
     return res.status(409).json({
       error: check.delta > 0
@@ -387,6 +419,17 @@ app.post('/api/tickets/:id/share', ruta(async (req, res) => {
       reconciliation: check
     });
   }
+
+  // Cuadra: ya se puede escribir. En paralelo, que son documentos distintos.
+  const payerName = cuerpo.payerName === undefined ? null : asText(cuerpo.payerName, 40);
+  const participantes = cuerpo.expectedParticipants === undefined ? null
+    : asNumber(cuerpo.expectedParticipants, { min: 1, max: 50 });
+
+  await Promise.all([
+    items ? db.updateTicketItems(req.params.id, itemsFinales, totalFinal) : null,
+    payerName ? db.setTicketPayer(req.params.id, payerName) : null,
+    participantes !== null ? db.setTicketParticipants(req.params.id, participantes) : null
+  ].filter(Boolean));
 
   const updated = await db.setTicketStatus(req.params.id, 'shared');
   res.json(updated);
