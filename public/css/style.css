@@ -487,6 +487,28 @@ body {
   animation: none;
 }
 
+/* EL FOTOGRAMA QUE SE PERDIA, Y POR QUE.
+   Medido en Chrome: de 44 fotogramas de la impresion, uno tardaba 40 ms en vez
+   de 16,6, y con CERO tareas largas de JavaScript. O sea que no era codigo
+   bloqueando: era el navegador PINTANDO el ticket por primera vez, y lo hacia
+   cuando la animacion ya habia empezado.
+   Tiene sentido: mientras espera esta a `opacity: 0`, y lo que es
+   completamente invisible el navegador no se molesta en dibujarlo. El primer
+   fotograma del movimiento era tambien el primero en que tenia que dibujar
+   2.700 px de ticket.
+   Asi que hay un paso intermedio: `listo` lo deja practicamente invisible
+   -pero no del todo, que es la diferencia- y le pide al navegador que prepare
+   su capa. Dos fotogramas despues, cuando ya esta dibujado, empieza a moverse.
+   `will-change` AQUI SI es correcto: dura dos fotogramas y su proposito es
+   exactamente ese. Lo que estuvo mal antes fue dejarlo puesto durante toda una
+   animacion de recorte sobre un elemento de miles de pixeles. */
+.ticket.listo,
+.ticket.listo + .ticket-zigzag {
+  opacity: 0.004;
+  animation: none;
+  will-change: transform, opacity;
+}
+
 /* Y al salir, UN SOLO movimiento. Cada linea del ticket trae su propia
    animacion de entrada (`claim-in`), y si corren a la vez que la del papel se
    ven dos cosas moviendose con ritmos distintos: el papel bajando y las lineas
@@ -520,6 +542,9 @@ body {
 .ticket.printed,
 .ticket.printed + .ticket-zigzag {
   animation: none;
+  /* Se suelta la capa que se reservó para la animación: mantenerla ocupa
+     memoria de vídeo para nada una vez que el ticket ya no se mueve. */
+  will-change: auto;
   max-height: none;
   overflow: visible;
   will-change: auto;

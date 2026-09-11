@@ -349,6 +349,12 @@ function restartPolling() {
   clearInterval(polling);
   polling = setInterval(() => {
     if (document.hidden) return;   // en segundo plano no se gasta cuota
+    // Mientras el ticket se esta imprimiendo, no. Una respuesta que caiga en
+    // mitad de esos 620 ms obliga a repintar la lista entera y se come un
+    // fotograma: medido, un salto de 43 ms en una de cada tres cargas. Lo que
+    // haya cambiado sigue ahi un segundo despues, y la animacion dura menos.
+    const t = document.getElementById('ticket');
+    if (t && (t.classList.contains('printing') || t.classList.contains('listo'))) return;
     checkForUpdates(false);
   }, pollMs);
 }

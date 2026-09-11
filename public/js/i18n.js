@@ -1506,8 +1506,8 @@ function fechaDelTicket(tk) {
 if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
   window.addEventListener('load', () => {
     setTimeout(() => {
-      document.querySelectorAll('.ticket.esperando').forEach(t => {
-        t.classList.remove('esperando');
+      document.querySelectorAll('.ticket.esperando, .ticket.listo').forEach(t => {
+        t.classList.remove('esperando', 'listo');
         t.classList.add('printed');
       });
     }, 8000);
@@ -1518,37 +1518,76 @@ function fitTicket(el) {
   el = el || document.getElementById('ticket');
   if (!el) return;
 
-  // Ya terminó: no hay nada que atar.
+  // Ya terminó: no hay nada que hacer.
   if (el.classList.contains('printed')) return;
 
-  // El momento de arrancar. Se fuerza una lectura del alto entre quitar una
-  // clase y poner la otra: sin eso el navegador puede juntar los dos cambios
-  // en el mismo fotograma y no llegar a ver nunca el estado inicial de la
-  // animación, que es justo lo que la deja sin empezar.
-  if (el.classList.contains('esperando')) {
-    el.classList.remove('esperando');
-    void el.offsetHeight;
-    el.classList.add('printing');
-  }
-
   const liberar = () => {
+    el.dataset.arrancando = '';
+    el.classList.remove('esperando', 'listo', 'printing');
     el.classList.add('printed');
-    el.classList.remove('printing');
   };
 
-  if (!el.classList.contains('printing')) return liberar();
-
-  if (!el.dataset.fitBound) {
+  // Cuando la impresión ya está en marcha, esta función solo tiene que
+  // asegurarse de que alguien la va a soltar al terminar.
+  const atarElFinal = () => {
+    if (el.dataset.fitBound) return;
     el.dataset.fitBound = '1';
-    // El nombre tiene que ser el de la animacion que hay AHORA. Al cambiarla
-    // se quedo escuchando una que ya no existia, y el ticket solo se soltaba
-    // por el temporizador de seguridad: funcionaba, pero por el camino malo.
+    // El nombre tiene que ser el de la animación que hay AHORA. Al cambiarla
+    // una vez se quedó escuchando una que ya no existía, y el ticket solo se
+    // soltaba por el temporizador: funcionaba, pero por el camino malo.
     el.addEventListener('animationend', e => {
       if (e.animationName === 'papel-sale') liberar();
     });
-    // Red de seguridad: si la animación no llega a emitir el evento (pestaña
-    // en segundo plano, `prefers-reduced-motion`, un navegador raro), el
-    // ticket se libera igual. Nunca puede quedarse recortado.
-    setTimeout(liberar, 1100);
+    // Red de seguridad: si la animación no llega a emitir el evento —pestaña
+    // en segundo plano, movimiento reducido, un navegador raro— el ticket se
+    // enseña igual. Nunca puede quedarse invisible.
+    setTimeout(liberar, 1200);
+  };
+
+  // YA ESTÁ ARRANCANDO: no tocar nada.
+  //
+  // Entre que se pide el arranque y que la animación empieza de verdad pasan
+  // dos fotogramas, y en ese hueco `fitTicket` puede volver a llamarse —lo
+  // hace, varias veces por pantalla—. Sin esta guarda, la segunda llamada veía
+  // un ticket sin `printing`, daba por hecho que no había animación y lo
+  // soltaba: el ticket acababa con `printed` y `printing` a la vez y la
+  // impresión no llegaba a verse. Pasó, y por eso está esta línea.
+  if (el.dataset.arrancando === '1') return;
+
+  // EL ARRANQUE, EN DOS TIEMPOS Y A PROPÓSITO.
+  //
+  // Primero `listo`: el ticket sigue siendo invisible a ojo pero ya no está a
+  // opacidad cero, así que el navegador se ve obligado a dibujarlo. Dos
+  // fotogramas después —uno para que prepare su capa, otro para asegurarse de
+  // que la ha pintado— empieza el movimiento, y para entonces no le queda nada
+  // que dibujar.
+  //
+  // Sin este paso, el primer fotograma de la animación era también el primero
+  // en que tenía que pintar 2.700 px de ticket. Medido en Chrome: un fotograma
+  // de 40 ms en vez de 16,6, con CERO tareas largas de JavaScript. No era
+  // código bloqueando; era el navegador dibujando tarde.
+  if (el.classList.contains('esperando')) {
+    el.dataset.arrancando = '1';
+    el.classList.remove('esperando');
+    el.classList.add('listo');
+    void el.offsetHeight;
+    const arrancar = () => {
+      el.dataset.arrancando = '';
+      el.classList.remove('listo');
+      el.classList.add('printing');
+      atarElFinal();
+    };
+    if (typeof requestAnimationFrame === 'function') {
+      requestAnimationFrame(() => requestAnimationFrame(arrancar));
+    } else {
+      arrancar();
+    }
+    return;
   }
+
+  // Ni esperando, ni arrancando, ni imprimiéndose: no hay animación que
+  // esperar, así que se suelta y listo.
+  if (!el.classList.contains('printing')) return liberar();
+  atarElFinal();
 }
+

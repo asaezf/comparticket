@@ -97,7 +97,7 @@ console.log('\n4. La animación de impresión no puede recortar tickets largos')
   // Y si eso no llegara a pasar, el ticket no puede quedarse invisible: sería
   // una pantalla en blanco donde tendría que haber una cuenta.
   check('si algo falla, el ticket se enseña igualmente',
-    /querySelectorAll\('\.ticket\.esperando'\)/.test(i18n),
+    /querySelectorAll\('\.ticket\.esperando, \.ticket\.listo'\)/.test(i18n),
     'sin la red de seguridad, un fallo de la API deja el ticket invisible para siempre');
 
   const emerge = css.slice(css.indexOf('@keyframes papel-sale'),
