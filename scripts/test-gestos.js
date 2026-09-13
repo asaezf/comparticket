@@ -3,10 +3,11 @@
  * Los gestos de las dos pantallas donde hay dinero de por medio.
  *   node scripts/test-gestos.js
  *
- *   1. CONFIRMAR SE MANTIENE PULSADO. Confirmar es el único paso de la app que
- *      no tiene vuelta atrás: cierra tu parte del ticket y te saca de la
- *      pantalla. Iba con un `click` suelto, y un toque suelto es exactamente
- *      lo que pasa con el móvil en la mano encima de una mesa.
+ *   1. CONFIRMAR SE PULSA Y YA. Hubo aquí un gesto de mantener el dedo 750 ms.
+ *      La idea era defendible —confirmar es el único paso sin vuelta atrás—
+ *      pero la gente lo rechazó en bloque: no es intuitivo, y un botón que no
+ *      responde al primer toque se lee como roto, no como seguro. Las pruebas
+ *      de esa sección existen para que el gesto no vuelva por descuido.
  *
  *   2. LAS CIFRAS DE LA CUENTA CERRADA LATEN. Copian el importe al tocarlas
  *      desde hace tiempo, y eso no se veía por ninguna parte: son texto, sin
@@ -19,9 +20,7 @@
  *      el enlace de ese recuadro.
  *
  * Miran el fuente: aquí no hay navegador. No demuestran que se vea bien —eso
- * se comprueba mirándolo—, pero sí que nadie deshaga esto sin enterarse. Y el
- * primero importa más que la estética: si vuelve el `click`, vuelve a poder
- * cerrarse una cuenta con un roce.
+ * se comprueba mirándolo—, pero sí que nadie deshaga esto sin enterarse.
  */
 
 const fs = require('fs');
@@ -60,241 +59,99 @@ function bloque(selector) {
   return salida || null;
 }
 
-console.log('\n1. Confirmar hay que mantenerlo pulsado');
+console.log('\n1. Confirmar se pulsa y ya');
 {
-  // ESTA ES LA IMPORTANTE. Si vuelve un `click` que confirme, vuelve a poder
-  // cerrarse una cuenta con un roce, y cerrarla no tiene vuelta atrás.
-  check('el botón escucha al apoyar el dedo, no al soltarlo',
-    /btn\.addEventListener\('pointerdown'/.test(claimJs),
-    'sin pointerdown no hay nada que mantener');
-  check('soltar, salirse o que se cancele el gesto NO confirman',
-    /'pointerup', 'pointerleave', 'pointercancel'/.test(claimJs),
-    'si falta pointerleave, arrastrar el dedo fuera sigue confirmando');
-  check('un click suelto ya no confirma',
-    /btn\.addEventListener\('click', e => e\.preventDefault\(\)\)/.test(claimJs),
-    'con un click que confirme vuelve el problema entero');
+  // AQUI ESTUVO UN GESTO DE MANTENER EL DEDO 750 ms, con su círculo creciendo
+  // y su vibración en rampa. La idea era defendible —confirmar es el único
+  // paso sin vuelta atrás— pero la gente lo rechazó en bloque: no es
+  // intuitivo, y un botón que no responde al primer toque se lee como roto, no
+  // como seguro. Estas comprobaciones existen para que no vuelva por
+  // descuido: si alguien reintroduce el gesto, fallan.
+  const restos = ['RETENCION', 'MARGEN_FINAL', 'PUNTO_SIN_RETORNO',
+                  'SUELO_PARA_SALTAR', 'VIBRA_MANTENIENDO', 'medirCirculo',
+                  'empezarRetencion', 'soltarRetencion'];
+  const vivos = restos.filter(x => new RegExp('\\b' + x + '\\b').test(claimJs));
+  check('no queda nada del gesto de mantener pulsado', vivos.length === 0,
+    'sigue habiendo: ' + vivos.join(', '));
 
-  // La espera es lo que separa un roce de una decisión. Ni tan corta que la
-  // dispare el rebote del dedo ni tan larga que parezca que se ha colgado.
-  const m = claimJs.match(/const RETENCION = (\d+);/);
-  check('la espera está entre 300 y 900 ms', !!m && +m[1] >= 300 && +m[1] <= 900,
-    m ? 'ahora son ' + m[1] + ' ms' : 'no se encuentra RETENCION');
+  check('el botón confirma con un click normal',
+    /btn\.addEventListener\('click', \(\) => \{[\s\S]{0,180}confirmar\(\)/.test(claimJs),
+    'sin esto el botón no hace nada al pulsarlo');
 
-  check('la espera se cancela al soltar', /clearTimeout\(retencion\)/.test(claimJs));
+  // Lo que NO puede volver: que soltar el dedo, salirse del botón o que el
+  // navegador cancele el gesto tengan algún efecto. Ya no hay gesto.
+  check('soltar el dedo ya no cancela nada',
+    !/pointerup|pointerleave|pointercancel/.test(claimJs));
 
-  // Con teclado no hay gesto que mantener. Sin esto, quien navega con teclado
-  // se queda sin poder confirmar: el click ya no vale.
-  check('con teclado se confirma con Enter o espacio',
-    /e\.key === 'Enter' \|\| e\.key === ' '/.test(claimJs),
-    'si no, el teclado se queda sin forma de confirmar');
+  // Un `preventDefault` en el click era lo que impedía confirmar al pulsar.
+  check('el click ya no se anula',
+    !/addEventListener\('click', e => e\.preventDefault\(\)\)/.test(claimJs));
+
+  // Con un <button> de verdad, Enter y espacio disparan el click solos: ya no
+  // hace falta el manejador de teclado que hubo que añadir para el gesto.
+  check('el teclado funciona sin manejador aparte',
+    !/e\.key === 'Enter'/.test(claimJs));
 }
 
-console.log('\n2. El relleno sale de donde tocas y es del ámbar de las compartidas');
+console.log('\n2. Un toque no puede mandarse dos veces');
+{
+  // Confirmar escribe en la base de datos. Si el botón sigue vivo mientras
+  // viaja la petición, dos toques nerviosos mandan dos confirmaciones.
+  check('el botón se desactiva al confirmar',
+    /btn\.classList\.add\('confirmado', 'enviando'\);\s*\n\s*btn\.disabled = true;/.test(claimJs));
+  check('y el manejador se planta si ya está desactivado',
+    /if \(btn\.disabled\) return;/.test(claimJs));
+
+  // Y si la petición falla, tiene que volver a poder pulsarse: un botón ámbar
+  // y muerto deja a la persona sin forma de confirmar su parte.
+  check('si falla la red, el botón revive',
+    /catch \(err\) \{[\s\S]{0,160}btn\.disabled = false;[\s\S]{0,160}remove\('confirmado', 'enviando'\)/.test(claimJs));
+  // Lo mismo si la validación corta antes de mandar nada.
+  check('si la validación corta, el botón revive',
+    /const abortar = \(\) => \{[\s\S]{0,220}b\.disabled = false;/.test(claimJs));
+}
+
+console.log('\n3. El ámbar es el de las casillas compartidas');
 {
   check('el botón lleva su capa de relleno', /class="cb-fill"/.test(claimHtml));
   const fill = bloque('.cb-fill') || '';
   check('es un círculo', /border-radius:\s*50%/.test(fill));
   // #F59E0B es exactamente el de .unit-pill.shared. No es decoración: es el
-  // único color de la pantalla que ya significa "esto es de varios".
-  check('usa el ámbar de las casillas compartidas', /#F59E0B/i.test(fill),
-    'el ámbar tiene que ser el mismo que el de .unit-pill.shared');
+  // único color de la pantalla que ya significa "esto es de varios", y
+  // confirmar es cuando tu parte pasa a serlo.
+  check('usa el ámbar de las casillas compartidas', /#F59E0B/i.test(fill));
   const compartida = bloque('.unit-pill.shared') || '';
   check('y es literalmente el mismo tono', /#F59E0B/i.test(compartida));
 
-  // El círculo nace bajo el dedo: es lo que hace que se lea como que lo
-  // empujas tú y no como una barra de carga que va por su cuenta.
+  // Nace donde se toca: es lo que hace que se lea como respuesta al dedo y no
+  // como una barra de carga que va por su cuenta.
   check('el círculo nace en el punto que se toca',
-    /--cb-x/.test(fill) && /--cb-y/.test(claimJs),
-    'sin las coordenadas sale siempre del centro');
+    /--cb-x/.test(fill) && /--cb-x/.test(claimJs));
   check('el diámetro cubre el botón desde cualquier esquina',
     /Math\.hypot/.test(claimJs));
 
   const boton = bloque('.btn-confirmar') || '';
   check('el botón recorta el círculo con su propia forma',
     /overflow:\s*hidden/.test(boton) && /position:\s*relative/.test(boton));
-  // Un relleno parado a la mitad se lee como que algo ha fallado.
-  const soltado = bloque('.btn-confirmar.soltado .cb-fill') || '';
-  check('al soltar antes de tiempo el círculo se va, no se queda a medias',
-    /transform:\s*scale\(0\)/.test(soltado));
 
-  // iOS no vibra nunca -Safari no lo soporta-, así que esto es un extra en
-  // Android, no la señal principal. La señal principal es el círculo.
-  check('vibra al empezar y al completarse', /navigator\.vibrate/.test(claimJs));
-
-  // EL MOVIL VIBRA TODO EL RATO, no solo al empezar. La API no deja regular la
-  // fuerza, así que se finge con el ritmo: pulsos cada vez más largos y huecos
-  // cada vez más cortos.
-  const pat = claimJs.match(/const VIBRA_MANTENIENDO = \[([^\]]+)\]/);
-  check('el patrón de vibración existe', !!pat);
-  if (pat) {
-    const nums = pat[1].split(',').map(x => +x.trim());
-    const suma = nums.reduce((a2, b2) => a2 + b2, 0);
-    const espera = +(claimJs.match(/const RETENCION = (\d+);/) || [])[1];
-    // Si sumara más que la retención, el móvil seguiría vibrando después de
-    // confirmar; si sumara menos, se apagaría a media espera.
-    check('dura exactamente lo que el gesto', suma === espera,
-      'el patrón suma ' + suma + ' ms y el gesto dura ' + espera);
-    // Los pulsos van en las posiciones pares; tienen que ir a más.
-    const pulsos = nums.filter((_, i) => i % 2 === 0);
-    check('los pulsos van creciendo, no son todos iguales',
-      pulsos.every((v, i) => i === 0 || v > pulsos[i - 1]),
-      'sin la rampa no se nota que va a más: ' + pulsos.join(','));
-  }
-  check('la vibración se corta al soltar', /tocar\(0\)/.test(claimJs),
-    'si se sigue notando después de soltar, parece que ha confirmado igual');
+  // Corto: es un acuse de recibo, no una espera. Si dura mucho vuelve a
+  // parecer una barra de progreso, que es de lo que veníamos.
+  const dur = fill && (bloque('.btn-confirmar.confirmado .cb-fill') || '').match(/cb-llenar (\d+)ms/);
+  check('el relleno es corto (menos de 400 ms)', !!dur && +dur[1] < 400,
+    dur ? 'dura ' + dur[1] + ' ms' : 'no se encuentra la duración');
 }
 
-console.log('\n3. El botón tiembla mientras se mantiene');
+console.log('\n4. Volver atrás no deja el botón muerto');
 {
-  const ret = bloque('.btn-confirmar.reteniendo') || '';
-  check('tiembla y se aprieta a la vez',
-    /cb-tiembla/.test(ret) && /cb-aprieta/.test(ret));
-
-  // Las dos van en propiedades DISTINTAS a propósito: una sola propiedad
-  // `transform` solo admite una animación y la segunda pisaría a la primera.
-  const tiembla = css.slice(css.indexOf('@keyframes cb-tiembla'),
-                            css.indexOf('}', css.indexOf('@keyframes cb-tiembla') + 200));
-  const aprieta = css.slice(css.indexOf('@keyframes cb-aprieta'),
-                            css.indexOf('}', css.indexOf('@keyframes cb-aprieta') + 60));
-  check('el temblor va en `translate` y el apriete en `scale`',
-    /translate:/.test(tiembla) && /scale:/.test(aprieta) &&
-    !/transform:/.test(tiembla) && !/transform:/.test(aprieta),
-    'con las dos en `transform`, la segunda pisa a la primera');
-
-  // Un temblor lento no es un temblor, es un balanceo.
-  const dur = ret.match(/cb-tiembla (\d+)ms/);
-  check('el temblor es rápido (menos de 120 ms por ciclo)',
-    !!dur && +dur[1] < 120, dur ? dur[1] + ' ms' : 'sin duración');
-
-  // Al soltar tiene que volver a su sitio: si no, se queda encogido y torcido.
-  const soltado = bloque('.btn-confirmar.soltado') || '';
-  check('al soltar vuelve a su sitio',
-    /animation:\s*none/.test(soltado) && /translate:\s*0 0/.test(soltado) &&
-    /scale:\s*1/.test(soltado));
-
-  check('quien pide menos movimiento no ve el temblor',
-    /prefers-reduced-motion[\s\S]{0,300}\.btn-confirmar\.reteniendo \{ animation: cb-aprieta/.test(css));
-}
-
-console.log('\n4. Lo que se ve, lo que se nota y lo que dispara van juntos');
-{
-  const fill = bloque('.btn-confirmar.reteniendo .cb-fill') || '';
-  const cb = fill.match(/cb-llenar (\d+)ms cubic-bezier\(([\d.]+),\s*([\d.]+),\s*([\d.]+),\s*([\d.]+)\)/);
-  check('se encuentra la curva del círculo', !!cb);
-
-  // EL FALLO QUE MOTIVO ESTO. La curva anterior frenaba tanto al final que el
-  // circulo estaba lleno a los 625 ms de 750: quedaban 125 ms en los que la
-  // pantalla no cambiaba y el boton aun no habia confirmado. Quien soltaba al
-  // ver el circulo completo se quedaba sin confirmar, y el gesto parecia roto.
-  //
-  // Asi que la prueba no mira "que la curva sea bonita": calcula CUANDO se
-  // llena de verdad y exige que sea al final.
-  if (cb) {
-    const [dur, x1, y1, x2, y2] = cb.slice(1).map(Number);
-    const bezier = (x) => {
-      const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
-      const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
-      let t = x;
-      for (let i = 0; i < 50; i++) {
-        const e = ((ax * t + bx) * t + cx) * t - x;
-        const d = (3 * ax * t + 2 * bx) * t + cx;
-        if (Math.abs(e) < 1e-9) break;
-        t -= e / (d || 1e-9);
-      }
-      return ((ay * t + by) * t + cy) * t;
-    };
-    // El circulo no arranca en 0 sino en el `from` de los keyframes: eso es lo
-    // que hace que se vea algo en el instante en que el dedo toca, y por eso
-    // no hace falta ningun cartel que diga "manten pulsado".
-    const llenar = css.slice(css.indexOf('@keyframes cb-llenar'),
-                             css.indexOf('}', css.indexOf('@keyframes cb-llenar') + 60));
-    const desde = parseFloat((llenar.match(/from \{ transform: scale\(([\d.]+)\)/) || [])[1]);
-    check('el círculo se ve desde el primer instante', desde > 0.02 && desde < 0.2,
-      'arranca en ' + desde + '; desde 0 exacto hay un parpadeo en que no responde');
-
-    let lleno = dur;
-    for (let ms = 0; ms <= dur; ms += 5) {
-      if (desde + (1 - desde) * bezier(ms / dur) >= 0.995) { lleno = ms; break; }
-    }
-    const sobra = dur - lleno;
-    check('el círculo NO se llena antes de tiempo', sobra <= 60,
-      'se llena en ' + lleno + ' de ' + dur + ' ms: ' + sobra + ' ms mirando algo ' +
-      'ya terminado que todavía no confirma. Así es como se soltaba sin confirmar');
-
-    // Y el temporizador que dispara tiene que durar lo mismo que la animación
-    // que se está mirando. Si no coinciden, uno de los dos miente.
-    const espera = +(claimJs.match(/const RETENCION = (\d+);/) || [])[1];
-    check('la animación dura exactamente lo que el gesto', dur === espera,
-      'la animación dura ' + dur + ' ms y el gesto ' + espera);
-  }
-
-  // Ningún pulso puede sentirse como el "ya está" antes del final: el zumbido
-  // de 214 ms de la versión anterior empezaba a los 536 de 750, y ahí soltaba
-  // la gente.
-  const pat2 = claimJs.match(/const VIBRA_MANTENIENDO = \[([^\]]+)\]/);
-  if (pat2) {
-    const nums = pat2[1].split(',').map(x => +x.trim());
-    const total = nums.reduce((a2, b2) => a2 + b2, 0);
-    const ultimo = nums[nums.length - 1];
-    const empiezaElUltimo = total - ultimo;
-    check('ningún pulso destaca antes del final',
-      empiezaElUltimo > total * 0.8,
-      'el último pulso arranca en ' + empiezaElUltimo + ' de ' + total +
-      ' ms y se siente como el final del gesto mucho antes de que lo sea');
-  }
-
-  // EL PUNTO DE NO RETORNO. La petición ya no sale al terminar el gesto sino a
-  // mitad, para que los milisegundos que quedan de animación se los coma la
-  // red en vez de la persona esperando con el botón congelado.
-  const margen = claimJs.match(/const MARGEN_FINAL = ([\d.]+);/);
-  const sinRetorno = claimJs.match(/const PUNTO_SIN_RETORNO = ([\d.]+);/);
-  const espera = +(claimJs.match(/const RETENCION = (\d+);/) || [])[1];
-
-  // ESTA ES LA IMPORTANTE, Y ES DE DINERO. Si la petición saliera antes del
-  // punto en que soltar cuenta como confirmar, habría una ventana en la que
-  // alguien suelta creyendo que cancela y su selección ya se ha mandado. Y al
-  // revés, si saliera después, soltar confirmaría sin haber mandado nada.
-  // Tienen que ser el MISMO número, no dos parecidos.
-  check('mandar y dar por bueno ocurren en el mismo instante',
-    !!margen && !!sinRetorno && margen[1] === sinRetorno[1],
-    'se manda al ' + (sinRetorno ? sinRetorno[1] : '?') + ' y se da por bueno al ' +
-    (margen ? margen[1] : '?') + ': entre esos dos hay una ventana donde soltar ' +
-    'hace lo contrario de lo que parece');
-
-  // Y ese punto tiene que seguir estando lejos de un roce accidental.
-  check('el punto de no retorno sigue lejos de un roce',
-    !!sinRetorno && +sinRetorno[1] * espera >= 400,
-    sinRetorno ? 'son ' + Math.round(+sinRetorno[1] * espera) + ' ms' : '');
-
-  // El salto de pantalla espera a la RESPUESTA, no al cronómetro, con un suelo
-  // para que no parezca que se ha saltado un paso.
-  const suelo = claimJs.match(/const SUELO_PARA_SALTAR = ([\d.]+);/);
-  check('se salta de pantalla en cuanto contesta el servidor',
-    /await new Promise\(r => setTimeout\(r, falta\)\)/.test(claimJs) &&
-    !!suelo && +suelo[1] > +sinRetorno[1] && +suelo[1] < 1,
-    'el suelo tiene que estar por encima del punto de no retorno y por debajo del final');
-
-  // Y el golpe de "hecho" tiene que ir pegado al salto, no al cronómetro: si
-  // van por su cuenta, se nota el "ya está" y la pantalla tarda en cambiar.
-  const cola = claimJs.slice(claimJs.indexOf('const falta ='));
-  check('la vibración de "hecho" va pegada al salto de pantalla',
-    /tocar\(\[[\d, ]+\]\);\s*\n\s*window\.location\.href/.test(cola),
-    'si no van juntas, se siente el final del gesto antes de que pase nada');
-
-  // Soltar después de haber mandado no puede cancelar nada: ya está hecho.
-  check('soltar después de mandar no cancela',
-    /if \(envio\) return;/.test(claimJs));
-
-  // EL PRECIO DE ESA CURVA, PAGADO. Con el círculo al 95 % cuando va la mitad
-  // del gesto, el último tramo no tendría nada que enseñar y alguien soltaría
-  // pensando que ya está. Lo que avanza al final es el color.
-  check('el color madura durante todo el gesto para que el final avance',
-    /cb-madura \d+ms linear/.test(fill),
-    'sin esto, la mitad final del gesto no enseña nada y se suelta antes');
-  const madura = css.slice(css.indexOf('@keyframes cb-madura'),
-                           css.indexOf('}', css.indexOf('@keyframes cb-madura') + 80));
-  check('y madura de claro a tostado, no al revés',
-    /brightness\(1\.\d+\)[\s\S]*brightness\(0\.\d+\)/.test(madura));
+  // Al pulsar "atrás" el navegador NO recarga: saca la página de memoria con
+  // el botón tal y como se dejó —ámbar y desactivado—. `pageshow` con
+  // `persisted` es el único aviso que da; `load` no se dispara.
+  check('se escucha la vuelta desde la memoria del navegador',
+    /addEventListener\('pageshow'[\s\S]{0,120}persisted/.test(claimJs));
+  check('y ahí se le quita el ámbar',
+    /persisted[\s\S]{0,400}remove\('confirmado', 'enviando'\)/.test(claimJs));
+  check('y se recalcula si debe estar activo',
+    /persisted[\s\S]{0,600}update\(\);/.test(claimJs));
 }
 
 console.log('\n5. Compartir el enlace sin enseñarlo escrito');

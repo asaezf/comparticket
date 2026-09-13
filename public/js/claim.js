@@ -971,6 +971,10 @@ function onPillClick(e) {
   // Aqui arriba y no mas abajo: el resto de la funcion tiene ramas por las que
   // no siempre se pasa, y ahi la llamada no llegaba a ejecutarse nunca.
   calentarServidor();
+  // Y la pantalla siguiente, pedida por adelantado. Antes colgaba del gesto de
+  // mantener, que ya no existe; aqui es mejor sitio, porque desde que alguien
+  // marca su primera casilla hasta que confirma pasan varios segundos.
+  precargarResumen();
   const pill = e.currentTarget;
   stopBeat(pill);            // si latía por estar pendiente, deja de hacerlo
   const itemId = +pill.dataset.itemId;
@@ -1201,154 +1205,54 @@ function precargarResumen() {
   } catch (_) {}
 }
 
-const RETENCION = 750;
-/* Y esto es lo que hace que el fallo no pueda volver por otra puerta.
-   Por muy bien que se ajusten el circulo, la vibracion y el temporizador,
-   siempre habra unos milisegundos entre "esto ya parece terminado" y el
-   disparo. Quien ha aguantado el 88 % del gesto —660 de 750 ms— ha decidido
-   confirmar, sin ninguna duda: soltar ahi tiene que valer, no castigarse.
-   Un roce no llega ni de lejos a 660 ms, asi que la proteccion que motivo todo
-   esto sigue intacta. */
-const MARGEN_FINAL = 0.62;
-
-/* EL PUNTO DE NO RETORNO, Y POR QUE ESTA AL 62 % Y NO AL FINAL.
+/* MANTENER PULSADO PARA CONFIRMAR, RETIRADO.
  *
- * Antes la peticion salia AL TERMINAR el gesto: 750 ms de animacion y despues
- * a esperar al servidor con el boton congelado. Medido contra produccion, esa
- * espera son 0,42-0,67 s con la funcion caliente y 2,45 s si estaba dormida, y
- * encima luego hay que cargar la pantalla siguiente. Se sentia rudimentario
- * porque lo era: el movil no hacia NADA durante los primeros 750 ms y lo hacia
- * TODO despues.
+ * Estuvo aqui un gesto de mantener el dedo 750 ms, con su circulo creciendo y
+ * su vibracion. La idea era buena sobre el papel —confirmar es el unico paso
+ * sin vuelta atras, y un toque suelto es lo que pasa con el movil en la mano
+ * encima de una mesa— pero la gente lo rechazo en bloque: no es intuitivo, y
+ * un boton que no responde al primer toque se lee como roto, no como seguro.
  *
- * Ahora la peticion sale a los 465 ms —el 62 % del gesto— y los 285 ms que
- * quedan de animacion los aprovecha la red. Que la barra siga llenandose
- * mientras el servidor trabaja no es un truco: es que ya no hay motivo para
- * esperar a que acabe, porque a partir de ese punto la decision esta tomada.
+ * Asi que vuelve a ser un boton. Se pulsa y confirma.
  *
- * Y de ahi que MARGEN_FINAL sea el MISMO numero. No pueden ser dos: si la
- * peticion sale al 62 % pero soltar solo cuenta a partir del 88 %, alguien que
- * suelte al 70 % habria confirmado sin querer. Igualandolos, el 62 % es el
- * punto de no retorno para todo a la vez —lo que se manda y lo que vale— y no
- * hay ninguna ventana en la que una cosa y la otra no coincidan.
+ * Lo que se queda de todo aquello, porque no dependia del gesto y si valia:
+ *   - despertar al servidor y pedir la pantalla de resumen por adelantado,
+ *   - el estado de "enviando" mientras viaja la peticion,
+ *   - el relleno ambar, ahora como respuesta al toque y no como barra de carga.
  *
- * 465 ms siguen siendo muchisimo para un roce: lo que protegia el gesto sigue
- * protegido.
+ * Si alguna vez vuelve a hacer falta proteger esto de un toque accidental, el
+ * camino NO es volver al gesto: seria un paso de confirmacion explicito, que
+ * la gente si entiende.
  */
-const PUNTO_SIN_RETORNO = 0.62;
 
-/* Y el salto de pantalla no espera al cronometro: espera a la RESPUESTA. En
- * cuanto el servidor contesta se salta, con un suelo del 78 % para que no
- * parezca que el gesto se ha quedado a medias. O sea que con la red rapida se
- * salta antes de que el circulo acabe de llenarse —que es exactamente lo que
- * se pidio— y con la red lenta el circulo termina y el boton se queda
- * esperando, pero habiendo ganado ya 285 ms. */
-const SUELO_PARA_SALTAR = 0.78;
-
-let retencion = null;
-let empezoEn = 0;
-/* Si esto no es null, la confirmacion ya va de camino y soltar no la cancela:
-   el gesto ya esta hecho, aunque el dedo se levante. */
-let envio = null;
-
-function medirCirculo(btn, e) {
-  const r = btn.getBoundingClientRect();
-  // Sin coordenadas -teclado- se centra. Con ellas, el circulo nace justo
-  // debajo del dedo: es lo que hace que se lea como que lo empujas tu.
-  const x = (e && e.clientX != null) ? e.clientX - r.left : r.width / 2;
-  const y = (e && e.clientY != null) ? e.clientY - r.top : r.height / 2;
-  // Diametro = el doble de la esquina mas lejana, para que cubra el boton
-  // entero venga el dedo de donde venga.
-  const lejos = Math.max(
-    Math.hypot(x, y), Math.hypot(r.width - x, y),
-    Math.hypot(x, r.height - y), Math.hypot(r.width - x, r.height - y));
-  btn.style.setProperty('--cb-x', x + 'px');
-  btn.style.setProperty('--cb-y', y + 'px');
-  btn.style.setProperty('--cb-d', (lejos * 2) + 'px');
-}
-
-/** Vibrar. Solo en los moviles que lo soportan: iOS no vibra nunca porque
- *  Safari no implementa la API, y no hay manera de hacerlo desde una web. */
+/** Un toque corto. Solo en los moviles que lo soportan: iOS no vibra nunca
+ *  porque Safari no implementa la API. */
 function tocar(patron) {
   try { if (navigator.vibrate) navigator.vibrate(patron); } catch (_) {}
 }
 
-/* VIBRA DURANTE TODO EL RATO QUE SE MANTIENE, no solo al empezar.
-   La API no deja regular la fuerza —solo encender y apagar— asi que la fuerza
-   se finge con el ritmo: pulsos cada vez mas largos separados por huecos cada
-   vez mas cortos. Los huecos van de 50 ms a 8, o sea que de la mitad en
-   adelante ya no se notan como huecos: se siente seguido y subiendo.
-
-   NINGUN PULSO PUEDE DESTACAR ANTES DEL FINAL. La version anterior acababa en
-   un zumbido de 214 ms, y ese zumbido empezaba a los 536 ms de 750: se sentia
-   como el "ya esta", la gente soltaba ahi, y no confirmaba. Ahora la rampa
-   sube seguida y el unico golpe que dice "hecho" es el de confirmar, que suena
-   despues. Sigue sumando 750 ms clavados —los mismos que la retencion— para
-   que se apague sola aunque algo se tuerza. */
-const VIBRA_MANTENIENDO = [14, 50, 18, 46, 24, 40, 30, 31, 38, 22, 48, 18, 60, 14, 74, 11, 92, 8, 112];
-
-function empezarRetencion(btn, e) {
-  if (btn.disabled || retencion) return;
-  // El mejor momento para despertar al servidor: mantener pulsado dura 750 ms,
-  // y son 750 ms que la peticion de calentamiento aprovecha entera. Si ya se
-  // hizo al marcar la primera casilla pero ha pasado mucho rato, se repite:
-  // una funcion sin usar se vuelve a dormir.
-  calentarServidor();
-  precargarResumen();
-  medirCirculo(btn, e);
-  btn.classList.remove('soltado');
-  btn.classList.add('reteniendo');
-  empezoEn = Date.now();
-  envio = null;
-  tocar(VIBRA_MANTENIENDO);
-  // A los 465 ms sale la peticion, EN SILENCIO: ni se toca el boton ni se corta
-  // la vibracion. La animacion sigue exactamente igual, porque para quien mira
-  // el gesto no ha terminado —solo ha dejado de poder deshacerse—.
-  retencion = setTimeout(() => {
-    retencion = null;
-    envio = confirmar();
-  }, Math.round(RETENCION * PUNTO_SIN_RETORNO));
-}
-
-function soltarRetencion(btn) {
-  // La peticion ya salio: soltar no la para. Se sigue viendo el boton lleno y
-  // vibrando hasta que conteste el servidor, que es la verdad de lo que pasa.
-  if (envio) return;
-
-  if (!retencion) { btn.classList.remove('reteniendo'); return; }
-  clearTimeout(retencion);
-  retencion = null;
-
-  // Cortar la vibracion en el acto: si se sigue notando despues de soltar,
-  // parece que ha confirmado igualmente.
-  tocar(0);
-  btn.classList.remove('reteniendo');
-  btn.classList.add('soltado');
-  // La clase se quita al acabar el desvanecido para que el siguiente intento
-  // arranque de cero; si se quedara puesta, el circulo no volveria a salir.
-  setTimeout(() => btn.classList.remove('soltado'), 200);
-}
-
 {
   const btn = document.getElementById('confirmBtn');
-  btn.addEventListener('pointerdown', e => {
-    // Solo el boton principal del raton; con el dedo siempre es 0.
-    if (e.button !== 0) return;
-    e.preventDefault();
-    empezarRetencion(btn, e);
-  });
-  // Soltar, salirse del boton o que el navegador cancele el gesto -un scroll
-  // que se lleva el dedo- cuentan todos como no confirmar.
-  ['pointerup', 'pointerleave', 'pointercancel'].forEach(ev =>
-    btn.addEventListener(ev, () => soltarRetencion(btn)));
 
-  // Con teclado no hay nada que mantener: Enter o espacio confirman y ya. El
-  // gesto largo protege del roce en un movil, no de un teclado.
-  btn.addEventListener('keydown', e => {
-    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); confirmar(); }
+  // El circulo ambar nace donde se ha tocado. Ya no mide nada ni marca ningun
+  // progreso: es solo el acuse de recibo del toque, y dura 260 ms.
+  btn.addEventListener('pointerdown', e => {
+    if (btn.disabled || e.clientX == null) return;
+    const r = btn.getBoundingClientRect();
+    const x = e.clientX - r.left, y = e.clientY - r.top;
+    const lejos = Math.max(
+      Math.hypot(x, y), Math.hypot(r.width - x, y),
+      Math.hypot(x, r.height - y), Math.hypot(r.width - x, r.height - y));
+    btn.style.setProperty('--cb-x', x + 'px');
+    btn.style.setProperty('--cb-y', y + 'px');
+    btn.style.setProperty('--cb-d', (lejos * 2) + 'px');
   });
-  // Y el `click` deja de confirmar: si siguiera haciendolo, un toque suelto
-  // -que es lo que se queria evitar- seguiria valiendo.
-  btn.addEventListener('click', e => e.preventDefault());
+
+  btn.addEventListener('click', () => {
+    if (btn.disabled) return;
+    tocar(18);
+    confirmar();
+  });
 }
 
 /**
@@ -1368,10 +1272,8 @@ window.addEventListener('pageshow', e => {
   if (!e.persisted) return;
   const btn = document.getElementById('confirmBtn');
   if (!btn) return;
-  btn.classList.remove('reteniendo', 'soltado', 'confirmado', 'enviando');
+  btn.classList.remove('confirmado', 'enviando');
   btn.style.removeProperty('--cb-d');
-  envio = null;
-  retencion = null;
   // Y que vuelva a guardarse el borrador: al confirmar se bloqueo a proposito
   // para que no pisara la confirmacion, pero eso ya paso.
   confirmedNow = false;
@@ -1385,13 +1287,11 @@ async function confirmar() {
     const arr = [...myUnits[id]].sort((a, b) => a - b);
     if (arr.length > 0) itemUnitsPayload[id] = arr;
   });
-  // Si algo de esto falla no se manda nada, asi que hay que soltar el gesto:
-  // sin esto, `envio` se quedaria puesto y el boton no volveria a responder.
+  // Si algo de esto falla no se manda nada, asi que el boton tiene que volver
+  // a como estaba: si no, se queda ambar y muerto.
   const abortar = () => {
-    envio = null;
-    tocar(0);
     const b = document.getElementById('confirmBtn');
-    if (b) b.classList.remove('reteniendo', 'soltado', 'confirmado', 'enviando');
+    if (b) { b.disabled = false; b.classList.remove('confirmado', 'enviando'); }
   };
   if (!name || Object.keys(itemUnitsPayload).length === 0) return abortar();
 
@@ -1404,18 +1304,10 @@ async function confirmar() {
   }
 
   const btn = document.getElementById('confirmBtn');
-  // El boton NO se toca todavia. La peticion sale mientras el circulo se sigue
-  // llenando y el movil sigue vibrando, porque para quien mira el gesto aun no
-  // ha terminado. Solo si el servidor tarda mas de lo que dura la animacion se
-  // pasa al estado de espera, y eso se programa aqui: si contesta antes, este
-  // temporizador no llega a hacer nada porque ya se habra saltado de pantalla.
-  const seHaceLargo = setTimeout(() => {
-    btn.classList.remove('reteniendo', 'soltado');
-    btn.classList.add('confirmado', 'enviando');
-    // Aqui si se corta el temblor: es una animacion infinita a 70 ms por ciclo
-    // y no puede quedarse corriendo mientras se espera a la red.
-    tocar(0);
-  }, Math.max(0, RETENCION - (Date.now() - empezoEn)));
+  // Se marca en el acto: el toque se ve respondido antes de que salga nada por
+  // la red. `enviando` hace respirar el texto mientras viaja la peticion; sin
+  // eso, un boton lleno y quieto un segundo se lee como colgado.
+  btn.classList.add('confirmado', 'enviando');
   btn.disabled = true;
   confirmedNow = true;       // bloquea el guardado de emergencia de pagehide
   clearTimeout(saveTimer);   // que el borrador pendiente no pise la confirmación
@@ -1428,27 +1320,13 @@ async function confirmar() {
       body: JSON.stringify({ personName: name, itemUnits: itemUnitsPayload, confirmed: true })
     });
     clearInterval(polling);
-
-    // Ya esta guardado. Ahora el salto: en cuanto la respuesta llega, pero sin
-    // bajar del 78 % del gesto, para que no parezca que se ha saltado un paso.
-    // Con la red fina eso cae ANTES de que el circulo acabe de llenarse, que es
-    // justo lo que se buscaba: la espera se la come la animacion.
-    const falta = Math.round(RETENCION * SUELO_PARA_SALTAR) - (Date.now() - empezoEn);
-    if (falta > 0) await new Promise(r => setTimeout(r, falta));
-
-    clearTimeout(seHaceLargo);
-    // El golpe de "hecho" va AQUI, pegado al salto de pantalla, no a los
-    // 750 ms del cronometro. Antes iban por su cuenta: se notaba el "ya esta"
-    // y la pantalla tardaba dos segundos mas en cambiar.
-    tocar(0);
+    // El golpe de "hecho" va pegado al salto de pantalla, no a un cronometro
+    // aparte: si van por su cuenta, se nota el "ya esta" y la pantalla tarda.
     tocar([18, 42, 30]);
     window.location.href = `/summary.html?id=${ticketId}`;
   } catch (err) {
-    clearTimeout(seHaceLargo);
-    envio = null;
-    tocar(0);
     btn.disabled = false;
-    btn.classList.remove('reteniendo', 'soltado', 'confirmado', 'enviando');
+    btn.classList.remove('confirmado', 'enviando');
   }
 }
 

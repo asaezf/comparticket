@@ -2553,19 +2553,18 @@ input[type="file"] { display: none; }
   -webkit-user-select: none;
 }
 
-/* MANTENER PULSADO PARA CONFIRMAR
-   Confirmar es el unico paso de la app que no tiene vuelta atras: cierra tu
-   parte del ticket y te saca de la pantalla. Un toque suelto lo disparaba, y
-   un toque suelto es justo lo que pasa cuando el movil va en la mano.
-   No se anuncia en ninguna parte a proposito. Se nota al primer intento: al
-   apoyar el dedo empieza a crecer un circulo ambar desde el punto exacto donde
-   se ha tocado, y si se suelta antes de tiempo se va. Nadie necesita que le
-   expliquen eso; solo necesita verlo una vez.
-   El ambar es el de las casillas compartidas. No es decoracion: es el unico
-   color de esta pantalla que ya significa "esto es de varios", y confirmar es
-   precisamente el momento en que tu parte pasa a ser de todos.
-   520 ms. Suficiente para que no lo dispare un roce, poco para que nadie
-   piense que se ha quedado colgado. */
+/* EL ACUSE DE RECIBO DEL TOQUE.
+   Aqui estuvo el gesto de mantener pulsado: circulo creciendo, temblor,
+   vibracion en rampa. La gente lo rechazo —no es intuitivo, y un boton que no
+   responde al primer toque parece roto, no seguro— asi que fuera.
+
+   Del ambar se queda el circulo, pero con otro papel: ya no mide nada ni marca
+   ningun progreso. Sale del punto que se ha tocado, se abre en 260 ms y ahi se
+   queda mientras la peticion viaja. Es la respuesta al toque, no una espera.
+
+   El ambar es el de las casillas compartidas y eso sigue teniendo sentido: es
+   el color de "esto es de varios", y confirmar es cuando tu parte pasa a
+   serlo. */
 .cb-fill {
   position: absolute;
   left: 0; top: 0;
@@ -2574,117 +2573,25 @@ input[type="file"] { display: none; }
   margin-left: calc(var(--cb-x, 50%) - var(--cb-d, 0px) / 2);
   margin-top: calc(var(--cb-y, 50%) - var(--cb-d, 0px) / 2);
   border-radius: 50%;
-  /* Del naranja de la marca (#EA580C, el mismo de los acentos) al ambar de las
-     casillas compartidas (#F59E0B). Los dos colores ya significan algo en la
-     app, y el circulo va literalmente de uno al otro. */
   background: radial-gradient(circle, #EA580C 0%, #F2760A 42%, #F59E0B 100%);
   transform: scale(0);
   pointer-events: none;
   opacity: 0;
 }
-/* LA CURVA. Era una `ease-in-out`: arrancaba despacio, y medio segundo que
-   empieza despacio se siente el doble de largo. Ahora sale disparado y frena
-   al final —el circulo esta casi lleno a mitad de camino—, que es como se
-   mueven las cosas que tienen inercia y por eso se disfruta.
-   Que el circulo llegue antes que el gesto no despista, porque el boton NO se
-   queda quieto en ese ultimo tramo: es justo cuando mas tiembla y mas se
-   aprieta. Lo que dice "ya casi" deja de ser el circulo y pasa a ser la
-   tension del boton. */
-.btn-confirmar.reteniendo .cb-fill {
+.btn-confirmar.confirmado .cb-fill {
   opacity: 1;
-  animation:
-    cb-llenar 750ms cubic-bezier(0.25, 0.5, 0.6, 0.98) forwards,
-    cb-madura 750ms linear forwards;
+  animation: cb-llenar 260ms cubic-bezier(0.22, 0.75, 0.3, 1) forwards;
 }
-/* Y aqui esta el precio de la curva rapida, pagado: con el circulo al 95 %
-   cuando va la mitad del gesto, el ultimo tramo no tendria NADA que ensenar, y
-   alguien soltaria pensando que ya esta. Asi que lo que avanza al final es el
-   color: el ambar entra claro y va madurando hasta el tostado, a ritmo
-   constante y durante los 520 ms enteros. El circulo llega pronto; el color
-   llega justo a tiempo. */
-@keyframes cb-madura {
-  from { filter: brightness(1.16) saturate(0.92); }
-  to   { filter: brightness(0.86) saturate(1.12); }
-}
-/* LA CURVA TIENE QUE LLEGAR AL FINAL, no antes.
-   La anterior —(0.17, 0.62, 0.12, 1)— frenaba tanto al final que el circulo
-   ya estaba lleno a los 625 ms de 750: quedaban 125 ms en los que la pantalla
-   no cambiaba nada y el boton todavia no habia confirmado. Quien soltaba al
-   ver el circulo completo se quedaba sin confirmar, que es un fallo serio
-   porque el gesto parecia roto.
-   Esta llega al 99,5 % a los 715 ms: 35 ms de margen, imperceptibles. Sigue
-   frenando de lo lindo —el ultimo 7 % se lo toma en 190 ms, un cuarto del
-   gesto entero— pero termina cuando termina.
-
-   Y no arranca en cero, arranca en 0,07. Es un detalle pequeno y es el que hace
-   que no haga falta ningun cartel: en el instante en que el dedo toca ya hay
-   un circulo debajo creciendo, asi que "hay que mantener" se entiende sin que
-   nadie lo escriba. Desde cero exacto habria una fraccion de segundo en que la
-   pantalla no responde a nada, y eso se lee como que el boton no va. */
 @keyframes cb-llenar {
-  from { transform: scale(0.07); }
+  from { transform: scale(0.06); }
   to   { transform: scale(1); }
 }
-/* Al soltar antes de tiempo el circulo se va de golpe, no se queda a medias:
-   una barra parada a la mitad se lee como que algo ha fallado. */
-.btn-confirmar.soltado .cb-fill {
-  animation: none;
-  opacity: 0;
-  transform: scale(0);
-  transition: opacity 0.16s ease, transform 0.16s ease;
-}
-/* El texto y la cifra, por encima del relleno. Y con una sombra minima
-   mientras se mantiene: el blanco sobre ambar se lee peor que sobre negro, y
-   son los ultimos 200 ms en los que la cifra todavia importa. */
+/* El texto y la cifra, por encima del relleno. Y con una sombra minima cuando
+   se llena: el blanco sobre ambar se lee peor que sobre negro. */
 .btn-confirmar .cb-txt,
 .btn-confirmar .cb-total { position: relative; z-index: 1; }
-.btn-confirmar.reteniendo .cb-txt { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.42); }
-/* EL BOTON TIEMBLA MIENTRAS SE MANTIENE.
-   Son dos cosas a la vez, y por eso van en propiedades distintas: `translate`
-   lleva el temblor —rapido y constante, 78 ms por ciclo, que es la frecuencia
-   a la que algo parece que vibra en vez de que se mueve— y `scale` lleva el
-   apriete, que va cediendo durante los 520 ms enteros. El temblor dice "esto
-   esta pasando ahora"; el apriete dice "y le queda poco".
-   Que vayan en `translate` y `scale` y no en `transform` no es un capricho:
-   una sola propiedad solo admite una animacion, y la segunda pisaria a la
-   primera. Asi corren las dos, y ademas dejan libre el `transform` que ya
-   usaba `.btn:active`. */
-.btn-confirmar.reteniendo {
-  animation:
-    cb-tiembla 70ms linear infinite,
-    cb-aprieta 750ms cubic-bezier(0.17, 0.62, 0.12, 1) forwards;
-}
-/* El temblor, mas gordo: de 1,1 px a 2,4 px de recorrido y un poco mas rapido.
-   El limite es el texto: pasados unos 3 px, "Confirmar seleccion" deja de
-   leerse y el boton parece roto en vez de tenso. */
-@keyframes cb-tiembla {
-  0%   { translate: 0 0; }
-  20%  { translate: -2.4px 1.1px; }
-  40%  { translate: 2.2px -1.3px; }
-  60%  { translate: -1.8px -1px; }
-  80%  { translate: 2.4px 0.9px; }
-  100% { translate: 0 0; }
-}
-@keyframes cb-aprieta {
-  from { scale: 1; }
-  to   { scale: 0.938; }
-}
-/* Al soltar, el temblor tiene que parar en seco y el boton volver a su sitio;
-   si no, se queda encogido y torcido hasta el siguiente intento. */
-.btn-confirmar.soltado { animation: none; translate: 0 0; scale: 1; }
+.btn-confirmar.confirmado .cb-txt { text-shadow: 0 1px 2px rgba(0, 0, 0, 0.42); }
 
-/* Y AL CONFIRMAR, IGUAL DE EN SECO.
-   El temblor es una animacion infinita a 70 ms por ciclo. Si sigue corriendo
-   mientras se manda la seleccion al servidor y se cambia de pagina, compite
-   por el hilo principal justo en el peor momento: se veia como un tiron seco
-   al completarse el circulo. Aqui se para todo y el boton se queda quieto,
-   lleno y en calma, que ademas es lo que tiene que transmitir. */
-.btn-confirmar.confirmado {
-  animation: none;
-  translate: 0 0;
-  scale: 1;
-  transition: none;
-}
 /* Mientras viaja al servidor. Solo la opacidad del texto, que es un elemento
    pequeno: no cuesta repintado y evita que el boton parezca colgado. */
 .btn-confirmar.enviando .cb-txt {
@@ -2694,16 +2601,12 @@ input[type="file"] { display: none; }
   0%, 100% { opacity: 1; }
   50%      { opacity: 0.55; }
 }
-.btn-confirmar.confirmado .cb-fill {
-  animation: none;
-  opacity: 1;
-  transform: scale(1);
-  filter: brightness(0.86) saturate(1.12);
-}
-/* Quien pide menos movimiento no quiere un boton temblando: se queda el
-   apriete, que es informacion, y se va el temblor, que es adorno. */
+
+/* Quien pide menos movimiento no quiere ni el circulo abriendose ni el texto
+   respirando: se queda el boton lleno de ambar, que es la informacion. */
 @media (prefers-reduced-motion: reduce) {
-  .btn-confirmar.reteniendo { animation: cb-aprieta 520ms linear forwards; }
+  .btn-confirmar.confirmado .cb-fill { animation: none; transform: scale(1); }
+  .btn-confirmar.enviando .cb-txt { animation: none; }
 }
 .cb-total {
   font-family: var(--mono);
