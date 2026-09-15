@@ -75,142 +75,162 @@ for (const pagina of Object.keys(PAGINAS)) {
   check(`${pagina}`, falta.length === 0, falta.length ? `falta: ${falta.join(', ')}` : '');
 }
 
-console.log('\n4. La animación de impresión no puede recortar tickets largos');
+console.log('\n4. El ticket sale POR LA RANURA');
+{
+  const css = fs.readFileSync(path.join(PUB, 'css', 'style.css'), 'utf8');
+  const i18n = fs.readFileSync(path.join(PUB, 'js', 'i18n.js'), 'utf8');
+  const bloque = (sel) => {
+    const i = css.indexOf(sel + ' {');
+    return i === -1 ? '' : css.slice(i, css.indexOf('}', i));
+  };
+
+  // EL FALLO QUE COSTO TRES RONDAS, Y ERA DE ORDEN DE CAPAS.
+  // El papel iba DETRAS de la carcasa, asi que esta lo tapaba hasta su canto de
+  // abajo: el ticket asomaba "de debajo del dibujo" en vez de salir por la
+  // boca. El papel de una impresora de verdad cuelga POR DELANTE de la maquina.
+  const maquina = bloque('.printer-body');
+  const ventana = bloque('.ticket-wrap');
+  const zMaq = +(maquina.match(/z-index:\s*(\d+)/) || [])[1];
+  const zVen = +(ventana.match(/z-index:\s*(\d+)/) || [])[1];
+  check('el papel va por DELANTE de la carcasa', zVen > zMaq,
+    'papel z-index ' + zVen + ', maquina ' + zMaq + ': si la maquina va delante, ' +
+    'el ticket asoma por debajo del dibujo y no por la ranura');
+
+  // Y SE METE DENTRO DE SU SILUETA: si no, sale pegado al canto de abajo.
+  const dentro = ventana.match(/margin:\s*-(\d+)px/);
+  check('el papel arranca dentro de la maquina', !!dentro && +dentro[1] >= 12,
+    dentro ? 'solo ' + dentro[1] + ' px' : 'la ventana no se mete en la maquina');
+
+  // LA RANURA TIENE QUE SER MAS ANCHA QUE LO QUE PASA POR ELLA.
+  //
+  // Es de perogrullo y aun asi estuvo mal dos veces. La primera, boca al 84 % y
+  // ticket al 82 %. La segunda fue peor y mas instructiva: se subio la boca al
+  // 90 %, pero `.pantalla-ancha` sube el ticket al 93 % en otra parte del
+  // fichero — y ahi el papel salia por una ranura mas ESTRECHA que el. Dos
+  // numeros sueltos en dos sitios se descuadran solos.
+  //
+  // Por eso ya no se comparan dos porcentajes: el ancho del papel es UNA
+  // variable y la boca se calcula restandole holgura. Asi no pueden separarse
+  // aunque alguien cambie el ancho en un tercer sitio. Esta prueba vigila esa
+  // derivacion, no unos valores concretos.
+  const boca = bloque('.printer-slot-line');
+  check('el ancho del papel esta en una sola variable',
+    /--papel-ancho:/.test(css) && /width:\s*var\(--papel-ancho\)/.test(ventana),
+    'si el ancho se escribe a mano en varios sitios, se descuadra solo');
+  const holgura = boca.match(/left:\s*calc\(\(100% - var\(--papel-ancho\)\) \/ 2 - (\d+)px\)/);
+  check('la ranura sale de ese ancho, con holgura', !!holgura && +holgura[1] >= 5,
+    holgura ? 'solo ' + holgura[1] + ' px de holgura' :
+      'la boca no se deriva del ancho del papel: puede quedarse mas estrecha que el');
+  // Y toda anulacion del ancho tiene que tocar la VARIABLE, no el ticket.
+  const anulaciones = [...css.matchAll(/\.ticket-wrap\s*\{\s*width:\s*(\d+)%/g)];
+  check('nadie cambia el ancho del ticket por su cuenta', anulaciones.length === 0,
+    'hay una regla que le pone un ancho fijo al ticket sin tocar la variable: ' +
+    'eso es lo que dejo la ranura mas estrecha que el papel');
+
+  // La ranura es el canto de arriba de la ventana: sin recorte no hay ranura.
+  check('la ventana recorta lo que aun no ha salido',
+    /overflow:\s*hidden/.test(ventana));
+
+  // Y tiene que quedar carcasa POR DEBAJO de la boca, o no se ve maquina a los
+  // lados del papel y vuelve a parecer que sale de detras.
+  const abajo = +(maquina.match(/padding:\s*\d+px\s+\d+px\s+(\d+)px/) || [])[1];
+  const altoBoca = +(boca.match(/bottom:\s*(\d+)px/) || [])[1];
+  check('queda carcasa por debajo de la boca', altoBoca >= 20,
+    'solo ' + altoBoca + ' px entre la boca y el canto de abajo');
+  check('el cuerpo tiene sitio para esa carcasa', abajo >= altoBoca);
+}
+
+console.log('\n5. El movimiento no puede costar fotogramas');
 {
   const css = fs.readFileSync(path.join(PUB, 'css', 'style.css'), 'utf8');
   const i18n = fs.readFileSync(path.join(PUB, 'js', 'i18n.js'), 'utf8');
 
-  // EL FALLO QUE COSTÓ NUEVE INTENTOS. `class="ticket printing"` estaba en el
-  // HTML, así que la animación arrancaba en cuanto el navegador leía la página
-  // —con el ticket VACÍO—, y su contenido no llegaba de la API hasta uno o dos
-  // segundos después. Lo que se veía: se imprime la caja vacía, parón, y las
-  // líneas apareciendo de golpe. Se tocó la animación nueve veces sin
-  // arreglarlo, porque la animación nunca fue el problema.
-  for (const pagina of ['claim.html', 'summary.html', 'ticket.html']) {
-    const h = fs.readFileSync(path.join(PUB, pagina), 'utf8');
-    check(pagina + ' no arranca la impresión con el ticket vacío',
-      !/class="ticket printing"/.test(h) && /class="ticket esperando"/.test(h),
-      'con `printing` en el HTML la animación corre antes de que existan los datos');
+  // LA REGLA, Y VIENE DE TRES VERSIONES FALLIDAS DE ESTA MISMA ANIMACION:
+  //   1a — animaba `max-height` y los `padding`: MAQUETACION en cada fotograma.
+  //   2a — `clip-path` con `will-change` sobre un elemento de 2.700 px: capa
+  //        enorme, y el texto aparecia de golpe al terminar de rasterizarla.
+  //   3a — solo `transform`, que no cuesta ni maquetacion ni repintado.
+  for (const nombre of ['papel-corto', 'papel-largo']) {
+    const i = css.indexOf('@keyframes ' + nombre);
+    // Hasta el cierre del BLOQUE ("\n}"), no hasta el primer "}": cada
+    // fotograma acaba en "}", así que cortaba en la primera línea y la
+    // comprobación solo miraba un fotograma de los veintinueve.
+    const cuerpo = i === -1 ? '' : css.slice(i, css.indexOf('\n}', i));
+    check(nombre + ' existe', i !== -1);
+    const props = [...new Set([...cuerpo.matchAll(/(?:^|[\s;{])([a-z-]+)\s*:/g)].map(m => m[1]))];
+    const malas = props.filter(x => x !== 'transform');
+    check(nombre + ' solo anima transform', malas.length === 0,
+      'anima tambien ' + malas.join(', '));
   }
-  check('la arranca el JS cuando ya hay contenido que imprimir',
-    /classList\.contains\('esperando'\)[\s\S]{0,240}classList\.add\('printing'\)/.test(i18n));
-  // Y si eso no llegara a pasar, el ticket no puede quedarse invisible: sería
-  // una pantalla en blanco donde tendría que haber una cuenta.
-  check('si algo falla, el ticket se enseña igualmente',
-    /querySelectorAll\('\.ticket\.esperando, \.ticket\.listo'\)/.test(i18n),
-    'sin la red de seguridad, un fallo de la API deja el ticket invisible para siempre');
 
-  const emerge = css.slice(css.indexOf('@keyframes papel-sale'),
-                           css.indexOf('}\n', css.indexOf('@keyframes papel-sale') + 40));
-
-  // LA REGLA, Y VIENE DE DOS FALLOS SEGUIDOS EN ESTA MISMA ANIMACIÓN:
-  //
-  //   1ª versión — animaba `max-height` y los dos `padding`. Son propiedades
-  //      de MAQUETACIÓN: el navegador recolocaba las 35 líneas de un ticket
-  //      del súper, y la página entera por debajo, en cada fotograma.
-  //   2ª versión — pasó a `clip-path`, que no maqueta, pero con
-  //      `will-change: clip-path` sobre un elemento de 2.773 px. Eso obliga a
-  //      rasterizar una capa enorme y, hasta que termina, se ve el papel sin
-  //      su contenido: salía el ticket y DESPUÉS el texto de golpe.
-  //
-  // De ahí la regla: aquí solo pueden animarse `transform` y `opacity`, que
-  // son las dos únicas que no cuestan ni maquetación ni repintado. Cualquier
-  // otra cosa es un fotograma perdido en un móvil.
-  const permitidas = ['transform', 'opacity'];
-  const propiedades = [...new Set(
-    [...emerge.matchAll(/(?:^|[\s;{])([a-z-]+)\s*:/g)].map(m => m[1]))];
-  const prohibidas = propiedades.filter(x => !permitidas.includes(x));
-  check('la impresión solo anima transform y opacity',
-    prohibidas.length === 0,
-    'anima también ' + prohibidas.join(', ') + '. Layout o repintado en cada ' +
-    'fotograma es exactamente lo que daba tirones las dos veces anteriores');
-
-  // Lo que rompió la 2ª versión, con nombre y apellidos.
-  // El bloque exacto, no el primer `.ticket.printing` que aparezca: hay otras
-  // reglas que empiezan igual y devolvian el cuerpo equivocado.
-  const iImpr = css.indexOf('.ticket.printing,\n.ticket.printing + .ticket-zigzag {');
-  const imprimiendo = iImpr === -1 ? '' : css.slice(iImpr, css.indexOf('}', iImpr));
+  const imprimiendo = css.slice(css.indexOf('.ticket.printing,'),
+                                css.indexOf('}', css.indexOf('.ticket.printing,')));
   check('el ticket NO pide capa propia con will-change',
-    !/will-change/.test(imprimiendo),
-    'en un elemento de miles de píxeles, will-change obliga a rasterizar una ' +
-    'capa enorme y el contenido aparece de golpe cuando termina');
+    !/will-change/.test(imprimiendo));
 
-  // El papel y su contenido son el MISMO elemento moviéndose, y el borde
-  // dentado va en la misma regla: no pueden desincronizarse porque no son
-  // animaciones distintas. Cuando el zigzag tenía la suya, se notaba.
-  check('el borde dentado se mueve con el ticket, no por su cuenta',
-    /\.ticket\.printing,\s*\n\.ticket\.printing \+ \.ticket-zigzag \{/.test(css),
-    'con animaciones separadas van cada uno a su ritmo');
+  // EL RITMO. Catorce empujones con su pausa: si alguien quita los fotogramas
+  // repetidos, el papel vuelve a deslizarse y deja de parecer una impresora.
+  // Hasta el cierre del BLOQUE ("\n}"), no hasta el primer "}": cada fotograma
+  // acaba en "}" y la búsqueda cortaba en la primera línea.
+  const corto = css.slice(css.indexOf('@keyframes papel-corto'),
+                          css.indexOf('\n}', css.indexOf('@keyframes papel-corto')));
+  const valores = [...corto.matchAll(/translateY\(calc\(var\(--papel-h\) \* (-[\d.]+)\)\)/g)].map(m => m[1]);
+  const repetidos = valores.filter((v, i) => i > 0 && v === valores[i - 1]).length;
+  check('el papel avanza a pasos, no de un tiron', repetidos >= 10,
+    'solo ' + repetidos + ' pausas: sin fotogramas repetidos no hay ritmo');
 
-  // Y el JS tiene que escuchar el nombre de la animación que existe AHORA: al
-  // renombrarla se quedó esperando una que ya no estaba, y el ticket solo se
-  // soltaba por el temporizador de seguridad.
-  // Del bloque del ticket, no del primer `animation:` que haya en el fichero.
-  const nombre = (imprimiendo.match(/animation:\s*([\w-]+)\s/) || [])[1];
-  check('el JS espera el final de la animación que existe',
-    !!nombre && new RegExp("animationName === '" + nombre + "'").test(i18n),
-    'la animación se llama ' + nombre + ' y el JS escucha otra cosa');
+  // El recorrido es el alto del propio ticket, y lo mide el JS.
+  check('el JS mide el ticket y se lo pasa al CSS',
+    /setProperty\('--papel-h'/.test(i18n));
+  check('y elige ritmo y duracion segun lo largo que sea',
+    /setProperty\('--papel-anim'/.test(i18n) && /setProperty\('--papel-dur'/.test(i18n));
 
-  // Y el ticket largo tampoco puede quedarse cortado. Antes pasaba: la
-  // animación es `forwards`, así que un tope fijo en píxeles se quedaba puesto
-  // para siempre y el ticket de Mercadona perdía el total y media lista.
-  check('existe el estado .printed que suelta las ataduras', /\.ticket\.printed\b/.test(css));
-  check('.printed quita el max-height', /\.ticket\.printed[^}]*max-height:\s*none/s.test(css));
-  check('.printed devuelve el overflow', /\.ticket\.printed[^}]*overflow:\s*visible/s.test(css));
-  check('.printed quita el recorte', /\.ticket\.printed[^}]*clip-path:\s*none/s.test(css),
-    'sin esto el ticket se queda recortado para siempre, que es el fallo viejo');
-  check('fitTicket sigue existiendo para soltar el ticket',
-    /function fitTicket[\s\S]*classList\.add\('printed'\)/.test(i18n));
-  check('fitTicket tiene red de seguridad por si no salta la animación',
-    /function fitTicket[\s\S]*setTimeout\(liberar/.test(i18n));
-
-  // La espera importa: es el rato que alguien está mirando la pantalla para
-  // saber lo que tiene que pagar.
-  const dur = css.match(/animation: papel-sale (\d+)ms/);
-  check('la impresión no se eterniza', !!dur && +dur[1] <= 900,
-    dur ? 'dura ' + dur[1] + ' ms' : 'no se encuentra la duración');
-  // Y la red de seguridad tiene que ir por detrás de la animación, no por
-  // delante: si salta antes, corta la impresión a medias.
-  const red = i18n.match(/setTimeout\(liberar, (\d+)\)/);
-  check('la red de seguridad salta después de la animación',
-    !!red && !!dur && +red[1] > +dur[1],
-    red && dur ? 'red a los ' + red[1] + ' ms, animación de ' + dur[1] + ' ms' : '');
-
-  // Las tres pantallas que dibujan un ticket tienen que remedir al pintar.
-  for (const [pagina, script] of Object.entries(PAGINAS)) {
-    if (pagina === 'index.html') continue;   // la portada no lleva lista
-    const js = fs.readFileSync(path.join(PUB, 'js', script), 'utf8');
-    check(`${script} remide tras pintar`, /fitTicket\(/.test(js),
-      'sin fitTicket, un ticket largo se queda recortado');
-  }
+  // Un ticket del super tardaria 10,5 s a velocidad constante. Con tope.
+  const tope = i18n.match(/largo \? ([\d.]+) :/);
+  check('ningun ticket se eterniza', !!tope && +tope[1] <= 3,
+    tope ? 'tope de ' + tope[1] + ' s' : 'no hay tope');
 }
 
-// --- Ninguna clase del HTML puede quedarse sin CSS -----------------------
-//
-// Un fallo real: al limpiar reglas viejas se borró `.grupo-banner`, que dos
-// pantallas seguían usando. Sin la regla que le daba tamaño al icono, el SVG
-// salía a su tamaño natural — una flecha morada gigante encima del ticket.
-// El HTML seguía siendo válido y ninguna prueba se enteró.
+console.log('\n6. La impresion arranca cuando hay algo que imprimir');
 {
-  const css = fs.readFileSync(path.join(PUB, 'css', 'style.css'), 'utf8');
-  const huerfanas = [];
+  const i18n = fs.readFileSync(path.join(PUB, 'js', 'i18n.js'), 'utf8');
 
-  for (const f of fs.readdirSync(PUB).filter(x => x.endsWith('.html'))) {
-    const html = fs.readFileSync(path.join(PUB, f), 'utf8');
-    const clases = new Set();
-    for (const m of html.matchAll(/class="([^"]+)"/g)) {
-      m[1].split(/\s+/).forEach(c => c && clases.add(c));
-    }
-    for (const c of clases) {
-      if (c === 'hidden') continue;   // la pone y la quita el JavaScript
-      if (!new RegExp('\\.' + c.replace(/-/g, '\\-') + '(?![\\w-])').test(css)) {
-        huerfanas.push(f + ' → .' + c);
-      }
-    }
+  // `class="ticket printing"` estaba en el HTML, asi que la animacion corria
+  // en cuanto el navegador leia la pagina —con el ticket VACIO— y el contenido
+  // no llegaba de la API hasta uno o dos segundos despues. Se veia: se imprime
+  // la caja vacia, paron, y las lineas apareciendo de golpe.
+  // TODAS las paginas que imprimen un ticket, no una lista escrita a mano:
+  // group, new-group e historial se quedaron atras la primera vez justamente
+  // porque la lista era manual y nadie se acordo de ampliarla.
+  const conTicket = fs.readdirSync(PUB)
+    .filter(f => f.endsWith('.html'))
+    .filter(f => /class="ticket /.test(fs.readFileSync(path.join(PUB, f), 'utf8')));
+  check('hay paginas que imprimen ticket', conTicket.length >= 6,
+    'solo ' + conTicket.length + ': si el filtro deja de encontrarlas esta prueba no prueba nada');
+  for (const pagina of conTicket) {
+    const h = fs.readFileSync(path.join(PUB, pagina), 'utf8');
+    check(pagina + ' no arranca con el ticket vacio',
+      !/class="ticket printing"/.test(h) && /class="ticket esperando"/.test(h));
+    // Y sin i18n.js no hay quien la arranque: el ticket se quedaria invisible.
+    check(pagina + ' carga quien arranca la animacion', /js\/i18n\.js/.test(h));
+    // Una sola ranura, y la nueva. `historial.html` tenia la vieja —mas
+    // estrecha que el propio ticket— y el papel salia por una boca imposible.
+    check(pagina + ' usa la ranura buena',
+      /class="printer-slot-line"/.test(h) && !/class="printer-slot"/.test(h));
   }
-
-  check('ninguna clase del HTML se ha quedado sin CSS',
-    huerfanas.length === 0, huerfanas.join(', '));
+  check('la arranca el JS al pintar el contenido',
+    /classList\.contains\('esperando'\)[\s\S]{0,2200}classList\.add\('printing'\)/.test(i18n));
+  check('espera el final de la animacion que existe',
+    /animationName === 'papel-(corto|largo|sale)'/.test(i18n) ||
+    /animationName\.startsWith\('papel-'\)/.test(i18n),
+    'si escucha un nombre que ya no existe, el ticket solo se suelta por el temporizador');
+  // Si algo falla, el ticket NO puede quedarse invisible: seria una pantalla en
+  // blanco donde tendria que haber una cuenta.
+  check('si algo falla, el ticket se ensena igualmente',
+    /querySelectorAll\('\.ticket\.esperando, \.ticket\.listo'\)/.test(i18n));
+  const red = i18n.match(/setTimeout\(liberar, (\d+)\)/);
+  check('la red de seguridad salta despues de la animacion',
+    !!red && +red[1] > 2300, red ? 'salta a los ' + red[1] + ' ms' : '');
 }
 
 console.log(`\n${pass} ok, ${fail} fallos\n`);

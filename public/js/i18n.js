@@ -1507,6 +1507,12 @@ if (typeof window !== 'undefined' && typeof window.addEventListener === 'functio
   window.addEventListener('load', () => {
     setTimeout(() => {
       document.querySelectorAll('.ticket.esperando, .ticket.listo').forEach(t => {
+        // Sin alto medido el CSS no sabe cuanto mover: se le da su propio alto
+        // para que, si acaso llega a animarse, no salte desde la nada.
+        const v = t.parentElement;
+        if (v && !v.style.getPropertyValue('--papel-h')) {
+          v.style.setProperty('--papel-h', Math.max(1, v.scrollHeight) + 'px');
+        }
         t.classList.remove('esperando', 'listo');
         t.classList.add('printed');
       });
@@ -1541,7 +1547,9 @@ function fitTicket(el) {
     // Red de seguridad: si la animación no llega a emitir el evento —pestaña
     // en segundo plano, movimiento reducido, un navegador raro— el ticket se
     // enseña igual. Nunca puede quedarse invisible.
-    setTimeout(liberar, 1200);
+    // 2,8 s: por detras de la animacion mas larga (2,3 s). Si saltara antes,
+    // cortaria la impresion a media salida.
+    setTimeout(liberar, 2800);
   };
 
   // YA ESTÁ ARRANCANDO: no tocar nada.
@@ -1568,10 +1576,40 @@ function fitTicket(el) {
   // código bloqueando; era el navegador dibujando tarde.
   if (el.classList.contains('esperando')) {
     el.dataset.arrancando = '1';
+
+    /* CUANTO PAPEL HAY QUE SACAR, Y EN CUANTO TIEMPO.
+     *
+     * El papel viaja desde dentro de la maquina hasta su sitio, asi que el
+     * recorrido es su propio alto. Se mide aqui —con el ticket ya pintado y
+     * todavia quieto— y se le pasa al CSS, que lo usa en los fotogramas.
+     *
+     * La velocidad es la misma en todos los tickets: 260 px por segundo. Eso
+     * es lo que hace que el ritmo se sienta igual escanees lo que escanees.
+     * Pero a esa velocidad un ticket del super de 2.700 px tardaria DIEZ
+     * SEGUNDOS Y MEDIO en salir, y eso no lo aguanta nadie despues de haber
+     * esperado ya a la IA. Asi que:
+     *
+     *   - corto (cabe en los 416 px de ritmo): sale entero a pasos, y tarda lo
+     *     que le toque por su alto.
+     *   - largo: los primeros 416 px van al mismo ritmo exacto —que es lo que
+     *     se ve y lo que se siente— y el resto se termina en el ultimo tercio
+     *     del tiempo. Tope de 2,3 s.
+     *
+     * Todos arrancan igual. Ninguno se eterniza. */
+    const ventana = el.parentElement;
+    const alto = Math.max(1, ventana.scrollHeight);
+    const RITMO_PX = 416, VELOCIDAD = 260;
+    const largo = alto > RITMO_PX;
+    ventana.style.setProperty('--papel-h', alto + 'px');
+    ventana.style.setProperty('--papel-anim', largo ? 'papel-largo' : 'papel-corto');
+    ventana.style.setProperty('--papel-dur',
+      (largo ? 2.3 : Math.max(0.6, alto / VELOCIDAD)).toFixed(2) + 's');
+
     el.classList.remove('esperando');
     el.classList.add('listo');
     void el.offsetHeight;
     const arrancar = () => {
+      if (!el.classList.contains('listo')) return;   // ya arranco
       el.dataset.arrancando = '';
       el.classList.remove('listo');
       el.classList.add('printing');
@@ -1579,6 +1617,11 @@ function fitTicket(el) {
     };
     if (typeof requestAnimationFrame === 'function') {
       requestAnimationFrame(() => requestAnimationFrame(arrancar));
+      // Y un plazo por si esos dos fotogramas no llegan nunca. El navegador
+      // congela `requestAnimationFrame` en una pestana que no se ve, y sin
+      // esto el ticket se quedaba invisible hasta la red de 8 s: alguien que
+      // cambia de app mientras carga y vuelve, se encuentra la pantalla vacia.
+      setTimeout(arrancar, 400);
     } else {
       arrancar();
     }

@@ -180,6 +180,11 @@ body {
    ============================================= */
 
 .printer-assembly {
+  /* EL ANCHO DEL PAPEL, EN UN SOLO SITIO. La boca se calcula a partir de el
+     (ver .printer-slot-line), asi que no pueden descuadrarse. Estaban sueltos
+     y en `.pantalla-ancha` el papel se iba al 93 % con la boca en el 90 %: el
+     ticket salia por una ranura mas estrecha que el, que es imposible. */
+  --papel-ancho: 82%;
   position: relative;
   padding: 0 16px;
   margin-bottom: 0;
@@ -189,10 +194,16 @@ body {
 .printer-body {
   position: relative;
   border-radius: 18px 18px 4px 4px;
-  padding: 18px 22px 22px;
-  min-height: 78px;
+  /* 40 px abajo y no 22: hace falta carcasa POR DEBAJO de la boca para que se
+     vea maquina a los lados del papel cuando sale. */
+  padding: 18px 22px 40px;
+  min-height: 96px;
   box-shadow: var(--shadow-printer);
-  z-index: 3;
+  /* DETRAS del papel. Estaba en 3 —delante— y por eso la carcasa tapaba el
+     ticket hasta su canto de abajo: asomaba "de debajo del dibujo" en vez de
+     salir por la boca. El papel de una impresora de verdad cuelga POR DELANTE
+     de la maquina; es un orden de capas, no una geometria. */
+  z-index: 1;
   overflow: hidden;
   display: flex;
   align-items: center;
@@ -311,71 +322,60 @@ body {
 }
 
 /* Dark slit at the bottom of the printer body (the slot the ticket emerges from) */
+/* LA BOCA. Era una linea de 4 px pegada al canto de abajo; ahora es un hueco
+   hundido de 11 px, subido 26 px para que quede carcasa por debajo.
+   Y ANCHA: el 90 % del cuerpo. La de antes media el 84 % y el ticket el 82 %,
+   o sea que el papel era casi tan ancho como la ranura por la que sale. Eso no
+   se sostiene: la ranura tiene que ser mas ancha que lo que pasa por ella. */
 .printer-slot-line {
   position: absolute;
-  left: 8%;
-  right: 8%;
-  bottom: 5px;
-  height: 4px;
-  border-radius: 2px;
-  background: linear-gradient(180deg, #000 0%, #191A1E 100%);
+  /* 9 px de holgura a cada lado del papel. La boca SIEMPRE mas ancha que lo
+     que pasa por ella, se cambie el ancho del ticket donde se cambie. */
+  left: calc((100% - var(--papel-ancho)) / 2 - 9px);
+  right: calc((100% - var(--papel-ancho)) / 2 - 9px);
+  bottom: 26px;
+  height: 11px;
+  border-radius: 3px;
+  background: linear-gradient(180deg, #000 0%, #060608 45%, #111114 100%);
   box-shadow:
-    inset 0 2px 3px rgba(0,0,0,0.85),
-    0 1px 0 rgba(255,255,255,0.05);
-  z-index: 3;
-}
-
-/* Slot: the opening from which paper emerges */
-.printer-slot {
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 78%;
-  height: 14px;
-  background: linear-gradient(180deg, #000 0%, #1A1A1D 100%);
-  border-radius: 4px 4px 0 0;
-  box-shadow:
-    inset 0 3px 6px rgba(0,0,0,0.8),
-    inset 0 -1px 0 rgba(255,255,255,0.04);
+    inset 0 4px 7px rgba(0,0,0,1),
+    inset 0 -1px 0 rgba(255,255,255,0.06),
+    0 1px 0 rgba(255,255,255,0.07);
   z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-}
-.printer-slot::before {
-  content: '';
-  width: 90%;
-  height: 2px;
-  background: #000;
-  border-radius: 2px;
-  box-shadow: 0 1px 2px rgba(0,0,0,0.8);
-}
-
-/* Small paper tongue peeking from slot */
-.printer-slot-tongue {
-  position: absolute;
-  bottom: 3px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60%;
-  height: 2px;
-  background: var(--paper);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.25);
-  z-index: 3;
 }
 
 /* =============================================
    TICKET — emerges from printer slot, with notches + zigzag
    ============================================= */
 
+/* LA VENTANA POR LA QUE SALE EL PAPEL.
+   Su canto de arriba ES la ranura: recorta lo que aun no ha salido, y el papel
+   viaja dentro de ella desde dentro de la maquina hasta su sitio. El ticket
+   sale de la boca por construccion, sin fingirlo con laminas ni con labios.
+   Va DELANTE de la carcasa y se mete 26 px dentro de su silueta, justo hasta
+   el canto de abajo de la boca. */
 .ticket-wrap {
+  /* Sin medir, cero: el papel no se mueve y se ve. Es el fallo menos malo —
+     una animacion que no ocurre, en vez de un ticket invisible. */
+  --papel-h: 0px;
   position: relative;
-  width: 82%;
-  margin: 0 auto;
-  z-index: 2;
+  width: var(--papel-ancho);
+  margin: -26px auto 0;
+  z-index: 5;
+  overflow: hidden;
   filter: drop-shadow(2px 4px 14px rgba(0,0,0,0.08)) drop-shadow(0 2px 4px rgba(0,0,0,0.05));
+}
+/* La sombra que la ranura proyecta sobre el papel que asoma. QUIETA en el canto
+   de arriba: pegada a lo que se movia bajaba con el, y era una raya negra
+   recorriendo la pantalla. */
+.ticket-wrap::before {
+  content: '';
+  position: absolute;
+  z-index: 5;
+  left: 0; right: 0; top: 0;
+  height: 9px;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.3), rgba(0,0,0,0));
+  pointer-events: none;
 }
 
 .ticket {
@@ -528,7 +528,11 @@ body {
      lineal, cada porcentaje de los keyframes ES un porcentaje del tiempo, asi
      que el movimiento se reparte de verdad y se controla aqui abajo. Ademas un
      avance constante es lo que hace un rodillo: la impresora no acelera. */
-  animation: papel-sale 620ms linear forwards;
+  /* `linear` a proposito. El ritmo NO esta en la curva: esta en los
+     fotogramas, que avanzan y se paran catorce veces. Una curva encima se lo
+     comeria. El nombre y la duracion los pone el JS segun lo largo que sea el
+     ticket (ver fitTicket). */
+  animation: var(--papel-anim, papel-corto) var(--papel-dur, 1.5s) linear forwards;
   transform-origin: top center;
 }
 
@@ -562,15 +566,85 @@ body {
    sea una de esas dos: lo demas se paga en fotogramas perdidos.
    El papel arranca escondido detras del cuerpo de la impresora —que va por
    encima, con z-index 3— asi que se lee como que sale por la ranura. */
-@keyframes papel-sale {
-  0%   { opacity: 0;    transform: translateY(-30px); }
-  22%  { opacity: 0.45; transform: translateY(-21px); }
-  48%  { opacity: 0.85; transform: translateY(-12px); }
-  /* A partir de aqui frena: el rodillo suelta el papel y se asienta. */
-  70%  { opacity: 1;    transform: translateY(-4px);
-         animation-timing-function: cubic-bezier(0.25, 0.9, 0.4, 1); }
-  86%  { transform: translateY(2.5px); }
-  100% { opacity: 1;    transform: translateY(0); }
+/* EL AVANCE A PASOS.
+   Catorce empujones con una pausa entre ellos. No es un deslizamiento: un
+   rodillo alimenta a tirones, y ese pulso es lo que hace que parezca una
+   impresora y no un elemento que se desplaza.
+   Las POSICIONES salen de una curva suave, asi que los saltos son pequenos al
+   principio y al final y grandes en medio: arranca, coge ritmo y frena. El
+   TIEMPO va lineal.
+   Las pausas duran 18 ms a proposito —menos que un fotograma—: en una pantalla
+   lenta desaparecen y queda suave, en vez de leerse como un tiron. */
+@keyframes papel-corto {
+  0.00% { transform: translateY(calc(var(--papel-h) * -1.0000)); }
+  6.29% { transform: translateY(calc(var(--papel-h) * -0.9854)); }
+  7.14% { transform: translateY(calc(var(--papel-h) * -0.9854)); }
+  13.43% { transform: translateY(calc(var(--papel-h) * -0.9446)); }
+  14.29% { transform: translateY(calc(var(--papel-h) * -0.9446)); }
+  20.57% { transform: translateY(calc(var(--papel-h) * -0.8819)); }
+  21.43% { transform: translateY(calc(var(--papel-h) * -0.8819)); }
+  27.71% { transform: translateY(calc(var(--papel-h) * -0.8017)); }
+  28.57% { transform: translateY(calc(var(--papel-h) * -0.8017)); }
+  34.86% { transform: translateY(calc(var(--papel-h) * -0.7085)); }
+  35.71% { transform: translateY(calc(var(--papel-h) * -0.7085)); }
+  42.00% { transform: translateY(calc(var(--papel-h) * -0.6064)); }
+  42.86% { transform: translateY(calc(var(--papel-h) * -0.6064)); }
+  49.14% { transform: translateY(calc(var(--papel-h) * -0.5000)); }
+  50.00% { transform: translateY(calc(var(--papel-h) * -0.5000)); }
+  56.29% { transform: translateY(calc(var(--papel-h) * -0.3936)); }
+  57.14% { transform: translateY(calc(var(--papel-h) * -0.3936)); }
+  63.43% { transform: translateY(calc(var(--papel-h) * -0.2915)); }
+  64.29% { transform: translateY(calc(var(--papel-h) * -0.2915)); }
+  70.57% { transform: translateY(calc(var(--papel-h) * -0.1983)); }
+  71.43% { transform: translateY(calc(var(--papel-h) * -0.1983)); }
+  77.71% { transform: translateY(calc(var(--papel-h) * -0.1181)); }
+  78.57% { transform: translateY(calc(var(--papel-h) * -0.1181)); }
+  84.86% { transform: translateY(calc(var(--papel-h) * -0.0554)); }
+  85.71% { transform: translateY(calc(var(--papel-h) * -0.0554)); }
+  92.00% { transform: translateY(calc(var(--papel-h) * -0.0146)); }
+  92.86% { transform: translateY(calc(var(--papel-h) * -0.0146)); }
+  99.14% { transform: translateY(calc(var(--papel-h) * -0.0000)); }
+  100% { transform: translateY(0); }
+}
+
+/* El mismo ritmo, para tickets que no caben en la pantalla.
+   A velocidad constante, un ticket del super de 2.700 px tardaria diez segundos
+   y medio en salir. Asi que el ritmo se mantiene IDENTICO durante los primeros
+   416 px —que es lo que se ve y lo que se siente— y lo que sobra se termina en
+   el ultimo 30 % del tiempo con una curva rapida.
+   Todos los tickets arrancan exactamente igual; ninguno pasa de 2,3 s. */
+@keyframes papel-largo {
+  0.00% { transform: translateY(calc(416px * 0.0000 - var(--papel-h))); }
+  4.40% { transform: translateY(calc(416px * 0.0146 - var(--papel-h))); }
+  5.00% { transform: translateY(calc(416px * 0.0146 - var(--papel-h))); }
+  9.40% { transform: translateY(calc(416px * 0.0554 - var(--papel-h))); }
+  10.00% { transform: translateY(calc(416px * 0.0554 - var(--papel-h))); }
+  14.40% { transform: translateY(calc(416px * 0.1181 - var(--papel-h))); }
+  15.00% { transform: translateY(calc(416px * 0.1181 - var(--papel-h))); }
+  19.40% { transform: translateY(calc(416px * 0.1983 - var(--papel-h))); }
+  20.00% { transform: translateY(calc(416px * 0.1983 - var(--papel-h))); }
+  24.40% { transform: translateY(calc(416px * 0.2915 - var(--papel-h))); }
+  25.00% { transform: translateY(calc(416px * 0.2915 - var(--papel-h))); }
+  29.40% { transform: translateY(calc(416px * 0.3936 - var(--papel-h))); }
+  30.00% { transform: translateY(calc(416px * 0.3936 - var(--papel-h))); }
+  34.40% { transform: translateY(calc(416px * 0.5000 - var(--papel-h))); }
+  35.00% { transform: translateY(calc(416px * 0.5000 - var(--papel-h))); }
+  39.40% { transform: translateY(calc(416px * 0.6064 - var(--papel-h))); }
+  40.00% { transform: translateY(calc(416px * 0.6064 - var(--papel-h))); }
+  44.40% { transform: translateY(calc(416px * 0.7085 - var(--papel-h))); }
+  45.00% { transform: translateY(calc(416px * 0.7085 - var(--papel-h))); }
+  49.40% { transform: translateY(calc(416px * 0.8017 - var(--papel-h))); }
+  50.00% { transform: translateY(calc(416px * 0.8017 - var(--papel-h))); }
+  54.40% { transform: translateY(calc(416px * 0.8819 - var(--papel-h))); }
+  55.00% { transform: translateY(calc(416px * 0.8819 - var(--papel-h))); }
+  59.40% { transform: translateY(calc(416px * 0.9446 - var(--papel-h))); }
+  60.00% { transform: translateY(calc(416px * 0.9446 - var(--papel-h))); }
+  64.40% { transform: translateY(calc(416px * 0.9854 - var(--papel-h))); }
+  65.00% { transform: translateY(calc(416px * 0.9854 - var(--papel-h))); }
+  69.40% { transform: translateY(calc(416px * 1.0000 - var(--papel-h))); }
+  82% { transform: translateY(calc((var(--papel-h) - 416px) * -0.2500)); }
+  91% { transform: translateY(calc((var(--papel-h) - 416px) * -0.0600)); }
+  100% { transform: translateY(calc((var(--papel-h) - 416px) * -0.0000)); }
 }
 
 /* zigzagFollow ya no existe: el borde dentado se anima con los MISMOS
@@ -3637,7 +3711,9 @@ body.en-grupo .upload-area { padding-top: 6px; }
 .pantalla-ancha .printer-assembly { padding: 0 14px; }
 /* Sigue siendo mas estrecho que la impresora: si no, el papel pareceria salir
    de ningun sitio y se perderia la ilusion. */
-.pantalla-ancha .ticket-wrap { width: 93%; }
+/* En pantalla ancha el papel crece, y la boca crece con el sola: sale de la
+   misma variable. */
+.pantalla-ancha .printer-assembly { --papel-ancho: 93%; }
 .pantalla-ancha .ticket { padding: 22px 24px; }
 
 /* --- Cabecera --- */

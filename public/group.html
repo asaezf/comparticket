@@ -65,7 +65,10 @@
       </div>
 
       <div class="ticket-wrap">
-        <div class="ticket printing" id="ticket">
+        <!-- `esperando`, NO `printing`: la animacion no puede arrancar aqui, que
+             es cuando el navegador lee la pagina y el ticket esta vacio. La
+             arranca el JS al pintar el contenido (ver fitTicket). -->
+        <div class="ticket esperando" id="ticket">
 
           <div class="ticket-header">
             <div class="ticket-store" id="groupName">···</div>
